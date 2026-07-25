@@ -234,11 +234,24 @@ try {
   const tail = renderPeak(mixer, 25);
   check('the effects bus rings on after the source stops', tail > 0.02, `peak ${tail.toFixed(4)}`);
 
+  // Closing the sends has to let the tail ring out rather than freezing it:
+  // stop running the bus and the delay line stops advancing, so the repeats
+  // hang there and come back the moment a send is reopened.
+  B.play();
+  renderPeak(mixer, 40);
+  B.applySettings({ fxSend: 0 });
+  B.pause();
+  renderPeak(mixer, 30);
+  const ringing = renderPeak(mixer, 15);
+  renderPeak(mixer, 120);
+  const decayed = renderPeak(mixer, 15);
+  check('closing the sends lets the tail decay', ringing > 0.005, `peak ${ringing.toFixed(4)}`);
+  check('the tail does decay to nothing', decayed < ringing * 0.5, `${decayed.toFixed(4)} vs ${ringing.toFixed(4)}`);
+
   mixer.applyMixer({ fx: { mix: 0 } });
   renderPeak(mixer, 30);
   const closed = renderPeak(mixer, 20);
   check('a closed return silences the bus', closed < 0.005, `peak ${closed.toFixed(4)}`);
-  B.applySettings({ fxSend: 0 });
 
   // --- limiter -------------------------------------------------------------
   A.seekMs(0);

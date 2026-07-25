@@ -205,12 +205,15 @@ export async function remove(user: SessionUser, id: string): Promise<void> {
   if (id === DEFAULT_BOT_ID) throw new BotError('The default bot cannot be removed.');
   const index = store.db.bots.findIndex((entry) => entry.id === id);
   if (index < 0) throw new BotError('That bot is not on the list.');
-  const [entry] = store.db.bots.splice(index, 1);
 
-  // Removing the bot that is on air falls back to the default rather than
-  // leaving the rig pointed at something that no longer exists.
+  // Asked before the entry is spliced out. `activeId` falls back to the default
+  // for any id it cannot find in the list, so asking afterwards always answers
+  // "it was not active" — and the bot being removed would carry on playing on
+  // the very token that was just revoked.
   const wasActive = activeId() === id;
-  store.db.activeBotId = wasActive ? null : store.db.activeBotId;
+
+  const [entry] = store.db.bots.splice(index, 1);
+  if (wasActive) store.db.activeBotId = null;
   store.save();
   lastErrors.delete(id);
   log.info(`${user.displayName} removed playback bot "${entry.name}"`);
@@ -256,16 +259,28 @@ async function doActivate(user: SessionUser, id: string): Promise<void> {
     }
   }
 
-  if (activeId() === credentials.id && bot.isReady) return;
+  // Compared against the bot actually connected, not the stored preference.
+  // Removing the bot that is on air writes the preference back to the default
+  // *before* asking for the swap, and a check against the store would then see
+  // nothing to do and leave the rig playing through the token just revoked.
+  if (bot.identity?.id === credentials.id && bot.isReady) {
+    // The preference can still be out of step with reality — say so, and write
+    // it back rather than leaving the two disagreeing.
+    store.db.activeBotId = credentials.id === DEFAULT_BOT_ID ? null : credentials.id;
+    store.save();
+    return;
+  }
 
   // The engine and the command registrar are pulled in here rather than at the
   // top of the file: the engine reports which bot is on air, so importing it
   // statically would make a cycle out of what is really a one-way call.
   const { engine } = await import('../engine');
-  const { registerCommands } = await import('./commands');
+  const { clearCommands, registerCommands } = await import('./commands');
 
-  // Remembered before the teardown so the new bot can pick the set back up.
+  // Both remembered before the teardown: the channel so the new bot can pick
+  // the set back up, and the outgoing identity so its /dj can be taken down.
   const resumeChannelId = engine.voice.snapshot().channelId;
+  const outgoing = bot.identity;
 
   status = 'connecting';
   statusError = null;
@@ -301,8 +316,12 @@ async function doActivate(user: SessionUser, id: string): Promise<void> {
   statusError = null;
   log.info(`${user.displayName} switched playback to "${credentials.name}"`);
 
-  // Slash commands belong to an application, so they have to be registered
-  // again against the one now on air.
+  // Slash commands belong to an application, so they move with the swap: off
+  // the one leaving, on to the one arriving. Skipped when both bots share an
+  // application, which would take the command straight back off again.
+  if (outgoing && outgoing.applicationId !== credentials.applicationId) {
+    await clearCommands(outgoing);
+  }
   await registerCommands();
 
   if (resumeChannelId) {

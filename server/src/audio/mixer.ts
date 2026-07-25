@@ -90,6 +90,7 @@ export class Mixer extends EventEmitter {
   private clipHold = 0;
 
   private tail = 0;
+  private fxTail = 0;
   private freewheel: NodeJS.Timeout | null = null;
   private stream: MixerStream | null = null;
   private pullDriven = false;
@@ -225,7 +226,13 @@ export class Mixer extends EventEmitter {
     // with it — the way a send works on the hardware this is imitating.
     const sendA = this.decks.A.fxSend;
     const sendB = this.decks.B.fxSend;
-    const fxActive = this.fx.active && (sendA > 0.0005 || sendB > 0.0005);
+    const feeding = sendA > 0.0005 || sendB > 0.0005;
+    // Closing the sends must let the effect ring out, not freeze it mid-tail:
+    // stop running the bus and the delay line simply stops advancing, so the
+    // repeats hang there and reappear the moment a send is opened again.
+    if (feeding) this.fxTail = FX_TAIL_FRAMES;
+    else if (this.fxTail > 0) this.fxTail--;
+    const fxActive = this.fx.active && (feeding || this.fxTail > 0);
     if (fxActive) {
       for (let i = 0; i < n; i++) {
         this.fxL[i] = this.aL[i] * sendA + this.bL[i] * sendB;

@@ -422,6 +422,7 @@ function Row({
       <span className={`route-name strip-${deck.id.toLowerCase()}`}>{deck.id}</span>
       <Knob
         label=""
+        name={`Deck ${deck.id} FX send`}
         value={deck.fxSend}
         min={0}
         max={1}
@@ -433,6 +434,7 @@ function Row({
       />
       <Knob
         label=""
+        name={`Deck ${deck.id} pan`}
         value={deck.pan}
         min={-1}
         max={1}

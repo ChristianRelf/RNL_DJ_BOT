@@ -227,7 +227,14 @@ function useValueGesture({
 /* -------------------------------------------------------------------- knob */
 
 interface KnobProps {
+  /** Caption printed under the knob. Empty when a column header names it. */
   label: string;
+  /**
+   * Accessible name, for knobs whose caption lives elsewhere — a row or column
+   * header in a grid of them. Without it those knobs reach a screen reader as
+   * an unnamed slider.
+   */
+  name?: string;
   value: number;
   min: number;
   max: number;
@@ -244,6 +251,7 @@ interface KnobProps {
 
 export function Knob({
   label,
+  name,
   value,
   min,
   max,
@@ -256,6 +264,7 @@ export function Knob({
   onKill,
   onChange,
 }: KnobProps) {
+  const title = name ?? label;
   const { live, display, ref, handlers, keys, reset } = useValueGesture({
     value,
     min,
@@ -293,12 +302,12 @@ export function Knob({
         className="knob-dial"
         role="slider"
         tabIndex={disabled ? -1 : 0}
-        aria-label={label}
+        aria-label={title}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={Number(display.toFixed(2))}
         aria-valuetext={format(display)}
-        title={`${label}  ·  ${GESTURE_HINT}`}
+        title={title ? `${title}  ·  ${GESTURE_HINT}` : GESTURE_HINT}
         onDoubleClick={reset}
         onKeyDown={keys}
         {...handlers}
@@ -327,7 +336,7 @@ export function Knob({
           className="knob-label knob-kill"
           disabled={disabled}
           aria-pressed={killed}
-          title={killed ? `Restore ${label}` : `Kill ${label}`}
+          title={killed ? `Restore ${title}` : `Kill ${title}`}
           onClick={onKill}
         >
           {label}

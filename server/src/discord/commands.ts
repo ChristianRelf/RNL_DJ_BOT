@@ -57,6 +57,30 @@ export async function registerCommands(): Promise<void> {
   }
 }
 
+/**
+ * Takes /dj off an application that is no longer on air.
+ *
+ * Commands are registered per application, so without this a swap leaves the
+ * previous bot's copy in place and the server ends up offering two identical
+ * /dj commands — one of which drives nothing.
+ */
+export async function clearCommands(identity: {
+  name: string;
+  token: string;
+  applicationId: string;
+}): Promise<void> {
+  const rest = new REST({ version: '10' }).setToken(identity.token);
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(identity.applicationId, config.discord.guildId),
+      { body: [] },
+    );
+    log.info(`removed /dj from ${identity.name}`);
+  } catch (err) {
+    log.warn(`could not remove /dj from ${identity.name}:`, (err as Error).message);
+  }
+}
+
 function toSessionUser(member: GuildMember, access: { isAdmin: boolean; isOwner: boolean }): SessionUser {
   return {
     id: member.id,

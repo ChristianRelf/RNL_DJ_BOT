@@ -166,6 +166,7 @@ export function FxRack({ decks, mixer, locked, send, throttled }: Props) {
             <span className="fx-send-label">{id}</span>
             <Knob
               label=""
+              name={`Deck ${id} FX send`}
               value={decks[id].fxSend}
               min={0}
               max={1}

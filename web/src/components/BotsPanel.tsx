@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bot, Check, Plus, RefreshCw, Trash2, TriangleAlert } from 'lucide-react';
 import type { ActiveBot, BotSummary, SessionUser } from '../protocol';
 
@@ -47,10 +47,15 @@ export function BotsPanel({ user, live, voiceLive }: Props) {
   useEffect(load, [load]);
 
   // The rig state names the bot on air, so a swap made from another tab shows
-  // up here without polling for it.
+  // up here without polling for it. Keyed on the id changing rather than on the
+  // list disagreeing: if the two ever failed to converge, the latter would
+  // refetch on every render for as long as the disagreement lasted.
+  const shown = useRef(live.id);
   useEffect(() => {
-    if (bots && !bots.some((entry) => entry.active && entry.id === live.id)) load();
-  }, [bots, live.id, load]);
+    if (shown.current === live.id) return;
+    shown.current = live.id;
+    load();
+  }, [live.id, load]);
 
   if (!user.isOwner) return null;
 
