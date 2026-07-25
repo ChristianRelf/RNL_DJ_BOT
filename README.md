@@ -113,8 +113,29 @@ Two things worth checking if something misbehaves:
   `flush_interval -1` in the config is what stops state and meter frames being
   buffered.
 
-If you run Caddy in a container instead of on the host, put both on a shared
-Docker network and proxy to `dj:7403` rather than `127.0.0.1:7403`.
+### If Caddy runs in a container
+
+A containerised Caddy cannot reach `127.0.0.1:7403` — inside the container that
+address is Caddy itself, not the host. Two things change:
+
+1. Join both containers to a shared network and start with the overlay:
+
+   ```bash
+   docker network create caddy            # if it does not exist yet
+   docker network connect caddy <caddy-container>
+   docker compose -f docker-compose.yml -f deploy/compose.caddy-network.yml up -d --build
+   ```
+
+2. Proxy to the container name instead of loopback:
+
+   ```caddyfile
+   reverse_proxy rnl-dj-bot:7403
+   ```
+
+Also note that the authoritative Caddyfile is then whichever file that project
+bind-mounts into the container — editing `/etc/caddy/Caddyfile` on the host has
+no effect, and the reload is `docker exec <caddy-container> caddy reload --config
+/etc/caddy/Caddyfile` (or a restart of that container).
 
 ## Configuration
 

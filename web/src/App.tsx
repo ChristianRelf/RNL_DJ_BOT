@@ -97,7 +97,10 @@ export default function App() {
   }, [dj.status, state]);
 
   if (signedIn === false || dj.status === 'unauthorised') {
-    return <Login error={dj.status === 'unauthorised' ? dj.error : loginError} />;
+    // The callback's ?error= says *why* sign-in was refused (wrong role, state
+    // mismatch, ...). The socket only ever reports the generic "Not signed in",
+    // so the specific reason must win or the useful message is lost.
+    return <Login error={loginError ?? dj.error} />;
   }
 
   if (!state || !me) {

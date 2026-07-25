@@ -1,0 +1,39 @@
+# Overlay for when Caddy runs in its own container (from another compose
+# project) rather than on the host.
+#
+# A containerised Caddy cannot reach 127.0.0.1:7403 on the host — that address
+# resolves to Caddy's own container. Instead both containers join a shared
+# docker network and Caddy proxies to the container name.
+#
+# Find the network Caddy is already on — no need to create a new one:
+#
+#   docker inspect ro-nationlive-caddy-1 \
+#     --format '{{range $net, $c := .NetworkSettings.Networks}}{{$net}}{{"\n"}}{{end}}'
+#
+# Set CADDY_NETWORK below if it is not ro-nationlive_default, then start this
+# stack with both files:
+#
+#   docker compose -f docker-compose.yml -f deploy/compose.caddy-network.yml up -d --build
+#
+# and point the site block at the container instead of loopback:
+#
+#   reverse_proxy rnl-dj-bot:7403
+#
+# The loopback port binding from docker-compose.yml is kept, which costs
+# nothing and lets you curl the app directly on the host while debugging:
+#
+#   curl -I http://127.0.0.1:7403/api/health
+
+services:
+  dj:
+    networks:
+      - default
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    # "edge" is the shared proxy network the Caddy container is attached to
+    # alongside its own project network. Override without editing this file:
+    #   CADDY_NETWORK=some_other_network docker compose -f ... up -d
+    name: ${CADDY_NETWORK:-edge}

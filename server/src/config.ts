@@ -77,6 +77,24 @@ if (config.http.sessionSecret.length < 32) {
   throw new Error('SESSION_SECRET must be at least 32 characters long.');
 }
 
+// A scheme-less PUBLIC_URL still boots but breaks OAuth (Discord rejects a
+// relative redirect URI) and silently drops the Secure flag from cookies, so
+// reject it here rather than at first login.
+{
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(config.http.publicUrl);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
+    throw new Error(
+      `PUBLIC_URL must be an absolute URL including the scheme, for example ` +
+        `https://deck.ronation.live (got "${config.http.publicUrl}").`,
+    );
+  }
+}
+
 export function ensureDirs(): void {
   for (const dir of [
     config.paths.dataDir,

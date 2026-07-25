@@ -18,6 +18,10 @@ deck.ronation.live {
 		max_size 200MB
 	}
 
+	# Caddy on the HOST reaches the app over loopback. If Caddy runs in its own
+	# container, 127.0.0.1 is that container — use the shared-network setup in
+	# deploy/compose.caddy-network.yml and change this line to:
+	#   reverse_proxy rnl-dj-bot:7403 {
 	reverse_proxy 127.0.0.1:7403 {
 		# Socket.IO's websocket upgrade is handled automatically. Disabling
 		# response buffering keeps state and meter frames flowing in realtime
@@ -30,9 +34,14 @@ deck.ronation.live {
 			write_timeout 10m
 		}
 	}
-
-	log {
-		output file /var/log/caddy/deck.ronation.live.log
-		format json
-	}
 }
+
+# Access logs go to the journal by default: journalctl -u caddy -f
+# To log this site to its own file, make sure the directory exists and is
+# writable by the caddy user first, otherwise the whole config fails to load:
+#   mkdir -p /var/log/caddy && chown caddy:caddy /var/log/caddy
+# then add inside the site block:
+#   log {
+#   	output file /var/log/caddy/deck.ronation.live.log
+#   	format json
+#   }
