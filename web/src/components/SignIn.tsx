@@ -5,8 +5,8 @@ interface SignInProps {
   /** Reason the last attempt was refused, if there was one. */
   error?: string | null;
   /**
-   * Set on the standalone /login route, where someone may arrive already
-   * signed in and should be sent to the console. App renders this component
+   * Set on the front-door routes, where someone may arrive already signed in
+   * and should be sent through to the console. App renders this component
    * directly once it already knows there is no session, and skips the check.
    */
   checkSession?: boolean;
@@ -34,7 +34,7 @@ export function SignIn({ error, checkSession }: SignInProps) {
     fetch('/api/me', { credentials: 'include' })
       .then((res) => {
         if (cancelled) return;
-        if (res.ok) window.location.replace('/');
+        if (res.ok) window.location.replace('/deck');
         else setChecking(false);
       })
       .catch(() => {

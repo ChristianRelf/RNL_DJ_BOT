@@ -10,11 +10,13 @@ import { CrewPanel } from './components/CrewPanel';
 import { Toasts } from './components/Toasts';
 import { Colophon } from './components/Colophon';
 import { SignIn } from './components/SignIn';
+import { ToolsPage } from './components/ToolsPage';
 import type { SessionUser } from './protocol';
 
 const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
 
-export default function App() {
+/** Both views share the socket and the session gate, so they share a component. */
+export default function App({ view = 'console' }: { view?: 'console' | 'tools' }) {
   const dj = useDj();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const throttled = useThrottledSend(dj.send);
@@ -130,6 +132,9 @@ export default function App() {
         </div>
       ) : null}
 
+      {view === 'tools' ? (
+        <ToolsPage state={state} locked={locked} send={dj.send} />
+      ) : (
       <main className="console">
         <MediaPool media={dj.media} user={me} locked={locked} send={dj.send} />
 
@@ -167,20 +172,25 @@ export default function App() {
 
         <Pads pads={state.pads} locked={locked} send={dj.send} throttled={throttled} />
       </main>
+      )}
 
       <footer className="shortcuts">
-        <span>
-          <kbd>Q</kbd> <kbd>P</kbd> play deck A/B
-        </span>
-        <span>
-          <kbd>1</kbd>-<kbd>8</kbd> pads
-        </span>
-        <span>
-          <kbd>[</kbd> <kbd>]</kbd> crossfade
-        </span>
-        <span>right-click a control to reset it</span>
-        <span>shift-drag or right-drag for fine control</span>
-        <span>scroll over a knob or fader to trim it</span>
+        {view === 'console' ? (
+          <>
+            <span>
+              <kbd>Q</kbd> <kbd>P</kbd> play deck A/B
+            </span>
+            <span>
+              <kbd>1</kbd>-<kbd>8</kbd> pads
+            </span>
+            <span>
+              <kbd>[</kbd> <kbd>]</kbd> crossfade
+            </span>
+            <span>right-click a control to reset it</span>
+            <span>shift-drag or right-drag for fine control</span>
+            <span>scroll over a knob or fader to trim it</span>
+          </>
+        ) : null}
         <Colophon />
       </footer>
 

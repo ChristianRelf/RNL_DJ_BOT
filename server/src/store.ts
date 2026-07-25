@@ -3,7 +3,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { config } from './config';
 import { createLogger } from './logger';
-import type { MediaItem, MixerState, PadMode } from './protocol';
+import type { MediaItem, MixerState, PadMode, ToolsState } from './protocol';
 
 const log = createLogger('store');
 
@@ -17,6 +17,7 @@ export interface PersistedDb {
   version: 1;
   media: Record<string, MediaItem>;
   mixer: MixerState;
+  tools: ToolsState;
   pads: PersistedPad[];
   lastVoiceChannelId: string | null;
 }
@@ -28,11 +29,22 @@ const DEFAULT_MIXER: MixerState = {
   padDuck: 0.25,
 };
 
+/** Every tool starts off: each one opens a port or reaches out to the network. */
+const DEFAULT_TOOLS: ToolsState = {
+  timecode: false,
+  timecodeKey: '',
+  urlImport: false,
+  osc: false,
+  oscHost: '127.0.0.1',
+  oscPort: 9000,
+};
+
 function defaults(): PersistedDb {
   return {
     version: 1,
     media: {},
     mixer: { ...DEFAULT_MIXER },
+    tools: { ...DEFAULT_TOOLS },
     pads: Array.from({ length: 8 }, () => ({ mediaId: null, gain: 0.9, mode: 'oneshot' as PadMode })),
     lastVoiceChannelId: null,
   };
@@ -54,6 +66,9 @@ class Store {
       const parsed = JSON.parse(raw) as PersistedDb;
       this.data = { ...defaults(), ...parsed };
       this.data.mixer = { ...DEFAULT_MIXER, ...(parsed.mixer ?? {}) };
+      // Merged over the defaults so a database written before a tool existed
+      // gains it switched off rather than undefined.
+      this.data.tools = { ...DEFAULT_TOOLS, ...(parsed.tools ?? {}) };
       if (!Array.isArray(this.data.pads) || this.data.pads.length !== 8) {
         this.data.pads = defaults().pads;
       }

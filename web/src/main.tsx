@@ -12,18 +12,20 @@ const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element');
 
 /**
- * The standalone pages branch here rather than inside App so they never open a
- * socket or wait on a session — they have to work before you sign in, and
- * /home has to stay linkable after you have. The server's SPA fallback already
- * serves index.html for these paths.
+ * The public pages branch here rather than inside App so they never open a
+ * socket or wait on a session — they have to work before you sign in. The
+ * server's SPA fallback already serves index.html for these paths.
  *
- * `/` itself is App, which shows the console to a signed-in operator and the
- * home page to everyone else.
+ * The console lives under /deck; everything above it is the front of house.
  */
 const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
 
 function page() {
   switch (path) {
+    case '/deck':
+      return <App view="console" />;
+    case '/deck/tools':
+      return <App view="tools" />;
     case '/terms':
       return <Legal page="terms" />;
     case '/privacy':
@@ -36,10 +38,9 @@ function page() {
       return <Setup />;
     case '/guide':
       return <Guide />;
-    case '/login':
-      return <SignIn checkSession />;
+    // `/` and /login are both the front door; a live session goes on to /deck.
     default:
-      return <App />;
+      return <SignIn checkSession />;
   }
 }
 

@@ -64,6 +64,17 @@ export const commandSchemas = {
       padDuck: finite.min(0).max(1).optional(),
     })
     .strict(),
+  'tools:set': z
+    .object({
+      timecode: z.boolean().optional(),
+      urlImport: z.boolean().optional(),
+      osc: z.boolean().optional(),
+      // Where OSC frames go. Kept to a hostname or literal address; the sender
+      // resolves it and refuses anything that is not a plain unicast target.
+      oscHost: z.string().trim().min(1).max(190).optional(),
+      oscPort: z.number().int().min(1).max(65535).optional(),
+    })
+    .strict(),
   'voice:join': z.object({ channelId: z.string().min(1).max(32) }).strict(),
   'voice:leave': z.object({}).strict(),
   'media:update': z
@@ -107,6 +118,9 @@ export const NEEDS_CONTROL = new Set<CommandKey>([
   'pad:stop',
   'pad:set',
   'mixer:set',
+  // Tools change how the rig behaves for everyone, so they belong to whoever
+  // is driving it rather than to any signed-in tab.
+  'tools:set',
   'voice:join',
   'voice:leave',
 ]);

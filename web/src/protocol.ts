@@ -103,6 +103,28 @@ export interface MixerState {
   padDuck: number;
 }
 
+/**
+ * Optional extras, switched on per rig from /deck/tools. They are off by
+ * default: each one either opens a network surface or reaches out to the
+ * internet, so turning it on should be a decision somebody made.
+ */
+export interface ToolsState {
+  /** Publishes deck positions over HTTP for lighting, overlays and video. */
+  timecode: boolean;
+  /**
+   * Key the timecode endpoint requires. External consumers cannot hold a
+   * Discord session, so the URL itself is the credential — it is rotated every
+   * time the tool is switched on.
+   */
+  timecodeKey: string;
+  /** Lets operators pull a direct audio URL into the media pool. */
+  urlImport: boolean;
+  /** Streams deck and mixer state to an OSC listener over UDP. */
+  osc: boolean;
+  oscHost: string;
+  oscPort: number;
+}
+
 export type VoiceStatus = 'disconnected' | 'connecting' | 'ready' | 'error';
 
 export interface VoiceState {
@@ -147,6 +169,7 @@ export interface EngineState {
   decks: Record<DeckId, DeckState>;
   pads: PadState[];
   mixer: MixerState;
+  tools: ToolsState;
   voice: VoiceState;
   control: ControlState;
   users: PresenceUser[];
@@ -194,6 +217,8 @@ export interface ClientCommands {
   'pad:stop': { index: number };
   'pad:set': { index: number; gain?: number; mode?: PadMode };
   'mixer:set': Partial<MixerState>;
+  /** The key is rotated server-side, never set from a client. */
+  'tools:set': Partial<Omit<ToolsState, 'timecodeKey'>>;
   'voice:join': { channelId: string };
   'voice:leave': Record<string, never>;
   'media:update': { id: string; title?: string; bpm?: number | null; tags?: string[] };

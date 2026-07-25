@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpFromLine,
   ChevronsLeft,
@@ -30,6 +30,76 @@ interface DeckPanelProps {
 const OUTRO_MS = 30_000;
 /** Beat-jump distances, and the seconds they stand in for on an untagged track. */
 const JUMPS = [-4, -1, 1, 4] as const;
+/** A gap longer than this starts a new count-in rather than reading as a very slow tempo. */
+const TAP_RESET_MS = 2_000;
+/** Taps needed before the average is worth trusting. */
+const TAP_MINIMUM = 4;
+
+/**
+ * Tap along to set a track's tempo.
+ *
+ * Sync, beat loops and beat jumps all need a BPM, and detection does not always
+ * find one — this is how you give a track its tempo by hand rather than leaving
+ * a third of the deck greyed out.
+ */
+function TapTempo({
+  mediaId,
+  disabled,
+  onBpm,
+}: {
+  mediaId: string | null;
+  disabled: boolean;
+  onBpm: (bpm: number) => void;
+}) {
+  const taps = useRef<number[]>([]);
+  const forget = useRef<number | undefined>(undefined);
+  const [counting, setCounting] = useState(0);
+
+  const clear = () => {
+    taps.current = [];
+    setCounting(0);
+  };
+
+  // A tap sequence belongs to the track it was counted against.
+  useEffect(clear, [mediaId]);
+  useEffect(() => () => window.clearTimeout(forget.current), []);
+
+  const tap = () => {
+    const now = performance.now();
+    const list = taps.current;
+    if (list.length && now - list[list.length - 1] > TAP_RESET_MS) list.length = 0;
+    list.push(now);
+    // A rolling window, so drifting into time corrects rather than averaging
+    // the whole struggle.
+    if (list.length > 8) list.shift();
+    setCounting(list.length);
+
+    window.clearTimeout(forget.current);
+    forget.current = window.setTimeout(clear, 3_000);
+
+    if (list.length < TAP_MINIMUM) return;
+    const mean = (list[list.length - 1] - list[0]) / (list.length - 1);
+    const bpm = Math.round((60_000 / mean) * 10) / 10;
+    // The server takes 20–300; anything outside it is a misfire, not a tempo.
+    if (bpm >= 20 && bpm <= 300) onBpm(bpm);
+  };
+
+  return (
+    <button
+      type="button"
+      className={`btn tiny tap ${counting ? 'is-counting' : ''}`}
+      disabled={disabled}
+      title={
+        disabled
+          ? 'Load a track to tap its tempo'
+          : 'Tap in time with the track to set its BPM — four taps to lock on'
+      }
+      onPointerDown={tap}
+    >
+      {counting > 0 && counting < TAP_MINIMUM ? `TAP ${counting}/${TAP_MINIMUM}` : 'TAP'}
+    </button>
+  );
+}
 
 export function DeckPanel({
   deck,
@@ -51,7 +121,9 @@ export function DeckPanel({
   const loopLength = Math.max(0, deck.loop.endMs - deck.loop.startMs);
   const empty = locked || !deck.mediaId;
 
-  const bpm = deck.bpm ?? item?.bpm ?? null;
+  // The pool entry wins over the deck's copy: the deck caches the tempo it was
+  // loaded with, so a freshly tapped BPM would not take effect until reload.
+  const bpm = item?.bpm ?? deck.bpm ?? null;
   const beat = beatMs(bpm);
   const heard = playingBpm(bpm, deck.rate);
   const target = playingBpm(other.bpm, other.rate);
@@ -376,15 +448,15 @@ export function DeckPanel({
             {formatRate(deck.rate)}
           </span>
 
-          <button
-            type="button"
-            className="btn tiny"
-            disabled={locked}
-            title="Return the pitch fader to zero"
-            onClick={() => void send('deck:set', { deck: deck.id, rate: 1 })}
-          >
-            RESET
-          </button>
+          {/* The pitch fader resets on right-click like every other control, so
+              a dedicated reset button would just be taking up the space. */}
+          <TapTempo
+            mediaId={deck.mediaId}
+            disabled={empty}
+            onBpm={(value) =>
+              deck.mediaId && void send('media:update', { id: deck.mediaId, bpm: value })
+            }
+          />
         </div>
       </div>
     </section>

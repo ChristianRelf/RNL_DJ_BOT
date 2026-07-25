@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import express, { type Request, type Response } from 'express';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
@@ -20,7 +21,8 @@ import { config } from './config';
 import { engine } from './engine';
 import { store } from './store';
 import { createLogger } from './logger';
-import type { MediaItem, SessionUser } from './protocol';
+import { fetchAudio, ImportError } from './tools/importUrl';
+import { DECK_IDS, type MediaItem, type SessionUser } from './protocol';
 
 const log = createLogger('http');
 
@@ -143,6 +145,82 @@ export function createApp(): express.Express {
     const filePath = mediaFilePath(item);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File is missing.' });
     res.sendFile(filePath, { headers: { 'cache-control': 'private, max-age=3600' } });
+  });
+
+  // ------------------------------------------------------------ tools ---
+
+  /**
+   * Live deck positions for lighting desks, overlays and video.
+   *
+   * Consumers of this cannot hold a Discord session, so the key in the query
+   * string is the credential. It is rotated every time the tool is switched on,
+   * and the endpoint disappears entirely when it is off.
+   */
+  app.get('/api/timecode', (req, res) => {
+    const tools = store.db.tools;
+    if (!tools.timecode) return res.status(404).json({ error: 'The timecode feed is off.' });
+
+    const supplied = String(req.query.key ?? '');
+    const expected = tools.timecodeKey;
+    // Compared over fixed-length digests so a wrong key cannot be narrowed down
+    // by timing the response.
+    const ok =
+      expected.length > 0 &&
+      crypto.timingSafeEqual(
+        crypto.createHash('sha256').update(supplied).digest(),
+        crypto.createHash('sha256').update(expected).digest(),
+      );
+    if (!ok) return res.status(403).json({ error: 'Bad or missing key.' });
+
+    const state = engine.state();
+    res.setHeader('cache-control', 'no-store');
+    res.setHeader('access-control-allow-origin', '*');
+    res.json({
+      serverTime: state.serverTime,
+      decks: DECK_IDS.map((id) => {
+        const deck = state.decks[id];
+        return {
+          deck: id,
+          mediaId: deck.mediaId,
+          title: deck.title,
+          playing: deck.playing,
+          positionMs: deck.positionMs,
+          durationMs: deck.durationMs,
+          remainingMs: Math.max(0, deck.durationMs - deck.positionMs),
+          rate: deck.rate,
+          bpm: deck.bpm === null ? null : deck.bpm * deck.rate,
+        };
+      }),
+      mixer: { crossfader: state.mixer.crossfader, master: state.mixer.master },
+      voice: { status: state.voice.status, channelName: state.voice.channelName },
+    });
+  });
+
+  /** Pulls a direct audio link into the pool through the normal ingest path. */
+  app.post('/api/media/import', requireUser, express.json({ limit: '4kb' }), async (req, res) => {
+    if (!store.db.tools.urlImport) {
+      return res.status(403).json({ error: 'URL import is switched off for this rig.' });
+    }
+    const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+    if (!url) return res.status(400).json({ error: 'Give it a link to fetch.' });
+
+    let fetched: Awaited<ReturnType<typeof fetchAudio>> | null = null;
+    try {
+      fetched = await fetchAudio(url);
+      const item = await engine.ingest({
+        tempPath: fetched.tempPath,
+        originalName: fetched.originalName,
+        sizeBytes: fetched.sizeBytes,
+        user: req.user as SessionUser,
+      });
+      res.json({ media: item });
+    } catch (err) {
+      if (fetched) await fs.promises.unlink(fetched.tempPath).catch(() => undefined);
+      const message =
+        err instanceof ImportError ? err.message : 'That import failed — check the logs.';
+      if (!(err instanceof ImportError)) log.error('import failed:', err);
+      res.status(400).json({ error: message });
+    }
   });
 
   // ----------------------------------------------------------- static ---

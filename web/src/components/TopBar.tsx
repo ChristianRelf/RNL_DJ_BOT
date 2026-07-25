@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, MoveRight, PhoneOff, Radio } from 'lucide-react';
+import { LogOut, MoveRight, PhoneOff, Radio, Wrench } from 'lucide-react';
 import type { ConnectionStatus, DjClient } from '../socket';
 import type { SessionUser, VoiceChannelInfo, VoiceState } from '../protocol';
 
@@ -89,6 +89,10 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
       </div>
 
       <div className="topbar-right">
+        <a className="btn tiny topbar-tools" href="/deck/tools" title="Timecode, OSC and imports">
+          <Wrench size={12} />
+          TOOLS
+        </a>
         <span className={`conn conn-${connection}`}>{connection}</span>
         {user.avatarUrl ? <img className="avatar" src={user.avatarUrl} alt="" /> : null}
         <span className="me-name">{user.displayName}</span>

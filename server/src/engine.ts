@@ -22,8 +22,10 @@ import {
   type PresenceUser,
   type SessionUser,
   type Toast,
+  type ToolsState,
   type VoiceChannelInfo,
 } from './protocol';
+import { oscSender } from './tools/osc';
 
 const log = createLogger('engine');
 
@@ -65,6 +67,8 @@ export class Engine extends EventEmitter {
 
   async start(): Promise<void> {
     this.restorePersisted();
+    // Tools are persisted, so one left on survives a restart.
+    this.syncOsc();
     await this.refreshChannels();
     this.channelTimer = setInterval(() => {
       void this.refreshChannels();
@@ -82,6 +86,7 @@ export class Engine extends EventEmitter {
       decks: { A: this.mixer.decks.A.snapshot(), B: this.mixer.decks.B.snapshot() },
       pads: this.mixer.pads.map((p) => p.snapshot()),
       mixer: this.mixer.mixerSnapshot(),
+      tools: { ...store.db.tools },
       voice: this.voice.snapshot(),
       control: this.control.snapshot(),
       users: this.presenceList(),
@@ -172,6 +177,35 @@ export class Engine extends EventEmitter {
     this.bumpState();
   }
 
+  // ----------------------------------------------------------------- tools ---
+
+  /**
+   * Applies a tools patch and brings the side effects in line with it. The
+   * timecode key is rotated whenever the endpoint is switched on, so revoking
+   * access is just a matter of turning it off and on again.
+   */
+  private applyTools(patch: Partial<ToolsState>, user: SessionUser): void {
+    const before = { ...store.db.tools };
+    const next: ToolsState = { ...before, ...patch };
+
+    if (next.timecode && !before.timecode) {
+      next.timecodeKey = crypto.randomUUID().replace(/-/g, '');
+      this.toast('info', `${user.displayName} switched the timecode feed on.`);
+    }
+    if (!next.timecode && before.timecode) next.timecodeKey = '';
+
+    store.db.tools = next;
+    store.save();
+    this.syncOsc();
+  }
+
+  /** Starts, stops or repoints the OSC sender to match the stored settings. */
+  syncOsc(): void {
+    const tools = store.db.tools;
+    if (tools.osc) oscSender.start(() => this.state(), tools.oscHost, tools.oscPort);
+    else oscSender.stop();
+  }
+
   /** Payloads are already schema-validated, so these lookups cannot miss. */
   private deckOf(payload: { deck: DeckId }): Deck {
     return this.mixer.decks[payload.deck];
@@ -254,6 +288,11 @@ export class Engine extends EventEmitter {
         this.mixer.applyMixer(payload);
         store.db.mixer = this.mixer.mixerSnapshot();
         store.save();
+        return;
+
+      // ---- tools -------------------------------------------------------
+      case 'tools:set':
+        this.applyTools(payload, user);
         return;
 
       // ---- voice -------------------------------------------------------

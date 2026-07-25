@@ -427,6 +427,8 @@ interface SliderProps {
   disabled?: boolean;
   centred?: boolean;
   compact?: boolean;
+  /** Fired when the control is taken hold of, so an automated move can stand down. */
+  onGrab?: () => void;
   onChange: (value: number) => void;
 }
 
@@ -439,6 +441,7 @@ export function Slider({
   disabled,
   centred,
   compact,
+  onGrab,
   onChange,
 }: SliderProps) {
   const { live, display, ref, handlers, keys, reset } = useValueGesture({
@@ -475,6 +478,10 @@ export function Slider({
         onDoubleClick={reset}
         onKeyDown={keys}
         {...handlers}
+        onPointerDown={(event) => {
+          onGrab?.();
+          handlers.onPointerDown(event);
+        }}
       >
         {centred ? <div className="hslider-centre" /> : null}
         <div className="hslider-cap" style={{ left: `${ratio * 100}%` }} />
