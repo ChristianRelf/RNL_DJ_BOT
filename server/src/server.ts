@@ -4,6 +4,7 @@ import { createLogger, setLogLevel } from './logger';
 import { store } from './store';
 import { bot } from './discord/bot';
 import { attachCommandHandlers, registerCommands } from './discord/commands';
+import { checkVoiceDependencies } from './discord/deps';
 import { engine } from './engine';
 import { createApp } from './http';
 import { createRealtime } from './realtime';
@@ -16,6 +17,7 @@ export async function start(): Promise<void> {
   store.load();
 
   await bot.start();
+  checkVoiceDependencies();
   attachCommandHandlers();
   await registerCommands();
   await engine.start();

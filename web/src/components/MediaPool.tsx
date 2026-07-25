@@ -194,14 +194,16 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                     }}
                   />
                 ) : (
-                  <button
-                    type="button"
+                  // Deliberately not a <button>: an interactive control here
+                  // swallows the drag gesture, leaving almost no draggable
+                  // surface on the row.
+                  <span
                     className="track-title"
-                    title={mine ? 'Click to rename' : item.title}
-                    onClick={() => mine && setEditing(item.id)}
+                    title={mine ? `${item.title} (double-click to rename)` : item.title}
+                    onDoubleClick={() => mine && setEditing(item.id)}
                   >
                     {item.title}
-                  </button>
+                  </span>
                 )}
                 <span className="track-meta mono">
                   {item.status === 'ready'

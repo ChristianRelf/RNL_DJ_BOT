@@ -97,6 +97,9 @@ export class VoiceManager extends EventEmitter {
     this.connection = connection;
 
     connection.on('error', (err) => log.error('connection error:', err.message));
+    connection.on('stateChange', (previous, next) => {
+      if (previous.status !== next.status) log.debug(`${previous.status} -> ${next.status}`);
+    });
     connection.on(VoiceConnectionStatus.Disconnected, async (_old, next) => {
       // Websocket 4014 means we were moved or kicked; anything else is worth
       // one reconnect attempt before giving up.
@@ -121,10 +124,22 @@ export class VoiceManager extends EventEmitter {
 
     try {
       await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
-    } catch (err) {
+    } catch {
+      // Where it stalled says why: "signalling" means Discord never sent the
+      // voice server details, "connecting" means the UDP handshake to that
+      // server failed — usually blocked outbound UDP or a missing encryption
+      // package.
+      const stuckAt = connection.state.status;
       this.teardown(false);
-      this.setStatus('error', 'Timed out connecting to voice.');
-      throw new Error('Timed out connecting to that voice channel.');
+      const hint =
+        stuckAt === 'connecting'
+          ? ' The UDP handshake failed: check outbound UDP is allowed and that an encryption package is installed.'
+          : stuckAt === 'signalling'
+            ? ' Discord never returned voice server details for this channel.'
+            : '';
+      log.error(`voice connection timed out while "${stuckAt}".${hint}`);
+      this.setStatus('error', `Timed out connecting to voice (stuck at "${stuckAt}").`);
+      throw new Error(`Timed out connecting to that voice channel (stuck at "${stuckAt}").${hint}`);
     }
 
     // Keep encoding even with nobody subscribed; the mix must not stall when

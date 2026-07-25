@@ -524,17 +524,22 @@ body {
 }
 
 .track-title {
-  background: none;
-  border: none;
   color: inherit;
-  font: inherit;
   font-size: 12px;
-  text-align: left;
-  padding: 0;
-  cursor: text;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.track:active {
+  cursor: grabbing;
+}
+
+/* Make it obvious the row itself is the drag handle. */
+.track.is-dragging {
+  opacity: 0.45;
 }
 
 .track-meta {

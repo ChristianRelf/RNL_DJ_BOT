@@ -48,8 +48,11 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
     <section
       className={`panel deck deck-${deck.id.toLowerCase()} ${dropActive ? 'is-drop' : ''}`}
       onDragOver={(event) => {
-        if (locked) return;
+        if (locked || !event.dataTransfer.types.includes('application/x-dj-media')) return;
         event.preventDefault();
+        // Without an explicit dropEffect some browsers show a "no drop" cursor
+        // even though the drop would be accepted.
+        event.dataTransfer.dropEffect = 'copy';
         setDropActive(true);
       }}
       onDragLeave={() => setDropActive(false)}

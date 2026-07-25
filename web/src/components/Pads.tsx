@@ -41,8 +41,9 @@ export function Pads({ pads, locked, send }: PadsProps) {
               dropIndex === pad.index ? 'is-drop' : '',
             ].join(' ')}
             onDragOver={(event) => {
-              if (locked) return;
+              if (locked || !event.dataTransfer.types.includes('application/x-dj-media')) return;
               event.preventDefault();
+              event.dataTransfer.dropEffect = 'copy';
               setDropIndex(pad.index);
             }}
             onDragLeave={() => setDropIndex((i) => (i === pad.index ? null : i))}
