@@ -131,27 +131,50 @@ export function useDj(): DjClient {
 }
 
 /**
+ * Identifies which control a throttled message belongs to, so two controls
+ * touched inside the same window can't overwrite each other's final value —
+ * a dropped final value leaves the control sitting where the server thinks it
+ * is rather than where you left it.
+ */
+function controlKey(command: CommandName, payload: unknown): string {
+  if (!payload || typeof payload !== 'object') return command;
+  const record = payload as Record<string, unknown>;
+  const parts: string[] = [command];
+  if (record.deck !== undefined) parts.push(String(record.deck));
+  if (record.index !== undefined) parts.push(String(record.index));
+  for (const [field, value] of Object.entries(record)) {
+    if (field === 'deck' || field === 'index') continue;
+    if (value && typeof value === 'object') {
+      for (const inner of Object.keys(value as object)) parts.push(`${field}.${inner}`);
+    } else {
+      parts.push(field);
+    }
+  }
+  return parts.join('|');
+}
+
+/**
  * Rate-limits continuous control changes (fader drags) to one message per
- * frame-ish, and always delivers the final value.
+ * frame-ish, and always delivers the final value of every control touched.
  */
 export function useThrottledSend(send: DjClient['send'], intervalMs = 45) {
-  const pending = useRef<{ command: CommandName; payload: unknown } | null>(null);
+  const pending = useRef(new Map<string, { command: CommandName; payload: unknown }>());
   const timer = useRef<number | null>(null);
   const last = useRef(0);
 
   const flush = useCallback(() => {
     timer.current = null;
-    const next = pending.current;
-    pending.current = null;
-    if (!next) return;
+    if (pending.current.size === 0) return;
+    const queued = [...pending.current.values()];
+    pending.current.clear();
     last.current = Date.now();
-    void send(next.command as never, next.payload as never);
+    for (const message of queued) void send(message.command as never, message.payload as never);
   }, [send]);
 
   return useCallback(
     <K extends CommandName>(command: K, payload: ClientCommands[K]) => {
       const now = Date.now();
-      pending.current = { command, payload };
+      pending.current.set(controlKey(command, payload), { command, payload });
       if (now - last.current >= intervalMs) {
         if (timer.current !== null) {
           window.clearTimeout(timer.current);

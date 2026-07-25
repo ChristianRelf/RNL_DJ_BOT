@@ -10,12 +10,18 @@
   --muted: #858c93;
   --dim: #5f666d;
   --accent: #ff9c2b;
+  --accent-dim: #7a5218;
   --play: #3fb950;
   --danger: #e5484d;
   --deck-a: #5b9dd9;
   --deck-b: #d98b4a;
   --radius: 3px;
   --mono: ui-monospace, 'Cascadia Mono', 'DejaVu Sans Mono', Consolas, monospace;
+  /* Raised surfaces (buttons, strips) and sunken ones (tracks, wells) get a
+     one-pixel light/shadow pair so the console reads as hardware rather than
+     as flat boxes. */
+  --raise: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --sink: inset 0 1px 2px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
@@ -218,9 +224,9 @@ body {
 .console {
   display: grid;
   gap: 8px;
-  grid-template-columns: 310px minmax(300px, 1fr) 256px minmax(300px, 1fr) 280px;
+  grid-template-columns: 300px minmax(320px, 1fr) 304px minmax(320px, 1fr) 288px;
   grid-template-areas:
-    'pool deckA mixer deckB crew'
+    'pool deckA mixer deckB out'
     'pool pads  pads  pads  crew';
   align-items: start;
   flex: 1;
@@ -241,16 +247,21 @@ body {
 .pads {
   grid-area: pads;
 }
+.output {
+  grid-area: out;
+}
 .crew {
   grid-area: crew;
 }
 
-@media (max-width: 1480px) {
+/* The five-column console needs 300+320+304+320+288 plus gaps and padding —
+   1580px — before the flexible deck columns start to squeeze. */
+@media (max-width: 1600px) {
   .console {
     grid-template-columns: 290px minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
       'pool deckA deckB'
-      'pool mixer mixer'
+      'pool mixer out'
       'pool pads  crew';
   }
 }
@@ -258,11 +269,12 @@ body {
 @media (max-width: 1000px) {
   .console {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'pool' 'deckA' 'mixer' 'deckB' 'pads' 'crew';
+    grid-template-areas: 'pool' 'deckA' 'mixer' 'deckB' 'pads' 'out' 'crew';
   }
 }
 
 .panel {
+  position: relative;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -271,6 +283,7 @@ body {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  box-shadow: var(--raise);
 }
 
 .panel.is-drop {
@@ -292,8 +305,6 @@ body {
   padding-bottom: 6px;
 }
 
-.pool > .panel-title,
-.mixer > .panel-title,
 .crew > .panel-title {
   border-bottom: 1px solid var(--line);
   padding-bottom: 6px;
@@ -301,6 +312,25 @@ body {
 
 .hint {
   font-size: 10px;
+  color: var(--dim);
+}
+
+/* A named cluster of related controls — the console's unit of grouping. */
+.tool-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 6px 7px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.tool-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--dim);
 }
 
@@ -313,7 +343,7 @@ body {
   justify-content: center;
   gap: 5px;
   border: 1px solid var(--line-strong);
-  background: var(--panel-2);
+  background: linear-gradient(180deg, var(--panel-3), var(--panel-2));
   color: var(--text);
   padding: 6px 9px;
   border-radius: var(--radius);
@@ -322,6 +352,17 @@ body {
   letter-spacing: 0.04em;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: var(--raise);
+  transition: background 0.08s linear, border-color 0.08s linear, color 0.08s linear;
+}
+
+.btn:focus-visible,
+.ghost:focus-visible,
+.pad-hit:focus-visible,
+.pad-mode:focus-visible,
+.pad-clear:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* Icons keep their intrinsic size and never squash the label beside them. */
@@ -333,11 +374,13 @@ body {
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--panel-3);
+  background: linear-gradient(180deg, #32383f, var(--panel-3));
+  border-color: #4a525a;
 }
 
 .btn:active:not(:disabled) {
   background: #16191c;
+  box-shadow: var(--sink);
 }
 
 .btn:disabled {
@@ -366,12 +409,14 @@ body {
 }
 
 .btn.tiny {
-  padding: 3px 6px;
+  padding: 4px 6px;
+  min-height: 20px;
   font-size: 10px;
 }
 
 .btn.small {
-  padding: 5px 7px;
+  padding: 6px 7px;
+  min-height: 26px;
   font-size: 10px;
 }
 
@@ -451,6 +496,11 @@ body {
   color: var(--accent);
 }
 
+.cue-chip {
+  border-color: var(--line-strong);
+  color: var(--muted);
+}
+
 .check {
   display: inline-flex;
   align-items: center;
@@ -469,7 +519,7 @@ body {
 /* ------------------------------------------------------------------ pool */
 
 .pool {
-  max-height: calc(100vh - 130px);
+  max-height: calc(100vh - 150px);
 }
 
 .track-list {
@@ -587,6 +637,12 @@ body {
 
 /* ------------------------------------------------------------------ deck */
 
+/* Each deck carries a hairline of its own colour so a glance at the console
+   tells you which half you are looking at. */
+.deck {
+  border-top: 2px solid var(--deck-accent, var(--line));
+}
+
 .deck-head {
   display: flex;
   align-items: center;
@@ -650,18 +706,24 @@ body {
   display: flex;
   justify-content: space-between;
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
 }
 
-.deck-times .muted {
+.deck-remaining {
   color: var(--dim);
+}
+
+/* The last half minute of a track is the only time this number matters. */
+.deck-remaining.is-outro {
+  color: var(--danger);
+  animation: blink 1s steps(2, start) infinite;
 }
 
 .deck-body {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .deck-transport {
@@ -714,19 +776,82 @@ body {
   padding-right: 4px;
 }
 
+/* Beat divisions: one row, equal columns, so the sizes stay comparable. */
+.beat-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.beat-row .btn {
+  padding-left: 2px;
+  padding-right: 2px;
+  min-height: 22px;
+}
+
+.jump-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.jump-row .btn {
+  min-height: 22px;
+}
+
 .deck-flags {
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 18px;
+  margin-top: auto;
 }
 
 .deck-pitch {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   flex: none;
+  padding: 7px 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* Tempo as the room hears it — the number you actually beatmatch against. */
+.bpm-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+}
+
+.bpm-value {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.bpm-unit {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
+
+.btn.sync {
+  width: 100%;
+  letter-spacing: 0.1em;
+}
+
+.btn.sync:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.deck-pitch .btn.tiny:not(.sync) {
+  width: 100%;
 }
 
 .tiny-value {
@@ -734,12 +859,22 @@ body {
   color: var(--muted);
 }
 
+.tiny-value.is-moved {
+  color: var(--accent);
+}
+
 /* ----------------------------------------------------------------- mixer */
 
 .mixer-strips {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
+  gap: 5px;
+  /* Grid items stretch, so every strip is as tall as the tallest one and the
+     faders line up across the console the way they would on hardware. */
+  align-items: stretch;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .strip {
@@ -747,43 +882,94 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 7px 3px;
-  background: var(--panel-2);
+  padding: 7px 4px 6px;
+  background: linear-gradient(180deg, var(--panel-2), #1c2024);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  box-shadow: var(--raise);
 }
 
 .strip-label {
   color: var(--muted);
+  padding: 0 6px 3px;
+  border-bottom: 1px solid var(--line);
+  width: 100%;
+  text-align: center;
 }
 
 .strip-a .strip-label {
   color: var(--deck-a);
+  border-bottom-color: #3c5770;
 }
 
 .strip-b .strip-label {
   color: var(--deck-b);
+  border-bottom-color: #68513e;
 }
 
 .strip-fader {
   display: flex;
-  gap: 4px;
+  gap: 5px;
   align-items: flex-end;
-  margin-top: 2px;
+  /* Pins the faders to the bottom of every strip regardless of how many knobs
+     sit above them. */
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.strip-mute {
+  width: calc(100% - 6px);
+  letter-spacing: 0.1em;
+}
+
+.strip-mute.is-muted {
+  background: #38181b;
+  border-color: #6d3238;
+  color: #ff8b8f;
+}
+
+/* Matches the mute button's height on the deck strips, so the master fader
+   bottoms out level with the channel faders. */
+.strip-foot {
+  display: grid;
+  place-items: center;
+  min-height: 20px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.pad-bus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  padding: 0 4px;
 }
 
 .crossfader {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding-top: 7px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .crossfader-labels {
   display: flex;
   justify-content: space-between;
   color: var(--dim);
+}
+
+.crossfader-labels .xf-a {
+  color: var(--deck-a);
+}
+
+.crossfader-labels .xf-b {
+  color: var(--deck-b);
 }
 
 .crossfader-actions {
@@ -807,15 +993,21 @@ body {
 }
 
 .knob-dial {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   cursor: ns-resize;
   touch-action: none;
+}
+
+.knob-sm .knob-dial {
+  width: 34px;
+  height: 34px;
 }
 
 .knob-dial:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
+  border-radius: 50%;
 }
 
 .knob.is-disabled .knob-dial {
@@ -838,7 +1030,7 @@ body {
 .knob-arc {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 2;
+  stroke-width: 2.5;
   transform: rotate(135deg);
   transform-origin: 24px 24px;
 }
@@ -849,7 +1041,19 @@ body {
 
 .knob-pointer {
   stroke: var(--text);
-  stroke-width: 2;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+/* While a gesture is running the pointer brightens, so you can tell the
+   control is following you and not the server. */
+.knob.is-live .knob-pointer {
+  stroke: var(--accent);
+}
+
+.knob.is-live .knob-track {
+  stroke: var(--line-strong);
+  fill: #1b1f23;
 }
 
 .knob-label {
@@ -860,6 +1064,45 @@ body {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--muted);
+}
+
+/* Anything moved off its default reads at a glance. */
+.knob.is-moved .knob-value {
+  color: var(--accent);
+}
+
+/* EQ labels double as kill switches. */
+.knob-kill {
+  appearance: none;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  padding: 0 4px;
+  cursor: pointer;
+  color: var(--dim);
+}
+
+.knob-kill:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.knob-kill:disabled {
+  cursor: not-allowed;
+}
+
+.knob.is-killed .knob-kill {
+  background: #38181b;
+  border-color: #6d3238;
+  color: #ff8b8f;
+}
+
+.knob.is-killed .knob-arc {
+  stroke: var(--danger);
+}
+
+.knob.is-killed .knob-value {
+  color: var(--danger);
 }
 
 /* ----------------------------------------------------------------- fader */
@@ -873,19 +1116,24 @@ body {
 
 .fader-track {
   position: relative;
-  width: 22px;
-  height: 126px;
+  width: 26px;
+  height: 132px;
   background: var(--well);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   cursor: ns-resize;
   touch-action: none;
   overflow: hidden;
+  box-shadow: var(--sink);
 }
 
 .fader-track:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
+}
+
+.fader-track.is-live {
+  border-color: var(--accent-dim);
 }
 
 .fader.is-disabled .fader-track {
@@ -901,14 +1149,40 @@ body {
   background: #22282d;
 }
 
+/* Scale marks, so the throw is readable without staring at the numbers. */
+.fader-ticks {
+  position: absolute;
+  inset: 4px 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    180deg,
+    var(--line-strong) 0 1px,
+    transparent 1px 12.5%
+  );
+  opacity: 0.5;
+}
+
+.fader-detent {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--accent-dim);
+  pointer-events: none;
+}
+
 .fader-cap {
   position: absolute;
   left: -1px;
   right: -1px;
-  height: 14px;
-  background: #6d757d;
-  border-top: 1px solid #8b939b;
-  border-bottom: 1px solid #3a4046;
+  height: 18px;
+  /* `bottom` carries the raw ratio; the cap centres itself on it. */
+  transform: translateY(50%);
+  border-radius: 2px;
+  background: linear-gradient(180deg, #7d858d, #5c646c);
+  border-top: 1px solid #949ca4;
+  border-bottom: 1px solid #33393f;
+  pointer-events: none;
 }
 
 .fader-cap::after {
@@ -918,7 +1192,11 @@ body {
   right: 0;
   top: 50%;
   height: 1px;
-  background: #23282d;
+  background: #1c2024;
+}
+
+.fader-track.is-live .fader-cap {
+  background: linear-gradient(180deg, #949ca4, #6f777f);
 }
 
 .fader-label {
@@ -927,14 +1205,19 @@ body {
 
 /* ------------------------------------------------------------- hslider */
 
+.hslider {
+  min-width: 0;
+}
+
 .hslider-track {
   position: relative;
-  height: 22px;
+  height: 26px;
   background: var(--well);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   cursor: ew-resize;
   touch-action: none;
+  box-shadow: var(--sink);
 }
 
 .hslider.is-disabled .hslider-track {
@@ -945,6 +1228,10 @@ body {
 .hslider-track:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
+}
+
+.hslider-track.is-live {
+  border-color: var(--accent-dim);
 }
 
 .hslider-centre {
@@ -961,9 +1248,13 @@ body {
   top: -1px;
   bottom: -1px;
   width: 28px;
-  background: #6d757d;
-  border-left: 1px solid #8b939b;
-  border-right: 1px solid #3a4046;
+  /* `left` carries the raw ratio; the cap centres itself on it. */
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: linear-gradient(90deg, #7d858d, #5c646c);
+  border-left: 1px solid #949ca4;
+  border-right: 1px solid #33393f;
+  pointer-events: none;
 }
 
 .hslider-cap::after {
@@ -973,7 +1264,28 @@ body {
   bottom: 0;
   left: 50%;
   width: 1px;
-  background: #23282d;
+  background: #1c2024;
+}
+
+.hslider-track.is-live .hslider-cap {
+  background: linear-gradient(90deg, #949ca4, #6f777f);
+}
+
+/* Compact variant for the pad strips. */
+.hslider.is-compact {
+  flex: 1;
+}
+
+.hslider.is-compact .hslider-track {
+  height: 14px;
+}
+
+.hslider.is-compact .hslider-cap {
+  width: 14px;
+}
+
+.hslider.is-compact .hslider-cap::after {
+  display: none;
 }
 
 /* ----------------------------------------------------------------- meter */
@@ -984,7 +1296,7 @@ body {
 }
 
 .meter.is-vertical {
-  height: 126px;
+  height: 132px;
   align-items: flex-end;
 }
 
@@ -992,6 +1304,19 @@ body {
   width: 84px;
   height: 5px;
   flex-direction: column;
+}
+
+/* Bridge variants: full-width lanes rather than a fixed 84px badge. */
+.meter.is-slim {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+
+.meter.is-tall {
+  width: 100%;
+  height: 14px;
+  gap: 2px;
 }
 
 .meter-lane {
@@ -1066,11 +1391,12 @@ body {
 }
 
 .pad-hit {
+  position: relative;
   background: none;
   border: none;
   color: var(--text);
-  padding: 9px 7px;
-  min-height: 54px;
+  padding: 9px 7px 11px;
+  min-height: 58px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1078,6 +1404,25 @@ body {
   cursor: pointer;
   font: inherit;
   text-align: left;
+}
+
+.pad-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--line);
+}
+
+.pad-progress span {
+  display: block;
+  height: 100%;
+  background: var(--play);
+}
+
+.pad:not(.is-playing) .pad-progress {
+  background: none;
 }
 
 .pad-hit:hover:not(:disabled) {
@@ -1135,11 +1480,172 @@ body {
   border-color: var(--line-strong);
 }
 
-.pad-gain {
+.pad-mode {
+  min-width: 34px;
+  justify-content: center;
+}
+
+.pad-mode.is-loop:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.pad-mode.is-gate:not(:disabled) {
+  color: var(--deck-a);
+  border-color: #3c5770;
+}
+
+.pad-tools .hslider {
   flex: 1;
   min-width: 0;
-  accent-color: var(--accent);
-  height: 2px;
+}
+
+/* ---------------------------------------------------------- meter bridge */
+
+.bridge-master {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--raise);
+}
+
+.bridge-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bridge-peak {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.bridge-unit {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.peak-readout {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 34px;
+  text-align: right;
+}
+
+.bridge-master .peak-readout {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.peak-readout.is-hot {
+  color: var(--danger);
+}
+
+/* Each mark carries its own `left`, so they land where the meter actually
+   crosses that level. The end marks tuck inside instead of overhanging. */
+.bridge-scale {
+  position: relative;
+  height: 11px;
+  font-size: 9px;
+  color: var(--dim);
+}
+
+.bridge-scale span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.bridge-scale span:first-child {
+  transform: none;
+}
+
+.bridge-scale span:last-child {
+  transform: translateX(-100%);
+}
+
+.bridge-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bridge-lane {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bridge-lane .tool-label {
+  width: 24px;
+  flex: none;
+}
+
+.bridge-lane .peak-readout {
+  font-size: 10px;
+  min-width: 30px;
+}
+
+.clip-lamp {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--dim);
+}
+
+.clip-lamp.is-lit {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #2a0709;
+}
+
+.bridge-stats {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+}
+
+.bridge-stats > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bridge-stats dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.bridge-stats dd {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text);
+  min-width: 0;
+}
+
+.bridge-channel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
 }
 
 /* ------------------------------------------------------------------ crew */
@@ -1255,7 +1761,7 @@ body {
 
 .shortcuts {
   display: flex;
-  gap: 18px;
+  gap: 6px 14px;
   flex-wrap: wrap;
   font-family: var(--mono);
   font-size: 10px;

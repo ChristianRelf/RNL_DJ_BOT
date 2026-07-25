@@ -1,6 +1,7 @@
+import { useRef } from 'react';
 import { Fader, Knob, Meter, Slider } from './controls';
 import { formatDb, formatPercent } from '../lib/format';
-import { DECK_IDS, type DeckState, type MixerState } from '../protocol';
+import { DECK_IDS, type DeckId, type DeckState, type MixerState } from '../protocol';
 import type { DjClient } from '../socket';
 
 interface MixerPanelProps {
@@ -17,14 +18,50 @@ const EQ_BANDS = [
   { key: 'low', label: 'LOW' },
 ] as const;
 
+/** The server treats anything at or under -25.5 dB as a real kill. */
+const KILL_DB = -26;
+const EQ_MAX_DB = 6;
+/** Deck channel fader default, matching the engine. */
+const DECK_GAIN = 0.85;
+
 export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanelProps) {
+  // Kill and mute are console-side conveniences built on the plain gain
+  // commands the engine already takes, so they need somewhere to remember what
+  // the control was sitting at before it was slammed to zero.
+  const parked = useRef<Record<string, number>>({});
+
+  const toggleKill = (id: DeckId, band: 'low' | 'mid' | 'high', value: number) => {
+    const key = `${id}:${band}`;
+    if (value <= KILL_DB) {
+      const restore = parked.current[key] ?? 0;
+      void send('deck:set', { deck: id, eq: { [band]: restore } });
+    } else {
+      parked.current[key] = value;
+      void send('deck:set', { deck: id, eq: { [band]: KILL_DB } });
+    }
+  };
+
+  const toggleMute = (id: DeckId, gain: number) => {
+    const key = `${id}:gain`;
+    if (gain <= 0.0001) {
+      void send('deck:set', { deck: id, gain: parked.current[key] ?? DECK_GAIN });
+    } else {
+      parked.current[key] = gain;
+      void send('deck:set', { deck: id, gain: 0 });
+    }
+  };
+
   return (
     <section className="panel mixer">
-      <h2 className="panel-title">Mixer</h2>
+      <header className="panel-head">
+        <h2 className="panel-title">Mixer</h2>
+        <span className="hint">right-click any control to reset</span>
+      </header>
 
       <div className="mixer-strips">
         {DECK_IDS.map((id) => {
           const deck = decks[id];
+          const muted = deck.gain <= 0.0001;
           return (
             <div className={`strip strip-${id.toLowerCase()}`} key={id}>
               <span className="strip-label">{id}</span>
@@ -45,11 +82,13 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
                   key={band.key}
                   label={band.label}
                   value={deck.eq[band.key]}
-                  min={-26}
-                  max={6}
+                  min={KILL_DB}
+                  max={EQ_MAX_DB}
                   defaultValue={0}
-                  format={(v) => `${v > 0 ? '+' : ''}${v.toFixed(0)}`}
+                  format={(v) => (v <= KILL_DB ? 'kill' : `${v > 0 ? '+' : ''}${v.toFixed(0)}`)}
                   disabled={locked}
+                  killed={deck.eq[band.key] <= KILL_DB}
+                  onKill={() => toggleKill(id, band.key, deck.eq[band.key])}
                   onChange={(value) =>
                     throttled('deck:set', { deck: id, eq: { [band.key]: value } })
                   }
@@ -64,7 +103,9 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
                 defaultValue={0}
                 accent="filter"
                 format={(v) =>
-                  Math.abs(v) < 0.02 ? 'off' : `${v < 0 ? 'LP' : 'HP'} ${Math.abs(v * 100).toFixed(0)}`
+                  Math.abs(v) < 0.02
+                    ? 'off'
+                    : `${v < 0 ? 'LP' : 'HP'} ${Math.abs(v * 100).toFixed(0)}`
                 }
                 disabled={locked}
                 onChange={(filter) => throttled('deck:set', { deck: id, filter })}
@@ -72,20 +113,34 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
 
               <div className="strip-fader">
                 <Fader
+                  name={`Deck ${id} level`}
                   value={deck.gain}
                   min={0}
                   max={1.25}
+                  defaultValue={DECK_GAIN}
                   disabled={locked}
                   onChange={(gain) => throttled('deck:set', { deck: id, gain })}
                 />
                 <Meter channel={id} />
               </div>
+
+              <button
+                type="button"
+                className={`btn tiny strip-mute ${muted ? 'is-muted' : ''}`}
+                disabled={locked}
+                aria-pressed={muted}
+                title={muted ? `Unmute deck ${id}` : `Mute deck ${id}`}
+                onClick={() => toggleMute(id, deck.gain)}
+              >
+                {muted ? 'MUTED' : 'MUTE'}
+              </button>
             </div>
           );
         })}
 
         <div className="strip strip-master">
           <span className="strip-label">MST</span>
+
           <Knob
             label="PADS"
             value={mixer.padBus}
@@ -106,30 +161,41 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
             disabled={locked}
             onChange={(padDuck) => throttled('mixer:set', { padDuck })}
           />
+
+          <div className="pad-bus">
+            <span className="tool-label">PAD BUS</span>
+            <Meter channel="pads" vertical={false} className="is-slim" />
+          </div>
+
           <div className="strip-fader">
             <Fader
+              name="Master level"
               value={mixer.master}
               min={0}
               max={1.5}
+              defaultValue={1}
               disabled={locked}
               onChange={(master) => throttled('mixer:set', { master })}
             />
             <Meter channel="master" />
           </div>
+
+          <span className="strip-foot mono">{formatDb(mixer.master)}</span>
         </div>
       </div>
 
       <div className="crossfader">
         <div className="crossfader-labels">
-          <span>A</span>
+          <span className="xf-a">A</span>
           <span className="muted">CROSSFADER</span>
-          <span>B</span>
+          <span className="xf-b">B</span>
         </div>
         <Slider
           label="Crossfader"
           value={mixer.crossfader}
           min={-1}
           max={1}
+          defaultValue={0}
           centred
           disabled={locked}
           onChange={(crossfader) => throttled('mixer:set', { crossfader })}
@@ -139,6 +205,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
             type="button"
             className="btn tiny"
             disabled={locked}
+            title="Slam the crossfader to deck A"
             onClick={() => void send('mixer:set', { crossfader: -1 })}
           >
             A
@@ -147,6 +214,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
             type="button"
             className="btn tiny"
             disabled={locked}
+            title="Centre the crossfader"
             onClick={() => void send('mixer:set', { crossfader: 0 })}
           >
             CTR
@@ -155,6 +223,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
             type="button"
             className="btn tiny"
             disabled={locked}
+            title="Slam the crossfader to deck B"
             onClick={() => void send('mixer:set', { crossfader: 1 })}
           >
             B

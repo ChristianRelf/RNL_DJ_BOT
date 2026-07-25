@@ -5,6 +5,7 @@ import { MediaPool } from './components/MediaPool';
 import { DeckPanel } from './components/DeckPanel';
 import { MixerPanel } from './components/MixerPanel';
 import { Pads } from './components/Pads';
+import { OutputPanel } from './components/OutputPanel';
 import { CrewPanel } from './components/CrewPanel';
 import { Toasts } from './components/Toasts';
 import { Login } from './components/Login';
@@ -139,6 +140,7 @@ export default function App() {
 
         <DeckPanel
           deck={state.decks.A}
+          other={state.decks.B}
           media={dj.media}
           locked={locked}
           accent={DECK_ACCENT.A}
@@ -156,6 +158,7 @@ export default function App() {
 
         <DeckPanel
           deck={state.decks.B}
+          other={state.decks.A}
           media={dj.media}
           locked={locked}
           accent={DECK_ACCENT.B}
@@ -163,9 +166,11 @@ export default function App() {
           throttled={throttled}
         />
 
+        <OutputPanel mixer={state.mixer} voice={state.voice} />
+
         <CrewPanel control={state.control} users={state.users} me={me} send={dj.send} />
 
-        <Pads pads={state.pads} locked={locked} send={dj.send} />
+        <Pads pads={state.pads} locked={locked} send={dj.send} throttled={throttled} />
       </main>
 
       <footer className="shortcuts">
@@ -178,7 +183,9 @@ export default function App() {
         <span>
           <kbd>[</kbd> <kbd>]</kbd> crossfade
         </span>
-        <span>double-click a knob to reset it, shift-drag for fine control</span>
+        <span>right-click a control to reset it</span>
+        <span>shift-drag or right-drag for fine control</span>
+        <span>scroll over a knob or fader to trim it</span>
       </footer>
 
       <Toasts toasts={dj.toasts} dismiss={dj.dismiss} />
