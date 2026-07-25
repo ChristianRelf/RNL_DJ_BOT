@@ -298,6 +298,7 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
       <TopBar
         user={me}
         voice={state.voice}
+        bot={state.bot}
         channels={state.channels}
         connection={dj.status}
         locked={locked}
@@ -318,7 +319,7 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
       ) : null}
 
       {view === 'tools' ? (
-        <ToolsPage state={state} locked={locked} send={dj.send} />
+        <ToolsPage state={state} user={me} locked={locked} send={dj.send} />
       ) : (
       <>
         {arranging ? (

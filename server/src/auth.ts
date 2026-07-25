@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { config, redirectUri } from './config';
-import { bot } from './discord/bot';
+import { member } from './discord/gate';
 import { createLogger } from './logger';
 import type { SessionUser } from './protocol';
 
@@ -17,15 +17,21 @@ const ACCESS_CACHE_TTL_MS = 60_000;
 export interface AccessResult {
   allowed: boolean;
   isAdmin: boolean;
+  isOwner: boolean;
   displayName: string;
   reason?: string;
+}
+
+/** Owners are configured by id, so this holds with or without a guild lookup. */
+export function isOwner(userId: string): boolean {
+  return config.access.ownerUserIds.includes(userId);
 }
 
 const accessCache = new Map<string, { at: number; result: AccessResult }>();
 
 export function authorizeUrl(state: string): string {
   const params = new URLSearchParams({
-    client_id: config.discord.clientId,
+    client_id: config.discord.auth.clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'identify',
@@ -54,8 +60,8 @@ interface DiscordUserResponse {
 
 export async function exchangeCode(code: string): Promise<DiscordUserResponse> {
   const body = new URLSearchParams({
-    client_id: config.discord.clientId,
-    client_secret: config.discord.clientSecret,
+    client_id: config.discord.auth.clientId,
+    client_secret: config.discord.auth.clientSecret,
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
@@ -80,34 +86,43 @@ export async function exchangeCode(code: string): Promise<DiscordUserResponse> {
   return (await userRes.json()) as DiscordUserResponse;
 }
 
-/** Guild membership + role gate. The bot token is the source of truth here. */
+/**
+ * Guild membership + role gate.
+ *
+ * The auth application's token is the source of truth, never the bot currently
+ * playing — swapping the playback bot must not change who is allowed in.
+ */
 export async function checkAccess(userId: string, fallbackName: string): Promise<AccessResult> {
   const cached = accessCache.get(userId);
   if (cached && Date.now() - cached.at < ACCESS_CACHE_TTL_MS) return cached.result;
 
-  const member = await bot.member(userId);
+  const found = await member(userId);
   let result: AccessResult;
 
-  if (!member) {
+  if (!found) {
     result = {
       allowed: false,
       isAdmin: false,
+      isOwner: false,
       displayName: fallbackName,
       reason: 'You are not a member of the DJ server.',
     };
   } else {
-    const roleIds = new Set(member.roles.cache.map((r) => r.id));
+    const roleIds = new Set(found.roleIds);
+    const owner = isOwner(userId);
     const isAdmin =
+      owner ||
       config.access.adminUserIds.includes(userId) ||
       config.access.adminRoleIds.some((id) => roleIds.has(id)) ||
-      member.id === member.guild.ownerId;
+      found.isGuildOwner;
     const hasDjRole =
       config.access.djRoleIds.length === 0 || config.access.djRoleIds.some((id) => roleIds.has(id));
 
     result = {
       allowed: isAdmin || hasDjRole,
       isAdmin,
-      displayName: member.displayName || fallbackName,
+      isOwner: owner,
+      displayName: found.displayName || fallbackName,
       reason: isAdmin || hasDjRole ? undefined : 'You do not have a DJ role in this server.',
     };
   }
@@ -175,6 +190,10 @@ export function verifySession(token: string | null | undefined): SessionUser | n
       displayName: payload.displayName,
       avatarUrl: payload.avatarUrl ?? null,
       isAdmin: payload.isAdmin,
+      // Read from configuration rather than trusted from the token, so adding
+      // or removing an owner takes effect without waiting for sessions to
+      // expire — in both directions.
+      isOwner: isOwner(payload.id),
     };
   } catch {
     return null;
@@ -195,6 +214,19 @@ export function attachUser(req: Request, _res: Response, next: NextFunction): vo
 export function requireUser(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
     res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+  next();
+}
+
+/** Guards the endpoints that hold bot tokens. */
+export function requireOwner(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+  if (!isOwner(req.user.id)) {
+    res.status(403).json({ error: 'Only the rig owner can manage playback bots.' });
     return;
   }
   next();

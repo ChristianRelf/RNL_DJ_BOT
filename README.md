@@ -51,8 +51,13 @@ and queue up. Control hands over when the holder releases, hands it to someone
 directly, disconnects (after a grace period), or goes idle while somebody is waiting.
 Admins can force-take.
 
-**Discord gating** — OAuth2 sign-in; the bot verifies guild membership and roles
-server-side using its own token, so the gate cannot be spoofed by the client.
+**Discord gating** — OAuth2 sign-in; membership and roles are verified server-side
+with a bot token, so the gate cannot be spoofed by the client.
+
+**Swappable playback bot** — the account the room hears is separate from the one
+people sign in through. The rig owner can add their own bots by pasting a token
+and switch which one is on air without a restart; tokens are encrypted at rest
+and never sent back to a browser.
 
 **Slash commands** — `/dj panel`, `/dj now`, `/dj summon [channel]`, `/dj leave`.
 
@@ -177,9 +182,13 @@ whichever step fails.
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `DISCORD_BOT_TOKEN` | — | Required. Bot token. |
-| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | — | Required. OAuth2 credentials. |
+| `DISCORD_BOT_TOKEN` | — | Required. The default playback bot's token. |
+| `DISCORD_CLIENT_ID` | — | Required. The playback application ID. |
+| `DISCORD_CLIENT_SECRET` | — | Required unless `AUTH_CLIENT_SECRET` is set. |
 | `DISCORD_GUILD_ID` | — | Required. The one server this rig serves. |
+| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | *(playback app)* | The application people sign in through, if you keep it separate. |
+| `AUTH_BOT_TOKEN` | *(playback token)* | Token used for membership and role lookups. Its bot must be in the guild. |
+| `OWNER_USER_IDS` | *(rig owner)* | Who may add playback bots and switch between them. Owners are always admins. |
 | `SESSION_SECRET` | — | Required, ≥32 chars. Rotating it signs everyone out. |
 | `PUBLIC_URL` | `http://localhost:7403` | Must match the registered redirect URI. |
 | `PORT` | `7403` | |
@@ -244,6 +253,34 @@ Every command — from the web UI *and* from slash commands — goes through one
 `Engine.execute` path where it is schema-validated and permission-checked, so the
 control lock cannot be bypassed by talking to the socket directly.
 
+## Two applications, two jobs
+
+Signing in and playing audio are separate concerns, so they can be separate
+Discord applications:
+
+- **deck** — the playback bot. Whatever token is on air is what the room hears,
+  and it is the application `/dj` is registered against.
+- **deck auth** — sign-in. Its client ID and secret drive OAuth2, and its token
+  answers "is this person in the guild, and what roles do they have?".
+
+Keeping the gate off the playback token is what makes swapping bots safe: who is
+allowed in never depends on which account happens to be speaking. A single
+application still works — leave the `AUTH_*` variables unset and it fills both
+roles, which is how every install before this one ran.
+
+An owner (`OWNER_USER_IDS`) can add further playback bots from **/deck/tools**
+by pasting a token. The application ID is read back from the token, and the bot
+is checked for guild membership before anything is stored. Switching drops the
+voice connection and remakes it as the new bot — the old one leaves the channel,
+the new one rejoins it, and `/dj` is re-registered against the new application.
+The decks keep running throughout, but the room hears the gap.
+
+Tokens are sealed with AES-256-GCM under a key derived from `SESSION_SECRET`
+before they reach `db.json`, and no endpoint ever returns one — the console sees
+a name, an application ID and a fingerprint. Rotating `SESSION_SECRET` signs
+everyone out *and* invalidates the stored tokens, which is the right blast
+radius if it has leaked.
+
 ## Known limits
 
 - **One rig per deployment.** A single guild, a single voice connection, one set of
@@ -264,10 +301,11 @@ server/src
   engine.ts      command execution, permissions, media ingest, state
   control.ts     the single-operator lock and hand-over queue
   auth.ts        Discord OAuth2, session JWT, guild/role gate
+  secrets.ts     encryption for runtime secrets (added bot tokens)
   realtime.ts    Socket.IO transport, state coalescing, meter broadcast
   http.ts        auth routes, uploads, pre-listen streaming, static SPA
   audio/         transcode · source · deck · pad · mixer · fx · dsp
-  discord/       gateway client · voice connection · slash commands
+  discord/       gateway client · bot registry · sign-in gate · voice · commands
   protocol.ts    wire contract (mirrored at web/src/protocol.ts)
 web/src
   App.tsx        console assembly, keyboard shortcuts, lock gating

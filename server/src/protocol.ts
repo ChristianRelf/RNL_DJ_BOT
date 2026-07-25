@@ -24,6 +24,27 @@ export interface SessionUser {
   displayName: string;
   avatarUrl: string | null;
   isAdmin: boolean;
+  /**
+   * May add playback bots and choose which one the rig speaks through. A step
+   * above admin: an admin can force-take the decks, an owner decides which
+   * Discord account the room is listening to.
+   */
+  isOwner: boolean;
+}
+
+/**
+ * The Discord account the rig is currently playing through. No token material —
+ * this rides the state broadcast, which every signed-in DJ receives.
+ */
+export interface ActiveBot {
+  /** Registry id, or `default` for the bot configured in the environment. */
+  id: string;
+  name: string;
+  /** The bot's Discord tag once it has logged in. */
+  tag: string | null;
+  applicationId: string;
+  status: 'ready' | 'connecting' | 'error';
+  error: string | null;
 }
 
 export type MediaStatus = 'processing' | 'ready' | 'error';
@@ -210,6 +231,7 @@ export interface EngineState {
   pads: PadState[];
   mixer: MixerState;
   tools: ToolsState;
+  bot: ActiveBot;
   voice: VoiceState;
   control: ControlState;
   users: PresenceUser[];
@@ -296,3 +318,27 @@ export interface Ack {
   ok: boolean;
   error?: string;
 }
+
+/* --------------------------------------------------------- bot registry */
+
+/**
+ * A playback bot as the console sees it. Tokens never leave the server: the
+ * fingerprint is there so two entries can be told apart, and so you can check
+ * that the token you pasted is the one that got stored.
+ */
+export interface BotSummary {
+  id: string;
+  name: string;
+  applicationId: string;
+  tag: string | null;
+  /** First eight hex of the token's SHA-256. Not reversible. */
+  fingerprint: string;
+  /** True for the bot configured in the environment, which cannot be removed. */
+  isDefault: boolean;
+  active: boolean;
+  addedBy: { id: string; name: string } | null;
+  addedAt: number | null;
+  /** Why this bot last failed to connect, if it did. */
+  error: string | null;
+}
+

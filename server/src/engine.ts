@@ -6,6 +6,7 @@ import { Mixer } from './audio/mixer';
 import { VoiceManager } from './discord/voice';
 import { ControlLock } from './control';
 import { bot } from './discord/bot';
+import { activeBot, onBotChange } from './discord/bots';
 import { store } from './store';
 import { config } from './config';
 import { createLogger } from './logger';
@@ -63,6 +64,12 @@ export class Engine extends EventEmitter {
       this.toast('warn', `${name} timed out — control passed on.`),
     );
     this.voice.on('change', () => this.bumpState());
+    // Swapping the playback bot changes what the console should be showing —
+    // which account is on air, and which channels that account can see.
+    onBotChange(() => {
+      void this.refreshChannels();
+      this.bumpState();
+    });
   }
 
   async start(): Promise<void> {
@@ -74,8 +81,10 @@ export class Engine extends EventEmitter {
       void this.refreshChannels();
     }, 15_000);
     this.channelTimer.unref?.();
-    bot.client.on('voiceStateUpdate', () => {
-      void this.refreshChannels();
+    bot.onClient((client) => {
+      client.on('voiceStateUpdate', () => {
+        void this.refreshChannels();
+      });
     });
   }
 
@@ -87,6 +96,7 @@ export class Engine extends EventEmitter {
       pads: this.mixer.pads.map((p) => p.snapshot()),
       mixer: this.mixer.mixerSnapshot(),
       tools: { ...store.db.tools },
+      bot: activeBot(),
       voice: this.voice.snapshot(),
       control: this.control.snapshot(),
       users: this.presenceList(),

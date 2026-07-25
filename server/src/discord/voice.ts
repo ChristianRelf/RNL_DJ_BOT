@@ -47,13 +47,18 @@ export class VoiceManager extends EventEmitter {
     //                        got the server details.
     // Never seen          => Discord refused the join outright (permissions,
     //                        rate limit, or a second session on this token).
-    bot.client.on(Events.VoiceStateUpdate, (previous, next) => {
-      if (next.id !== bot.client.user?.id) return;
-      const line =
-        `own voice state: ${previous.channelId ?? 'none'} -> ${next.channelId ?? 'none'}` +
-        ` (session ${next.sessionId ? 'present' : 'missing'})`;
-      if (this.status === 'connecting') log.info(line);
-      else log.debug(line);
+    //
+    // Registered through `onClient` so it follows the rig onto whichever bot is
+    // playing rather than staying bound to the one running at startup.
+    bot.onClient((client) => {
+      client.on(Events.VoiceStateUpdate, (previous, next) => {
+        if (next.id !== client.user?.id) return;
+        const line =
+          `own voice state: ${previous.channelId ?? 'none'} -> ${next.channelId ?? 'none'}` +
+          ` (session ${next.sessionId ? 'present' : 'missing'})`;
+        if (this.status === 'connecting') log.info(line);
+        else log.debug(line);
+      });
     });
   }
 

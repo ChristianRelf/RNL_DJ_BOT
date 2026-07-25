@@ -4,7 +4,6 @@ import {
   Events,
   GatewayIntentBits,
   type Guild,
-  type GuildMember,
   type VoiceBasedChannel,
 } from 'discord.js';
 import { config } from '../config';
@@ -14,35 +13,117 @@ import type { VoiceChannelInfo } from '../protocol';
 const log = createLogger('discord');
 
 /**
- * Thin wrapper over the gateway client. Only two privileged-free intents are
- * needed: Guilds for the channel cache and GuildVoiceStates so we can report
- * who is actually listening.
+ * The gateway client the rig plays through.
+ *
+ * Which Discord account that is can change while the server is running — an
+ * owner can point the rig at a bot of their own from the console — so the
+ * client is replaceable rather than fixed. Everything that needs to listen to
+ * it registers through `onClient`, which re-runs against each new client, so a
+ * swap does not leave handlers attached to a destroyed connection.
+ *
+ * Sign-in does *not* go through here (see gate.ts): who may log in must not
+ * depend on which bot is on air.
+ *
+ * Only two privilege-free intents are needed: Guilds for the channel cache and
+ * GuildVoiceStates so we can report who is actually listening.
  */
+
+export interface BotCredentials {
+  /** Registry id of the bot these belong to, for reporting. */
+  id: string;
+  name: string;
+  token: string;
+  applicationId: string;
+}
+
+type ClientHandler = (client: Client) => void;
+
 export class Bot {
-  readonly client: Client;
+  private current: Client | null = null;
+  private credentials: BotCredentials | null = null;
+  private handlers: ClientHandler[] = [];
   private ready = false;
 
-  constructor() {
-    this.client = new Client({
-      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
-    });
-    this.client.on('error', (err) => log.error('gateway error:', err.message));
-    this.client.on('warn', (msg) => log.warn(msg));
-  }
-
-  async start(): Promise<void> {
-    await this.client.login(config.discord.token);
-    await new Promise<void>((resolve) => {
-      if (this.client.isReady()) return resolve();
-      this.client.once(Events.ClientReady, () => resolve());
-    });
-    this.ready = true;
-    const guild = await this.guild();
-    log.info(`logged in as ${this.client.user?.tag}, serving guild "${guild.name}"`);
+  /**
+   * The live client. Callers hold onto the wrapper, never this — a swap
+   * replaces it, and a reference kept across one would point at a dead
+   * connection.
+   */
+  get client(): Client {
+    if (!this.current) throw new Error('The playback bot is not connected yet.');
+    return this.current;
   }
 
   get isReady(): boolean {
     return this.ready;
+  }
+
+  get identity(): BotCredentials | null {
+    return this.credentials;
+  }
+
+  get tag(): string | null {
+    return this.current?.user?.tag ?? null;
+  }
+
+  /**
+   * Registers something that needs the live client, now and after every swap.
+   * Handlers are attached to a fresh client each time, so they must not
+   * accumulate state of their own.
+   */
+  onClient(handler: ClientHandler): void {
+    this.handlers.push(handler);
+    if (this.current) handler(this.current);
+  }
+
+  /**
+   * Logs in as `credentials`, replacing whatever was connected before.
+   *
+   * The old client is destroyed first: two gateway sessions on one token fight
+   * over voice, and even on different tokens leaving the old one running would
+   * keep the previous bot sitting in the channel.
+   */
+  async connect(credentials: BotCredentials): Promise<void> {
+    const previous = this.current;
+    this.ready = false;
+    this.current = null;
+
+    const client = new Client({
+      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
+    });
+    client.on('error', (err) => log.error('gateway error:', err.message));
+    client.on('warn', (msg) => log.warn(msg));
+
+    try {
+      await client.login(credentials.token);
+      await new Promise<void>((resolve, reject) => {
+        if (client.isReady()) return resolve();
+        const timer = setTimeout(() => reject(new Error('Timed out waiting for the gateway.')), 20_000);
+        client.once(Events.ClientReady, () => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    } catch (err) {
+      await client.destroy().catch(() => undefined);
+      // The previous client is still alive and still the one on air, so put it
+      // back rather than leaving the rig with no bot at all.
+      if (previous) {
+        this.current = previous;
+        this.ready = true;
+      }
+      throw err;
+    }
+
+    if (previous) await previous.destroy().catch(() => undefined);
+
+    this.current = client;
+    this.credentials = credentials;
+    this.ready = true;
+    for (const handler of this.handlers) handler(client);
+
+    const guild = await this.guild();
+    log.info(`playing through ${client.user?.tag} (${credentials.name}) in "${guild.name}"`);
   }
 
   async guild(): Promise<Guild> {
@@ -52,18 +133,9 @@ export class Bot {
       return await this.client.guilds.fetch(config.discord.guildId);
     } catch {
       throw new Error(
-        `The bot is not in guild ${config.discord.guildId}. Invite it first, then restart.`,
+        `${this.credentials?.name ?? 'The bot'} is not in guild ${config.discord.guildId}. ` +
+          'Invite it to the server first.',
       );
-    }
-  }
-
-  /** Guild member lookup by REST — no privileged GuildMembers intent required. */
-  async member(userId: string): Promise<GuildMember | null> {
-    try {
-      const guild = await this.guild();
-      return await guild.members.fetch({ user: userId, force: false });
-    } catch {
-      return null;
     }
   }
 
@@ -101,7 +173,9 @@ export class Bot {
   }
 
   async destroy(): Promise<void> {
-    await this.client.destroy();
+    this.ready = false;
+    await this.current?.destroy().catch(() => undefined);
+    this.current = null;
   }
 }
 

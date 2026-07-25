@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { LayoutGrid, LogOut, MoveRight, PhoneOff, Radio, Wrench } from 'lucide-react';
+import { Bot, LayoutGrid, LogOut, MoveRight, PhoneOff, Radio, Wrench } from 'lucide-react';
 import type { ConnectionStatus, DjClient } from '../socket';
-import type { SessionUser, VoiceChannelInfo, VoiceState } from '../protocol';
+import type { ActiveBot, SessionUser, VoiceChannelInfo, VoiceState } from '../protocol';
 
 interface TopBarProps {
   user: SessionUser;
   voice: VoiceState;
+  /** Which Discord account the room is hearing. */
+  bot: ActiveBot;
   channels: VoiceChannelInfo[];
   connection: ConnectionStatus;
   locked: boolean;
@@ -18,6 +20,7 @@ interface TopBarProps {
 export function TopBar({
   user,
   voice,
+  bot,
   channels,
   connection,
   locked,
@@ -97,6 +100,18 @@ export function TopBar({
               : voice.error
                 ? voice.error
                 : 'off air'}
+        </span>
+
+        {/* Which account is speaking, so nobody has to guess after a swap. */}
+        <span
+          className={`bot-badge ${bot.status === 'error' ? 'is-error' : ''}`}
+          title={
+            bot.error ??
+            `Playing through ${bot.tag ?? bot.name}${bot.status === 'ready' ? '' : ` (${bot.status})`}`
+          }
+        >
+          <Bot size={11} />
+          {bot.name}
         </span>
       </div>
 

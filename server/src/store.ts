@@ -13,6 +13,22 @@ export interface PersistedPad {
   mode: PadMode;
 }
 
+/**
+ * A playback bot an owner added from the console. The token is sealed (see
+ * secrets.ts) so a stolen copy of this file is not a usable Discord account.
+ */
+export interface PersistedBot {
+  id: string;
+  name: string;
+  applicationId: string;
+  tag: string | null;
+  /** Encrypted. Never logged, never sent to a client. */
+  token: string;
+  fingerprint: string;
+  addedBy: { id: string; name: string };
+  addedAt: number;
+}
+
 export interface PersistedDb {
   version: 1;
   media: Record<string, MediaItem>;
@@ -20,6 +36,9 @@ export interface PersistedDb {
   tools: ToolsState;
   pads: PersistedPad[];
   lastVoiceChannelId: string | null;
+  bots: PersistedBot[];
+  /** Which bot to play through. Null means the one from the environment. */
+  activeBotId: string | null;
 }
 
 const DEFAULT_MIXER: MixerState = {
@@ -53,6 +72,8 @@ function defaults(): PersistedDb {
     tools: { ...DEFAULT_TOOLS },
     pads: Array.from({ length: 8 }, () => ({ mediaId: null, gain: 0.9, mode: 'oneshot' as PadMode })),
     lastVoiceChannelId: null,
+    bots: [],
+    activeBotId: null,
   };
 }
 
@@ -86,6 +107,7 @@ class Store {
       if (!Array.isArray(this.data.pads) || this.data.pads.length !== 8) {
         this.data.pads = defaults().pads;
       }
+      if (!Array.isArray(this.data.bots)) this.data.bots = [];
       log.info(`loaded ${Object.keys(this.data.media).length} media items`);
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {

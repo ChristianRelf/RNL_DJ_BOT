@@ -41,6 +41,7 @@ export function createRealtime(httpServer: HttpServer): IOServer {
         ...session,
         displayName: access.displayName,
         isAdmin: access.isAdmin,
+        isOwner: access.isOwner,
       };
       next();
     } catch (err) {

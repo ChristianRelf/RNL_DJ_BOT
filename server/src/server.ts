@@ -3,6 +3,8 @@ import { config, ensureDirs } from './config';
 import { createLogger, setLogLevel } from './logger';
 import { store } from './store';
 import { bot } from './discord/bot';
+import { startActive } from './discord/bots';
+import { verifyAuthAccess } from './discord/gate';
 import { attachCommandHandlers, registerCommands } from './discord/commands';
 import { checkVoiceDependencies } from './discord/deps';
 import { engine } from './engine';
@@ -16,10 +18,13 @@ export async function start(): Promise<void> {
   ensureDirs();
   store.load();
 
-  await bot.start();
-  checkVoiceDependencies();
+  // Handlers first: they are registered against every client the bot connects,
+  // including the one `startActive` is about to bring up.
   attachCommandHandlers();
+  await startActive();
+  checkVoiceDependencies();
   await registerCommands();
+  await verifyAuthAccess();
   await engine.start();
 
   const app = createApp();

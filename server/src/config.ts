@@ -29,17 +29,63 @@ function num(name: string, fallback: number): number {
 
 const dataDir = path.resolve(process.env.DATA_DIR ?? './data');
 
+/**
+ * Reads a variable that has a fallback, recording the fallback's name as the
+ * missing one only if neither is set. Used by the auth/playback split, where
+ * the older single-application variables still stand in for both.
+ */
+function reqEither(name: string, fallback: string): string {
+  const v = process.env[name];
+  if (v && v.trim()) return v.trim();
+  return req(fallback);
+}
+
+/**
+ * Whoever may add and switch playback bots. This is a step above admin: an
+ * admin can force-take the decks, an owner can change which Discord account the
+ * rig speaks through and hold its token. Defaults to the account this rig was
+ * set up under; set OWNER_USER_IDS to change or widen it.
+ */
+const DEFAULT_OWNER_IDS = ['541551772288811009'];
+
+const ownerUserIds = (() => {
+  const configured = list('OWNER_USER_IDS');
+  return configured.length > 0 ? configured : DEFAULT_OWNER_IDS;
+})();
+
 export const config = {
   discord: {
-    token: req('DISCORD_BOT_TOKEN'),
-    clientId: req('DISCORD_CLIENT_ID'),
-    clientSecret: req('DISCORD_CLIENT_SECRET'),
     guildId: req('DISCORD_GUILD_ID'),
+    /**
+     * The default playback bot — "deck". Its token is what the rig speaks
+     * through until an owner points it at another one from the console.
+     */
+    playback: {
+      token: req('DISCORD_BOT_TOKEN'),
+      applicationId: req('DISCORD_CLIENT_ID'),
+    },
+    /**
+     * The sign-in application — "deck auth". Separate from playback so the
+     * account people log in through does not change when the bot the room hears
+     * does. Falls back to the playback application, which is how this rig ran
+     * before the two were split.
+     *
+     * Its token is only ever used to read guild membership and roles, so the
+     * gate keeps working no matter which bot is currently on air. That bot must
+     * be in the guild; if only the playback bot is, leave AUTH_BOT_TOKEN unset
+     * and the fallback covers it.
+     */
+    auth: {
+      clientId: reqEither('AUTH_CLIENT_ID', 'DISCORD_CLIENT_ID'),
+      clientSecret: reqEither('AUTH_CLIENT_SECRET', 'DISCORD_CLIENT_SECRET'),
+      token: reqEither('AUTH_BOT_TOKEN', 'DISCORD_BOT_TOKEN'),
+    },
   },
   access: {
     djRoleIds: list('DJ_ROLE_IDS'),
     adminRoleIds: list('ADMIN_ROLE_IDS'),
     adminUserIds: list('ADMIN_USER_IDS'),
+    ownerUserIds,
   },
   http: {
     port: num('PORT', 7403),

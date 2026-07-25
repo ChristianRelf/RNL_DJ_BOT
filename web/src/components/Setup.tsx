@@ -9,14 +9,18 @@ import { Code, DocPage, Step } from './SiteNav';
  */
 
 const ENV_REQUIRED = [
-  ['DISCORD_BOT_TOKEN', 'The bot token from the Bot tab.'],
-  ['DISCORD_CLIENT_ID', 'The application ID from the OAuth2 tab.'],
-  ['DISCORD_CLIENT_SECRET', 'The OAuth2 client secret.'],
+  ['DISCORD_BOT_TOKEN', 'The playback bot’s token, from the Bot tab.'],
+  ['DISCORD_CLIENT_ID', 'The playback application ID, from the OAuth2 tab.'],
+  ['DISCORD_CLIENT_SECRET', 'The OAuth2 client secret. Not needed if AUTH_CLIENT_SECRET is set.'],
   ['DISCORD_GUILD_ID', 'The Discord server deck serves.'],
-  ['SESSION_SECRET', 'A long random string. Sessions are signed with it.'],
+  ['SESSION_SECRET', 'A long random string. Sessions are signed with it, and stored bot tokens are encrypted with it.'],
 ];
 
 const ENV_OPTIONAL = [
+  ['AUTH_CLIENT_ID', '(playback app)', 'Application people sign in through, if you keep it separate.'],
+  ['AUTH_CLIENT_SECRET', '(playback app)', 'That application’s OAuth2 secret.'],
+  ['AUTH_BOT_TOKEN', '(playback bot)', 'Token used to read membership and roles. Its bot must be in the server.'],
+  ['OWNER_USER_IDS', '(rig owner)', 'Who may add playback bots and switch between them.'],
   ['DJ_ROLE_IDS', '(all members)', 'Roles allowed into the booth, comma separated.'],
   ['ADMIN_ROLE_IDS', '(none)', 'Roles that can force-take control and delete any upload.'],
   ['ADMIN_USER_IDS', '(none)', 'Individual admins, by Discord user ID.'],
@@ -68,6 +72,13 @@ export function Setup() {
           Invite the bot with the <code>bot</code> and <code>applications.commands</code> scopes,
           and the <strong>Connect</strong> and <strong>Speak</strong> permissions. No privileged
           intents are needed.
+        </p>
+        <p>
+          One application is enough. If you would rather keep the two jobs apart — the bot the room
+          hears, and the account people sign in through — make a second application and put its
+          client ID, secret and bot token in <code>AUTH_CLIENT_ID</code>,{' '}
+          <code>AUTH_CLIENT_SECRET</code> and <code>AUTH_BOT_TOKEN</code>. Register the redirect URI
+          against <em>that</em> one, and invite its bot to the server too so it can read membership.
         </p>
       </Step>
 

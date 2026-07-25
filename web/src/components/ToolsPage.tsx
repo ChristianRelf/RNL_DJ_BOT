@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Copy, Download } from 'lucide-react';
-import type { ClientCommands, EngineState, ToolsState } from '../protocol';
+import { BotsPanel } from './BotsPanel';
+import type { ClientCommands, EngineState, SessionUser, ToolsState } from '../protocol';
 import type { DjClient } from '../socket';
 
 interface ToolsPageProps {
   state: EngineState;
+  user: SessionUser;
   locked: boolean;
   send: DjClient['send'];
 }
@@ -275,7 +277,7 @@ function Osc({
 
 /* ------------------------------------------------------------------ page */
 
-export function ToolsPage({ state, locked, send }: ToolsPageProps) {
+export function ToolsPage({ state, user, locked, send }: ToolsPageProps) {
   const tools = state.tools;
   const set = (patch: ClientCommands['tools:set']) => void send('tools:set', patch);
 
@@ -302,6 +304,10 @@ export function ToolsPage({ state, locked, send }: ToolsPageProps) {
       ) : null}
 
       <div className="tools-list">
+        {user.isOwner ? (
+          <BotsPanel user={user} live={state.bot} voiceLive={state.voice.status === 'ready'} />
+        ) : null}
+
         <Tool
           name="Timecode feed"
           summary="Publishes deck positions over HTTP for lighting, stream overlays and video."

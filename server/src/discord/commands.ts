@@ -36,26 +36,35 @@ const dj = new SlashCommandBuilder()
   )
   .addSubcommand((s) => s.setName('leave').setDescription('Disconnect the DJ bot from voice'));
 
+/**
+ * Registers /dj against whichever application is currently on air. Slash
+ * commands belong to an application, not to a server, so this runs again after
+ * every bot swap — otherwise the command would keep pointing at the bot that
+ * has just been taken off.
+ */
 export async function registerCommands(): Promise<void> {
-  const rest = new REST({ version: '10' }).setToken(config.discord.token);
+  const identity = bot.identity;
+  if (!identity) return;
+  const rest = new REST({ version: '10' }).setToken(identity.token);
   try {
     await rest.put(
-      Routes.applicationGuildCommands(config.discord.clientId, config.discord.guildId),
+      Routes.applicationGuildCommands(identity.applicationId, config.discord.guildId),
       { body: [dj.toJSON()] },
     );
-    log.info('registered /dj slash command');
+    log.info(`registered /dj slash command for ${identity.name}`);
   } catch (err) {
     log.warn('could not register slash commands:', (err as Error).message);
   }
 }
 
-function toSessionUser(member: GuildMember, isAdmin: boolean): SessionUser {
+function toSessionUser(member: GuildMember, access: { isAdmin: boolean; isOwner: boolean }): SessionUser {
   return {
     id: member.id,
     username: member.user.username,
     displayName: member.displayName,
     avatarUrl: member.displayAvatarURL({ size: 64 }),
-    isAdmin,
+    isAdmin: access.isAdmin,
+    isOwner: access.isOwner,
   };
 }
 
@@ -64,18 +73,21 @@ function formatTime(ms: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
+/** Attached through `onClient`, so a bot swap keeps /dj answering. */
 export function attachCommandHandlers(): void {
-  bot.client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== 'dj') return;
-    try {
-      await handle(interaction);
-    } catch (err) {
-      const message = err instanceof CommandError ? err.message : 'Something went wrong.';
-      if (!(err instanceof CommandError)) log.error('interaction failed:', err);
-      const payload = { content: `⚠️ ${message}`, flags: MessageFlags.Ephemeral as const };
-      if (interaction.deferred || interaction.replied) await interaction.followUp(payload);
-      else await interaction.reply(payload);
-    }
+  bot.onClient((client) => {
+    client.on(Events.InteractionCreate, async (interaction) => {
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'dj') return;
+      try {
+        await handle(interaction);
+      } catch (err) {
+        const message = err instanceof CommandError ? err.message : 'Something went wrong.';
+        if (!(err instanceof CommandError)) log.error('interaction failed:', err);
+        const payload = { content: `⚠️ ${message}`, flags: MessageFlags.Ephemeral as const };
+        if (interaction.deferred || interaction.replied) await interaction.followUp(payload);
+        else await interaction.reply(payload);
+      }
+    });
   });
 }
 
@@ -128,7 +140,7 @@ async function handle(interaction: ChatInputCommandInteraction): Promise<void> {
   }
   const access = await checkAccess(member.id, member.displayName);
   if (!access.allowed) throw new CommandError(access.reason ?? 'You are not allowed to do that.');
-  const user = toSessionUser(member, access.isAdmin);
+  const user = toSessionUser(member, access);
 
   if (sub === 'leave') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });

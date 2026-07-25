@@ -14,9 +14,12 @@ import {
   exchangeCode,
   issueSession,
   newState,
+  requireOwner,
   requireUser,
   setStateCookie,
 } from './auth';
+import * as bots from './discord/bots';
+import { BotError } from './discord/bots';
 import { config } from './config';
 import { engine } from './engine';
 import { store } from './store';
@@ -34,6 +37,21 @@ const upload = multer({
 function mediaFilePath(item: MediaItem): string {
   const ext = path.extname(item.originalName).slice(0, 12) || '.bin';
   return path.join(config.paths.mediaDir, `${item.id}${ext}`);
+}
+
+/**
+ * Bot failures are mostly the operator's to fix — a bad token, a bot that has
+ * not been invited — so those are reported as they came. Anything else is
+ * logged and reduced to a generic message rather than risking a token or an
+ * internal path in the response.
+ */
+function sendBotError(res: Response, err: unknown): void {
+  if (err instanceof BotError) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  log.error('bot management failed:', (err as Error).message);
+  res.status(500).json({ error: 'That did not work — check the server log.' });
 }
 
 export function createApp(): express.Express {
@@ -80,6 +98,7 @@ export function createApp(): express.Express {
         displayName: access.displayName || fallbackName,
         avatarUrl: avatarUrl(profile),
         isAdmin: access.isAdmin,
+        isOwner: access.isOwner,
       };
       issueSession(res, user);
       log.info(`${user.displayName} signed in`);
@@ -98,6 +117,51 @@ export function createApp(): express.Express {
   app.get('/api/me', (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
     res.json({ user: req.user, publicUrl: config.http.publicUrl });
+  });
+
+  // ------------------------------------------------------------- bots ---
+
+  /**
+   * Which Discord account the rig plays through.
+   *
+   * These live on HTTP rather than on the socket deliberately: the socket
+   * broadcasts state to every signed-in DJ, and this is owner-only territory —
+   * adding a bot means handing the server a token. Tokens are never returned by
+   * any of these, only fingerprints.
+   */
+  const botRoutes = express.json({ limit: '4kb' });
+
+  app.get('/api/bots', requireOwner, (_req, res) => {
+    res.json({ bots: bots.list(), active: bots.activeBot() });
+  });
+
+  app.post('/api/bots', requireOwner, botRoutes, async (req, res) => {
+    const token = typeof req.body?.token === 'string' ? req.body.token : '';
+    const name = typeof req.body?.name === 'string' ? req.body.name : undefined;
+    try {
+      const added = await bots.add(req.user as SessionUser, { name, token });
+      res.json({ bot: added, bots: bots.list(), active: bots.activeBot() });
+    } catch (err) {
+      sendBotError(res, err);
+    }
+  });
+
+  app.post('/api/bots/:id/activate', requireOwner, async (req, res) => {
+    try {
+      await bots.activate(req.user as SessionUser, req.params.id);
+      res.json({ bots: bots.list(), active: bots.activeBot() });
+    } catch (err) {
+      sendBotError(res, err);
+    }
+  });
+
+  app.delete('/api/bots/:id', requireOwner, async (req, res) => {
+    try {
+      await bots.remove(req.user as SessionUser, req.params.id);
+      res.json({ bots: bots.list(), active: bots.activeBot() });
+    } catch (err) {
+      sendBotError(res, err);
+    }
   });
 
   // ------------------------------------------------------------ media ---
