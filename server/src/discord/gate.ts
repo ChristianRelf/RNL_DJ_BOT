@@ -25,6 +25,17 @@ export interface GuildMemberInfo {
   isGuildOwner: boolean;
 }
 
+/**
+ * "They are not in the guild" and "we could not find out" are different
+ * answers, and telling somebody they are not a member when the truth is that
+ * the gate's own token cannot read the server sends them looking in entirely
+ * the wrong place. Both still fail closed — they just say so differently.
+ */
+export type MemberLookup =
+  | { kind: 'member'; member: GuildMemberInfo }
+  | { kind: 'absent' }
+  | { kind: 'unavailable'; reason: string };
+
 interface RawMember {
   nick: string | null;
   roles: string[];
@@ -54,25 +65,50 @@ async function guildOwnerId(): Promise<string | null> {
   return ownerId;
 }
 
-/** Looks up a guild member, or null if they are not in the guild. */
-export async function member(userId: string): Promise<GuildMemberInfo | null> {
+/** Looks up a guild member. See MemberLookup for why "no" has two shapes. */
+export async function member(userId: string): Promise<MemberLookup> {
   try {
     const res = await api(`/guilds/${config.discord.guildId}/members/${userId}`);
-    if (res.status === 404) return null;
-    if (!res.ok) {
-      log.warn(`member lookup failed (${res.status}) — check the auth bot is in the guild`);
-      return null;
+
+    // 404 is the only status that means what it says. Discord returns it both
+    // for an unknown member and an unknown guild, but a wrong guild id would
+    // have already failed the boot check with something louder.
+    if (res.status === 404) return { kind: 'absent' };
+
+    if (res.status === 401 || res.status === 403) {
+      log.error(
+        `membership lookup refused (HTTP ${res.status}). The sign-in token cannot read guild ` +
+          `${config.discord.guildId} — invite that application's bot to the server, or unset ` +
+          'AUTH_BOT_TOKEN so the playback bot answers membership checks.',
+      );
+      return {
+        kind: 'unavailable',
+        reason: 'The sign-in bot cannot read this Discord server, so your membership could not be checked. This is a rig configuration problem, not your account.',
+      };
     }
+
+    if (!res.ok) {
+      log.warn(`membership lookup failed (HTTP ${res.status})`);
+      return {
+        kind: 'unavailable',
+        reason: `Discord did not answer the membership check (HTTP ${res.status}). Try again in a moment.`,
+      };
+    }
+
     const raw = (await res.json()) as RawMember;
     return {
-      id: userId,
-      displayName: raw.nick || raw.user?.global_name || raw.user?.username || '',
-      roleIds: raw.roles ?? [],
-      isGuildOwner: (await guildOwnerId()) === userId,
+      kind: 'member',
+      member: {
+        id: userId,
+        displayName: raw.nick || raw.user?.global_name || raw.user?.username || '',
+        roleIds: raw.roles ?? [],
+        isGuildOwner: (await guildOwnerId()) === userId,
+      },
     };
   } catch (err) {
-    log.warn('member lookup errored:', (err as Error).message);
-    return null;
+    const message = (err as Error).message;
+    log.warn('membership lookup errored:', message);
+    return { kind: 'unavailable', reason: `Could not reach Discord to check your membership (${message}).` };
   }
 }
 

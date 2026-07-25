@@ -96,18 +96,31 @@ export async function checkAccess(userId: string, fallbackName: string): Promise
   const cached = accessCache.get(userId);
   if (cached && Date.now() - cached.at < ACCESS_CACHE_TTL_MS) return cached.result;
 
-  const found = await member(userId);
+  const lookup = await member(userId);
   let result: AccessResult;
 
-  if (!found) {
+  if (lookup.kind === 'unavailable') {
+    // Not cached: a lookup that failed for an operational reason must not lock
+    // somebody out for the next minute once it starts working again.
+    return {
+      allowed: false,
+      isAdmin: false,
+      isOwner: isOwner(userId),
+      displayName: fallbackName,
+      reason: lookup.reason,
+    };
+  }
+
+  if (lookup.kind === 'absent') {
     result = {
       allowed: false,
       isAdmin: false,
-      isOwner: false,
+      isOwner: isOwner(userId),
       displayName: fallbackName,
       reason: 'You are not a member of the DJ server.',
     };
   } else {
+    const found = lookup.member;
     const roleIds = new Set(found.roleIds);
     const owner = isOwner(userId);
     const isAdmin =
