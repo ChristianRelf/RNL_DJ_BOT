@@ -12,7 +12,7 @@ import {
   type AudioPlayer,
   type VoiceConnection,
 } from '@discordjs/voice';
-import { ChannelType, PermissionsBitField } from 'discord.js';
+import { ChannelType, Events, PermissionsBitField } from 'discord.js';
 import type { GuildMember, VoiceBasedChannel } from 'discord.js';
 import { bot } from './bot';
 import { createLogger } from '../logger';
@@ -40,6 +40,21 @@ export class VoiceManager extends EventEmitter {
 
   constructor(private readonly mixer: Mixer) {
     super();
+
+    // Decisive diagnostic for a connection stuck at "signalling": this fires
+    // only if Discord accepted the join and echoed our own voice state back.
+    // Seen + still stuck  => the gateway replied but the voice adapter never
+    //                        got the server details.
+    // Never seen          => Discord refused the join outright (permissions,
+    //                        rate limit, or a second session on this token).
+    bot.client.on(Events.VoiceStateUpdate, (previous, next) => {
+      if (next.id !== bot.client.user?.id) return;
+      const line =
+        `own voice state: ${previous.channelId ?? 'none'} -> ${next.channelId ?? 'none'}` +
+        ` (session ${next.sessionId ? 'present' : 'missing'})`;
+      if (this.status === 'connecting') log.info(line);
+      else log.debug(line);
+    });
   }
 
   snapshot(): VoiceState {
@@ -118,6 +133,7 @@ export class VoiceManager extends EventEmitter {
     this.channelName = channel.name;
     this.setStatus('connecting');
 
+    log.info(`requesting voice join for #${channel.name} (${channel.id})`);
     const connection = joinVoiceChannel({
       channelId: channel.id,
       guildId: channel.guild.id,

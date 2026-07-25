@@ -19,6 +19,15 @@ services:
       - "127.0.0.1:${PORT:-7403}:7403"
     volumes:
       - dj-data:/app/data
+    networks:
+      # "default" keeps this stack's own network; "proxy" is the shared network
+      # Caddy lives on, which is what lets it resolve rnl-dj-bot:7403.
+      #
+      # This belongs here rather than in an overlay file precisely so that a
+      # plain `docker compose up -d` cannot drop the attachment and leave the
+      # site returning 502.
+      - default
+      - proxy
     # Opus encoding + mixing is CPU bound but light; cap it so a runaway mix
     # cannot starve the host.
     deploy:
@@ -29,3 +38,15 @@ services:
 
 volumes:
   dj-data:
+
+networks:
+  proxy:
+    # The pre-existing network the reverse proxy is attached to. Declared
+    # external so compose fails fast with a clear message if it is missing,
+    # rather than starting an unreachable container.
+    #
+    # Override for a different proxy setup:  CADDY_NETWORK=my_net docker compose up -d
+    # Running with no reverse proxy at all? Delete this block and the service's
+    # `networks:` key, and reach the app on 127.0.0.1:7403 directly.
+    external: true
+    name: ${CADDY_NETWORK:-edge}

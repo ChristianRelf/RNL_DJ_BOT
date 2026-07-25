@@ -116,26 +116,50 @@ Two things worth checking if something misbehaves:
 ### If Caddy runs in a container
 
 A containerised Caddy cannot reach `127.0.0.1:7403` — inside the container that
-address is Caddy itself, not the host. Two things change:
+address is Caddy itself, not the host. Both containers have to share a network,
+and Caddy proxies to the container name:
 
-1. Join both containers to a shared network and start with the overlay:
+```caddyfile
+reverse_proxy rnl-dj-bot:7403
+```
 
-   ```bash
-   docker network create caddy            # if it does not exist yet
-   docker network connect caddy <caddy-container>
-   docker compose -f docker-compose.yml -f deploy/compose.caddy-network.yml up -d --build
-   ```
+`docker-compose.yml` already joins the shared network, declared as `proxy` and
+resolving to `edge` by default:
 
-2. Proxy to the container name instead of loopback:
+```yaml
+networks:
+  proxy:
+    external: true
+    name: ${CADDY_NETWORK:-edge}
+```
 
-   ```caddyfile
-   reverse_proxy rnl-dj-bot:7403
-   ```
+Set `CADDY_NETWORK` in `.env` if the reverse proxy sits on a differently named
+network. Find it with:
 
-Also note that the authoritative Caddyfile is then whichever file that project
+```bash
+docker inspect <caddy-container> \
+  --format '{{range $net, $c := .NetworkSettings.Networks}}{{$net}}{{"\n"}}{{end}}'
+```
+
+Because it lives in the compose file rather than an overlay, a plain
+`docker compose up -d` always reattaches it. Attaching by hand with
+`docker network connect` does **not** survive a recreate and is the usual cause
+of a sudden 502 after a restart.
+
+Note that the authoritative Caddyfile is then whichever file that project
 bind-mounts into the container — editing `/etc/caddy/Caddyfile` on the host has
 no effect, and the reload is `docker exec <caddy-container> caddy reload --config
-/etc/caddy/Caddyfile` (or a restart of that container).
+/etc/caddy/Caddyfile`.
+
+### Verifying a deploy
+
+```bash
+./deploy/verify.sh
+```
+
+Checks the container is running, is attached to the proxy network, answers on
+`127.0.0.1:7403`, and is reachable at the public URL — and names the fix for
+whichever step fails.
 
 ## Configuration
 
