@@ -42,8 +42,8 @@ export const config = {
     adminUserIds: list('ADMIN_USER_IDS'),
   },
   http: {
-    port: num('PORT', 8080),
-    publicUrl: (process.env.PUBLIC_URL ?? 'http://localhost:8080').replace(/\/+$/, ''),
+    port: num('PORT', 7403),
+    publicUrl: (process.env.PUBLIC_URL ?? 'http://localhost:7403').replace(/\/+$/, ''),
     sessionSecret: req('SESSION_SECRET'),
     maxUploadBytes: Math.round(num('MAX_UPLOAD_MB', 100) * 1024 * 1024),
   },

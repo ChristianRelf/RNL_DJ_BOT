@@ -1,0 +1,38 @@
+# RNL DJ — Caddy site config for deck.ronation.live
+#
+# Install to /etc/caddy/Caddyfile (or import it from there), then:
+#   caddy validate --config /etc/caddy/Caddyfile
+#   systemctl reload caddy
+#
+# Caddy provisions and renews the TLS certificate itself; make sure an A/AAAA
+# record for deck.ronation.live points at this box and that ports 80 and 443
+# are open, or the ACME challenge will fail.
+
+deck.ronation.live {
+	encode zstd gzip
+
+	# Track uploads go through this proxy. Keep the ceiling comfortably above
+	# MAX_UPLOAD_MB in .env or large files will be cut off with a 413 before
+	# the app ever sees them.
+	request_body {
+		max_size 200MB
+	}
+
+	reverse_proxy 127.0.0.1:7403 {
+		# Socket.IO's websocket upgrade is handled automatically. Disabling
+		# response buffering keeps state and meter frames flowing in realtime
+		# rather than being held back by the proxy.
+		flush_interval -1
+
+		# Long uploads must not be cut short mid-transfer.
+		transport http {
+			read_timeout 10m
+			write_timeout 10m
+		}
+	}
+
+	log {
+		output file /var/log/caddy/deck.ronation.live.log
+		format json
+	}
+}

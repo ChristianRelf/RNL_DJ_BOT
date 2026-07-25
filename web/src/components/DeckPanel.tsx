@@ -1,4 +1,13 @@
 import { useMemo, useState } from 'react';
+import {
+  ArrowUpFromLine,
+  ChevronsLeft,
+  ChevronsRight,
+  MapPin,
+  Pause,
+  Play,
+  Repeat,
+} from 'lucide-react';
 import { Waveform } from './Waveform';
 import { Fader } from './controls';
 import { formatRate, formatTimeMs } from '../lib/format';
@@ -74,8 +83,9 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
           disabled={locked || !deck.mediaId}
           onClick={() => void send('deck:eject', { deck: deck.id })}
           title="Eject the loaded track"
+          aria-label="Eject the loaded track"
         >
-          EJ
+          <ArrowUpFromLine size={13} />
         </button>
       </header>
 
@@ -115,7 +125,8 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
                 void send(deck.playing ? 'deck:pause' : 'deck:play', { deck: deck.id })
               }
             >
-              {deck.playing ? '❚❚' : '▶'}
+              {deck.playing ? <Pause size={16} /> : <Play size={16} />}
+              {deck.playing ? 'PAUSE' : 'PLAY'}
             </button>
           </div>
 
@@ -127,6 +138,7 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
               onClick={() => void send('deck:setCue', { deck: deck.id, ms: deck.positionMs })}
               title="Set the cue point here"
             >
+              <MapPin size={12} />
               SET CUE
             </button>
             <button
@@ -134,18 +146,20 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
               className="btn small"
               disabled={locked || !deck.mediaId}
               onMouseDown={() => void send('deck:nudge', { deck: deck.id, deltaMs: -250 })}
-              title="Nudge back"
+              title="Nudge back 250 ms"
+              aria-label="Nudge back"
             >
-              {'<<'}
+              <ChevronsLeft size={14} />
             </button>
             <button
               type="button"
               className="btn small"
               disabled={locked || !deck.mediaId}
               onMouseDown={() => void send('deck:nudge', { deck: deck.id, deltaMs: 250 })}
-              title="Nudge forward"
+              title="Nudge forward 250 ms"
+              aria-label="Nudge forward"
             >
-              {'>>'}
+              <ChevronsRight size={14} />
             </button>
           </div>
 
@@ -180,6 +194,7 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
               disabled={locked || !deck.mediaId}
               onClick={() => void send('deck:loop', { deck: deck.id, active: !deck.loop.active })}
             >
+              <Repeat size={12} />
               LOOP
             </button>
             <button

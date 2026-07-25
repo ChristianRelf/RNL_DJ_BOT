@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { LogOut, MoveRight, PhoneOff, Radio } from 'lucide-react';
 import type { ConnectionStatus, DjClient } from '../socket';
 import type { SessionUser, VoiceChannelInfo, VoiceState } from '../protocol';
 
@@ -52,7 +53,8 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
               disabled={locked || !target || target === voice.channelId}
               onClick={() => void send('voice:join', { channelId: target })}
             >
-              Move
+              <MoveRight size={12} />
+              MOVE
             </button>
             <button
               type="button"
@@ -60,7 +62,8 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
               disabled={locked}
               onClick={() => void send('voice:leave', {})}
             >
-              Leave
+              <PhoneOff size={12} />
+              LEAVE
             </button>
           </>
         ) : (
@@ -70,7 +73,8 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
             disabled={locked || !target}
             onClick={() => void send('voice:join', { channelId: target })}
           >
-            Go live
+            <Radio size={12} />
+            GO LIVE
           </button>
         )}
 
@@ -89,8 +93,14 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
         <span className={`conn conn-${connection}`}>{connection}</span>
         {user.avatarUrl ? <img className="avatar" src={user.avatarUrl} alt="" /> : null}
         <span className="me-name">{user.displayName}</span>
-        <button type="button" className="btn tiny" onClick={() => void logout()}>
-          SIGN OUT
+        <button
+          type="button"
+          className="btn tiny"
+          title="Sign out"
+          aria-label="Sign out"
+          onClick={() => void logout()}
+        >
+          <LogOut size={12} />
         </button>
       </div>
     </header>

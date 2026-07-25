@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Headphones, Square, Trash2, Upload } from 'lucide-react';
 import { formatBytes, formatTime, relativeTime } from '../lib/format';
 import type { MediaItem, SessionUser } from '../protocol';
 import type { DjClient } from '../socket';
@@ -114,6 +115,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
       <header className="panel-head">
         <h2 className="panel-title">Media pool</h2>
         <button type="button" className="btn tiny" onClick={() => inputRef.current?.click()}>
+          <Upload size={12} />
           UPLOAD
         </button>
       </header>
@@ -217,10 +219,11 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                   type="button"
                   className={`btn tiny ${previewId === item.id ? 'is-active' : ''}`}
                   disabled={item.status !== 'ready'}
-                  title="Pre-listen in your browser only"
+                  title="Pre-listen in your browser only, not on air"
+                  aria-label="Pre-listen"
                   onClick={() => setPreviewId(previewId === item.id ? null : item.id)}
                 >
-                  {previewId === item.id ? 'STOP' : 'CUE'}
+                  {previewId === item.id ? <Square size={12} /> : <Headphones size={12} />}
                 </button>
                 <button
                   type="button"
@@ -243,13 +246,14 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                   className="btn tiny danger"
                   disabled={!mine}
                   title={mine ? 'Delete from pool' : 'Only the uploader or an admin can delete this'}
+                  aria-label="Delete from pool"
                   onClick={() => {
                     if (confirm(`Delete "${item.title}" from the pool?`)) {
                       void send('media:delete', { id: item.id });
                     }
                   }}
                 >
-                  DEL
+                  <Trash2 size={12} />
                 </button>
               </div>
             </li>

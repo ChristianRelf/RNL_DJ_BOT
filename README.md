@@ -7,7 +7,7 @@ React control surface, streamed live into a Discord voice channel.
 Any number of DJs can be signed in at once; a control lock makes sure only one of
 them is touching the decks at a time, with a hand-over queue for the rest.
 
-```
+```text
  browser (TSX control surface)          server (Node)                    Discord
  ┌───────────────────────────┐   ws    ┌──────────────────────────┐    ┌─────────┐
  │ decks · mixer · pads      │◀──────▶ │ control lock             │    │  voice  │
@@ -49,7 +49,7 @@ server-side using its own token, so the gate cannot be spoofed by the client.
 1. **Create a Discord application** at <https://discord.com/developers/applications>.
    - *Bot* tab: add a bot, copy the token.
    - *OAuth2* tab: copy the client ID and client secret, and add the redirect URI
-     `http://localhost:8080/api/auth/callback` (swap in your public URL in production —
+     `http://localhost:7403/api/auth/callback` (swap in your public URL in production —
      it must match `PUBLIC_URL` exactly).
    - Invite the bot with the `bot` and `applications.commands` scopes and the
      **Connect** + **Speak** permissions.
@@ -69,10 +69,52 @@ server-side using its own token, so the gate cannot be spoofed by the client.
    docker compose up --build
    ```
 
-   Open <http://localhost:8080>, sign in with Discord, hit **Take control**, pick a
+   Open <http://localhost:7403>, sign in with Discord, hit **Take control**, pick a
    voice channel and **Go live**.
 
 Uploads, decoded audio and the track database live in the `dj-data` volume.
+
+## Deploying behind Caddy
+
+The production host is `deck.ronation.live`. Compose binds the app to
+`127.0.0.1:7403` so only the reverse proxy can reach it.
+
+1. Copy [`deploy/Caddyfile`](deploy/Caddyfile) to `/etc/caddy/Caddyfile` (or
+   `import` it), point an A record at the box, and reload:
+
+   ```bash
+   caddy validate --config /etc/caddy/Caddyfile
+   systemctl reload caddy
+   ```
+
+2. In `.env` on the VPS:
+
+   ```ini
+   PUBLIC_URL=https://deck.ronation.live
+   ```
+
+3. Register the matching redirect URI in the Discord developer portal:
+
+   ```ini
+   https://deck.ronation.live/api/auth/callback
+   ```
+
+4. `docker compose up -d --build`
+
+Because `PUBLIC_URL` starts with `https://`, session cookies are issued with the
+`Secure` flag automatically, and Express is configured to trust the proxy's
+`X-Forwarded-*` headers.
+
+Two things worth checking if something misbehaves:
+
+- **Uploads 413** — Caddy's `request_body max_size` (200 MB in the supplied
+  config) must stay above `MAX_UPLOAD_MB`.
+- **Socket drops** — `reverse_proxy` upgrades websockets on its own, but the
+  `flush_interval -1` in the config is what stops state and meter frames being
+  buffered.
+
+If you run Caddy in a container instead of on the host, put both on a shared
+Docker network and proxy to `dj:7403` rather than `127.0.0.1:7403`.
 
 ## Configuration
 
@@ -82,8 +124,8 @@ Uploads, decoded audio and the track database live in the `dj-data` volume.
 | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | — | Required. OAuth2 credentials. |
 | `DISCORD_GUILD_ID` | — | Required. The one server this rig serves. |
 | `SESSION_SECRET` | — | Required, ≥32 chars. Rotating it signs everyone out. |
-| `PUBLIC_URL` | `http://localhost:8080` | Must match the registered redirect URI. |
-| `PORT` | `8080` | |
+| `PUBLIC_URL` | `http://localhost:7403` | Must match the registered redirect URI. |
+| `PORT` | `7403` | |
 | `DJ_ROLE_IDS` | *(empty)* | Comma separated. Empty means any guild member may sign in. |
 | `ADMIN_ROLE_IDS` / `ADMIN_USER_IDS` | *(empty)* | May force-take control and delete anyone's media. The guild owner is always an admin. |
 | `MAX_UPLOAD_MB` | `100` | Per file. |
@@ -100,7 +142,7 @@ Needs Node 20+ and ffmpeg on `PATH`.
 ```bash
 npm install
 cp .env.example .env      # PUBLIC_URL=http://localhost:5173 for the dev server
-npm run dev               # API on :8080, Vite UI on :5173 with a proxy
+npm run dev               # API on :7403, Vite UI on :5173 with a proxy
 ```
 
 Register `http://localhost:5173/api/auth/callback` as a redirect URI too if you
@@ -153,7 +195,7 @@ control lock cannot be bypassed by talking to the socket directly.
 
 ## Layout
 
-```
+```text
 server/src
   server.ts      boot: bot → commands → engine → http → socket
   engine.ts      command execution, permissions, media ingest, state

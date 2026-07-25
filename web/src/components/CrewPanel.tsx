@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ArrowRightLeft } from 'lucide-react';
 import { countdown } from '../lib/format';
 import type { ControlState, PresenceUser, SessionUser } from '../protocol';
 import type { DjClient } from '../socket';
@@ -81,6 +82,7 @@ export function CrewPanel({ control, users, me, send }: CrewPanelProps) {
                   title="Hand over control"
                   onClick={() => void send('control:grant', { userId: entry.userId })}
                 >
+                  <ArrowRightLeft size={11} />
                   HAND OVER
                 </button>
               ) : null}
@@ -108,9 +110,10 @@ export function CrewPanel({ control, users, me, send }: CrewPanelProps) {
                 type="button"
                 className="btn tiny"
                 title="Give this DJ control"
+                aria-label={`Give control to ${user.name}`}
                 onClick={() => void send('control:grant', { userId: user.id })}
               >
-                GIVE
+                <ArrowRightLeft size={11} />
               </button>
             ) : null}
           </li>

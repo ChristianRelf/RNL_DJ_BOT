@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { Meter } from './controls';
 import type { PadMode, PadState } from '../protocol';
 import type { DjClient } from '../socket';
@@ -108,9 +109,10 @@ export function Pads({ pads, locked, send }: PadsProps) {
                 className="pad-clear"
                 disabled={locked || !pad.mediaId}
                 title="Clear pad"
+                aria-label={`Clear pad ${pad.index + 1}`}
                 onClick={() => void send('pad:assign', { index: pad.index, mediaId: null })}
               >
-                CLR
+                <X size={11} />
               </button>
             </div>
           </div>

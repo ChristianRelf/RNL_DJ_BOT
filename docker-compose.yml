@@ -11,9 +11,12 @@ services:
     environment:
       # Inside the container these are fixed; everything else comes from .env
       DATA_DIR: /app/data
-      PORT: "8080"
+      PORT: "7403"
     ports:
-      - "${PORT:-8080}:8080"
+      # Bound to loopback: Caddy on the host is the only thing that should be
+      # able to reach the app. Drop the 127.0.0.1 prefix only if you intend to
+      # expose it directly to the internet without a reverse proxy.
+      - "127.0.0.1:${PORT:-7403}:7403"
     volumes:
       - dj-data:/app/data
     # Opus encoding + mixing is CPU bound but light; cap it so a runaway mix
