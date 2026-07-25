@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { Home } from './components/Home';
 import { License } from './components/License';
 import { Setup } from './components/Setup';
 import { Guide } from './components/Guide';
@@ -30,12 +31,19 @@ function page() {
       return <Legal page="terms" />;
     case '/privacy':
       return <Legal page="privacy" />;
-    case '/license':
-    // Kept as an alias so anything already pointing at /home still lands.
+
+    // Front of house sits under /home. The bare paths are kept as aliases so
+    // links handed out before the restructure still land somewhere sensible.
     case '/home':
+      return <Home />;
+    case '/home/license':
+    case '/license':
       return <License />;
+    case '/home/setup':
     case '/setup':
       return <Setup />;
+    case '/home/guides':
+    case '/home/guide':
     case '/guide':
       return <Guide />;
     // `/` and /login are both the front door; a live session goes on to /deck.

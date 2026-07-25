@@ -34,7 +34,7 @@ const COMMANDS = [
 export function Guide() {
   return (
     <DocPage
-      current="/guide"
+      current="/home/guides"
       title="Working the booth"
       lede="Everything the console does, and how to get at it. If you have used a controller before, most of this will already be where you expect."
     >
@@ -223,7 +223,8 @@ export function Guide() {
 
       <section className="doc-next">
         <p>
-          Running your own instance? <a href="/setup">The setup guide</a> covers standing one up.
+          Running your own instance? <a href="/home/setup">The setup guide</a> covers standing one
+          up.
         </p>
       </section>
     </DocPage>

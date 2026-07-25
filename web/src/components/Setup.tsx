@@ -32,7 +32,7 @@ const ENV_OPTIONAL = [
 export function Setup() {
   return (
     <DocPage
-      current="/setup"
+      current="/home/setup"
       title="Setting it up"
       lede="deck runs as a single container against your own Discord application. Start to finish this takes about fifteen minutes, most of it in the Discord developer portal."
     >
@@ -193,7 +193,8 @@ https://deck.example.com/api/auth/callback`}</Code>
 
       <section className="doc-next">
         <p>
-          Instance up and running? <a href="/guide">The booth guide</a> covers actually using it.
+          Instance up and running? <a href="/home/guides">The booth guide</a> covers actually using
+          it.
         </p>
       </section>
     </DocPage>

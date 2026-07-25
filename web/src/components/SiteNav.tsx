@@ -6,16 +6,18 @@ import { Colophon } from './Colophon';
  */
 
 const LINKS = [
-  { href: '/license', label: 'Product' },
-  { href: '/setup', label: 'Setup' },
-  { href: '/guide', label: 'Guide' },
-  { href: '/license#licensing', label: 'Licensing' },
+  { href: '/home', label: 'Product' },
+  { href: '/home/guides', label: 'Guides' },
+  { href: '/home/setup', label: 'Setup' },
+  { href: '/home/license', label: 'Licensing' },
 ];
 
 export function SiteNav({ current }: { current?: string }) {
   return (
     <nav className="lic-nav">
-      <a href="/" className="lic-nav-brand" aria-label="deck">
+      {/* The mark goes to the product page, not to `/` — `/` is the sign-in
+          door, which is not where someone browsing wants to land. */}
+      <a href="/home" className="lic-nav-brand" aria-label="deck">
         <img src="/deckLogo.png" alt="deck" />
       </a>
       <div className="lic-nav-links">

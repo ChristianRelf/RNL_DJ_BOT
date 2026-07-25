@@ -67,7 +67,7 @@ export function SignIn({ error, checkSession }: SignInProps) {
           <a className="btn primary signin-btn" href="/api/auth/login">
             Sign in with Discord
           </a>
-          <a className="btn signin-btn signin-btn-ghost" href="/license">
+          <a className="btn signin-btn signin-btn-ghost" href="/home">
             Find out more
           </a>
         </div>
