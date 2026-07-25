@@ -1,0 +1,10 @@
+# Shell scripts must keep LF endings or bash fails with a confusing
+# "bad interpreter: /usr/bin/env bash^M" on the VPS.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+deploy/Caddyfile text eol=lf
+.env.example text eol=lf
+
+# Binary assets
+*.png binary
