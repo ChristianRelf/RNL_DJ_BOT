@@ -1,8 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { Home } from './components/Home';
-import { LoginPage } from './components/LoginPage';
+import { License } from './components/License';
+import { SignIn } from './components/SignIn';
 import { Legal } from './components/Legal';
 import './styles.css';
 
@@ -26,10 +26,12 @@ function page() {
       return <Legal page="terms" />;
     case '/privacy':
       return <Legal page="privacy" />;
+    case '/license':
+    // Kept as an alias so anything already pointing at /home still lands.
     case '/home':
-      return <Home />;
+      return <License />;
     case '/login':
-      return <LoginPage />;
+      return <SignIn checkSession />;
     default:
       return <App />;
   }

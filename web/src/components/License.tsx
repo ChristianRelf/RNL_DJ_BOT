@@ -2,8 +2,9 @@ import { Colophon } from './Colophon';
 import { ConsolePreview } from './ConsolePreview';
 
 /**
- * The shop window. This is what a signed-out visitor gets at `/`, and it stays
- * reachable at `/home` once you are signed in.
+ * The pitch, at /license. The front door is the sign-in page; this is where
+ * "find out more" leads, and what you send someone who asks about running it
+ * themselves.
  *
  * Everything claimed here is something the software actually does, and the
  * numbers are the shipped defaults — if a feature or a default changes, change
@@ -17,8 +18,8 @@ const LICENCE_MAILTO = `mailto:${EMAIL}?subject=${LICENCE_SUBJECT}`;
 const SPECS = [
   { value: '2', label: 'decks' },
   { value: '8', label: 'sample pads' },
-  { value: '3-band', label: 'kill EQ' },
-  { value: '48 kHz', label: 'stereo Opus' },
+  { value: '3', label: 'band kill EQ' },
+  { value: '48k', label: 'stereo Opus' },
 ];
 
 const FEATURES = [
@@ -28,7 +29,7 @@ const FEATURES = [
   },
   {
     title: 'A real isolator',
-    body: 'Three-band EQ that kills properly rather than dipping, a sweepable low-pass/high-pass filter, and input trim on every channel.',
+    body: 'Three-band EQ that kills properly rather than dipping, a sweepable low-pass and high-pass filter, and input trim on every channel.',
   },
   {
     title: 'Eight sample pads',
@@ -39,7 +40,7 @@ const FEATURES = [
     body: 'One person on the decks at a time, with a request queue, live presence, and automatic handover when someone goes idle. Everyone else watches the meters move.',
   },
   {
-    title: 'A media pool that does the work',
+    title: 'A pool that does the work',
     body: 'Drag files in and get waveforms and tempo back automatically. Search, tag, rename, and pre-listen in your own browser without touching the live mix.',
   },
   {
@@ -58,7 +59,7 @@ const STEPS = [
     body: 'No new accounts and no passwords. If you hold the role, you are in.',
   },
   {
-    title: 'Drop a track and take control',
+    title: 'Take control',
     body: 'Upload, drag it to a deck, and play. Everyone in the voice channel hears it.',
   },
 ];
@@ -90,64 +91,60 @@ const FAQ = [
   },
 ];
 
-export function Home({ error }: { error?: string | null }) {
+export function License() {
   return (
-    <div className="home">
-      <nav className="home-nav">
-        <a href="/home" className="home-nav-brand">
-          <img className="home-nav-logo" src="/deckLogo.png" alt="deck" />
+    <div className="lic">
+      <nav className="lic-nav">
+        <a href="/" className="lic-nav-brand" aria-label="deck">
+          <img src="/deckLogo.png" alt="deck" />
         </a>
-        <div className="home-nav-links">
+        <div className="lic-nav-links">
           <a href="#features">Features</a>
           <a href="#faq">FAQ</a>
           <a href="#licensing">Licensing</a>
         </div>
-        <a className="btn tiny home-nav-cta" href="/login">
+        <a className="btn tiny lic-nav-cta" href="/login">
           SIGN IN
         </a>
       </nav>
 
-      <div className="home-inner">
-        <header className="home-hero">
-          <span className="home-eyebrow">Discord DJ booth</span>
-          <h1>Shared decks for Discord.</h1>
-          <p className="home-lede">
+      <div className="lic-inner">
+        <header className="lic-hero">
+          <h1>
+            Shared decks
+            <br />
+            for Discord.
+          </h1>
+          <p className="lic-lede">
             A proper mixing console in the browser, wired straight into a voice channel. Your crew
             takes turns on the decks; everyone else just listens.
           </p>
-
-          {error ? <p className="login-error home-error">{error}</p> : null}
-
-          <div className="home-cta">
-            <a className="btn primary home-btn" href="/login">
-              SIGN IN WITH DISCORD
+          <div className="lic-cta">
+            <a className="btn primary lic-btn" href={LICENCE_MAILTO}>
+              Licence it
             </a>
-            <a className="btn home-btn" href="#licensing">
-              RUN YOUR OWN
+            <a className="btn lic-btn lic-btn-ghost" href="/login">
+              Sign in
             </a>
           </div>
-          <p className="home-consent">
-            Signing in means you accept the <a href="/terms">Terms</a> and{' '}
-            <a href="/privacy">Privacy Policy</a>.
-          </p>
         </header>
 
         <ConsolePreview />
 
-        <ul className="home-specs">
+        <ul className="lic-specs">
           {SPECS.map((spec) => (
             <li key={spec.label}>
-              <span className="home-spec-value mono">{spec.value}</span>
-              <span className="home-spec-label">{spec.label}</span>
+              <span className="lic-spec-value">{spec.value}</span>
+              <span className="lic-spec-label">{spec.label}</span>
             </li>
           ))}
         </ul>
 
-        <section className="home-section" id="features">
-          <h2 className="home-section-title">What you get</h2>
-          <div className="home-grid">
+        <section className="lic-section" id="features">
+          <h2 className="lic-section-title">What you get</h2>
+          <div className="lic-grid">
             {FEATURES.map((feature) => (
-              <article className="home-card" key={feature.title}>
+              <article className="lic-card" key={feature.title}>
                 <h3>{feature.title}</h3>
                 <p>{feature.body}</p>
               </article>
@@ -155,24 +152,22 @@ export function Home({ error }: { error?: string | null }) {
           </div>
         </section>
 
-        <section className="home-section" id="steps">
-          <h2 className="home-section-title">Getting on the air</h2>
-          <ol className="home-steps">
+        <section className="lic-section" id="steps">
+          <h2 className="lic-section-title">Getting on the air</h2>
+          <ol className="lic-steps">
             {STEPS.map((step, index) => (
               <li key={step.title}>
-                <span className="home-step-index mono">{index + 1}</span>
-                <div>
-                  <h3>{step.title}</h3>
-                  <p>{step.body}</p>
-                </div>
+                <span className="lic-step-index">{index + 1}</span>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
               </li>
             ))}
           </ol>
         </section>
 
-        <section className="home-section" id="faq">
-          <h2 className="home-section-title">Questions</h2>
-          <dl className="home-faq">
+        <section className="lic-section" id="faq">
+          <h2 className="lic-section-title">Questions</h2>
+          <dl className="lic-faq">
             {FAQ.map((item) => (
               <div key={item.q}>
                 <dt>{item.q}</dt>
@@ -182,22 +177,21 @@ export function Home({ error }: { error?: string | null }) {
           </dl>
         </section>
 
-        <section className="home-section home-licence" id="licensing">
-          <h2 className="home-section-title">Running it yourself</h2>
-          <p className="home-licence-lede">
+        <section className="lic-offer" id="licensing">
+          <h2>Run your own.</h2>
+          <p>
             deck is self-hosted. It ships as a single container, runs against your own Discord
             application, and keeps every uploaded file and every setting on your server.
           </p>
-          <p>
-            If you want it for your own community, station or event, get in touch and we will sort
-            out a licence.
+          <p className="lic-offer-sub">
+            For your community, station or event — get in touch and we will sort out a licence.
           </p>
-          <a className="btn primary home-btn" href={LICENCE_MAILTO}>
-            TALK TO US ABOUT LICENSING
+          <a className="btn primary lic-btn" href={LICENCE_MAILTO}>
+            Talk to us about licensing
           </a>
         </section>
 
-        <footer className="home-foot">
+        <footer className="lic-foot">
           <Colophon block />
         </footer>
       </div>

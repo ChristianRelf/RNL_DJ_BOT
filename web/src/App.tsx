@@ -9,7 +9,7 @@ import { OutputPanel } from './components/OutputPanel';
 import { CrewPanel } from './components/CrewPanel';
 import { Toasts } from './components/Toasts';
 import { Colophon } from './components/Colophon';
-import { Home } from './components/Home';
+import { SignIn } from './components/SignIn';
 import type { SessionUser } from './protocol';
 
 const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
@@ -96,7 +96,7 @@ export default function App() {
     // Deliberately renders rather than redirecting to /login: the socket can
     // reject a session that /api/me still accepts (a role removed mid-session),
     // and /login bounces valid sessions back here — a redirect would loop.
-    return <Home error={dj.error} />;
+    return <SignIn error={dj.error} />;
   }
 
   if (!state || !me) {
