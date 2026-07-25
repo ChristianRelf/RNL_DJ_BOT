@@ -24,8 +24,7 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="brand-mark">RNL</span>
-        <span className="brand-text">DJ</span>
+        <img className="brand-logo" src="/deckLogo.png" alt="deck" />
       </div>
 
       <div className="voice-controls">

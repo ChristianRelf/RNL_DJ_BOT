@@ -2,10 +2,7 @@ export function Login({ error }: { error: string | null }) {
   return (
     <div className="login">
       <div className="login-card">
-        <div className="brand login-brand">
-          <span className="brand-mark">RNL</span>
-          <span className="brand-text">DJ</span>
-        </div>
+        <img className="brand-logo login-logo" src="/deckLogo.png" alt="deck" />
         <p className="login-copy">
           Shared decks for your Discord voice channels. You need to be in the server with a DJ
           role to get in.

@@ -86,28 +86,17 @@ body {
 
 .brand {
   display: flex;
-  align-items: baseline;
-  gap: 1px;
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.04em;
+  align-items: center;
   padding-right: 12px;
   border-right: 1px solid var(--line);
 }
 
-.brand-mark {
-  color: var(--text);
-}
-
-.brand-mark::after {
-  content: '/';
-  color: var(--dim);
-  padding: 0 1px;
-}
-
-.brand-text {
-  color: var(--accent);
+/* The mark is a light wordmark on transparency, so it needs no plate or
+   surrounding type — it carries the branding on its own. */
+.brand-logo {
+  display: block;
+  height: 20px;
+  width: auto;
 }
 
 .voice-controls {
@@ -1357,10 +1346,9 @@ kbd {
   gap: 14px;
 }
 
-.login-brand {
-  font-size: 16px;
-  border-right: none;
-  padding-right: 0;
+.login-logo {
+  height: 40px;
+  align-self: flex-start;
 }
 
 .login-copy {
