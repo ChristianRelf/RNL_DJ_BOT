@@ -12,6 +12,7 @@ import {
   type AudioPlayer,
   type VoiceConnection,
 } from '@discordjs/voice';
+import { ChannelType, PermissionsBitField } from 'discord.js';
 import type { GuildMember, VoiceBasedChannel } from 'discord.js';
 import { bot } from './bot';
 import { createLogger } from '../logger';
@@ -76,9 +77,39 @@ export class VoiceManager extends EventEmitter {
     const channel = await bot.voiceChannel(channelId);
     if (!channel) throw new Error('That voice channel no longer exists.');
 
-    const me = channel.guild.members.me;
-    if (me && !channel.permissionsFor(me)?.has(['ViewChannel', 'Connect', 'Speak'])) {
-      throw new Error(`Missing Connect/Speak permission in #${channel.name}.`);
+    // Discord refuses these joins silently — the connection just sits in
+    // "signalling" until it times out — so every one of them is checked here
+    // and reported properly instead.
+    const me =
+      channel.guild.members.me ?? (await channel.guild.members.fetchMe().catch(() => null));
+    if (!me) {
+      throw new Error('Could not resolve the bot as a member of this server. Re-invite it.');
+    }
+
+    const permissions = channel.permissionsFor(me);
+    const required = [
+      { flag: PermissionsBitField.Flags.ViewChannel, name: 'View Channel' },
+      { flag: PermissionsBitField.Flags.Connect, name: 'Connect' },
+      { flag: PermissionsBitField.Flags.Speak, name: 'Speak' },
+    ];
+    const missing = required.filter((p) => !permissions?.has(p.flag)).map((p) => p.name);
+    if (missing.length > 0) {
+      throw new Error(`Missing ${missing.join(' + ')} permission in #${channel.name}.`);
+    }
+
+    // A full channel rejects the bot unless it can move members past the limit.
+    if (
+      channel.userLimit > 0 &&
+      channel.members.size >= channel.userLimit &&
+      !permissions?.has(PermissionsBitField.Flags.MoveMembers)
+    ) {
+      throw new Error(
+        `#${channel.name} is full (${channel.members.size}/${channel.userLimit}).`,
+      );
+    }
+
+    if (channel.type === ChannelType.GuildStageVoice) {
+      log.info(`#${channel.name} is a stage channel; the bot needs to be a speaker to be heard`);
     }
 
     this.teardown(false);
@@ -135,7 +166,9 @@ export class VoiceManager extends EventEmitter {
         stuckAt === 'connecting'
           ? ' The UDP handshake failed: check outbound UDP is allowed and that an encryption package is installed.'
           : stuckAt === 'signalling'
-            ? ' Discord never returned voice server details for this channel.'
+            ? ' Discord never returned voice server details. Usually a channel permission ' +
+              'overwrite denying Connect, a full channel, or a second copy of the bot ' +
+              'running on the same token.'
             : '';
       log.error(`voice connection timed out while "${stuckAt}".${hint}`);
       this.setStatus('error', `Timed out connecting to voice (stuck at "${stuckAt}").`);
