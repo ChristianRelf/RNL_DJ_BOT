@@ -30,8 +30,22 @@ function loadable(name: string): boolean {
 export function checkVoiceDependencies(): void {
   const opus = OPUS_PACKAGES.filter(loadable);
   const encryption = ENCRYPTION_PACKAGES.filter(loadable);
+  // DAVE (Discord's end-to-end encrypted voice) ships as a per-platform native
+  // binary. Discord is making it mandatory, and a missing binary shows up as a
+  // connection that never completes rather than as a load error.
+  const dave = loadable('@snazzah/davey');
 
-  log.info(`opus: ${opus.join(', ') || 'none'} | encryption: ${encryption.join(', ') || 'none'}`);
+  log.info(
+    `opus: ${opus.join(', ') || 'none'} | encryption: ${encryption.join(', ') || 'none'} | ` +
+      `dave: ${dave ? 'available' : 'MISSING'}`,
+  );
+
+  if (!dave) {
+    log.warn(
+      '@snazzah/davey did not load — the platform binary is probably absent from ' +
+        'this image. Rebuild with `docker compose build --no-cache` if voice fails to connect.',
+    );
+  }
 
   if (encryption.length === 0) {
     log.error(
