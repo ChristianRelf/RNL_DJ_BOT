@@ -1,0 +1,28 @@
+services:
+  dj:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rnl-dj-bot:latest
+    container_name: rnl-dj-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Inside the container these are fixed; everything else comes from .env
+      DATA_DIR: /app/data
+      PORT: "8080"
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - dj-data:/app/data
+    # Opus encoding + mixing is CPU bound but light; cap it so a runaway mix
+    # cannot starve the host.
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g
+
+volumes:
+  dj-data:

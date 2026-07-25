@@ -1,0 +1,477 @@
+﻿import { EventEmitter } from 'node:events';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { Mixer } from './audio/mixer';
+import { VoiceManager } from './discord/voice';
+import { ControlLock } from './control';
+import { bot } from './discord/bot';
+import { store } from './store';
+import { config } from './config';
+import { createLogger } from './logger';
+import { decodeQueue, decodeToPcm, probeTitle } from './audio/transcode';
+import { commandSchemas, isCommand, NEEDS_CONTROL, type CommandKey } from './schemas';
+import type { Deck } from './audio/deck';
+import type { Pad } from './audio/pad';
+import {
+  DECK_IDS,
+  PAD_COUNT,
+  type DeckId,
+  type EngineState,
+  type MediaItem,
+  type PresenceUser,
+  type SessionUser,
+  type Toast,
+  type VoiceChannelInfo,
+} from './protocol';
+
+const log = createLogger('engine');
+
+export class CommandError extends Error {}
+
+interface Presence {
+  user: SessionUser;
+  sockets: number;
+  lastSeen: number;
+}
+
+/**
+ * Application core. Everything the control surface can do funnels through
+ * `execute`, which is the single place permissions, validation and state
+ * broadcasting are enforced — the Discord slash commands use the same path.
+ */
+export class Engine extends EventEmitter {
+  readonly mixer = new Mixer();
+  readonly voice = new VoiceManager(this.mixer);
+  readonly control = new ControlLock();
+
+  private presence = new Map<string, Presence>();
+  private channels: VoiceChannelInfo[] = [];
+  private rev = 0;
+  private channelTimer: NodeJS.Timeout | null = null;
+
+  constructor() {
+    super();
+    this.mixer.on('trackEnded', (deck) => {
+      this.toast('info', `Deck ${deck} reached the end of the track.`);
+      this.bumpState();
+    });
+    this.control.on('change', () => this.bumpState());
+    this.control.on('timeout', (_id: string, name: string) =>
+      this.toast('warn', `${name} timed out — control passed on.`),
+    );
+    this.voice.on('change', () => this.bumpState());
+  }
+
+  async start(): Promise<void> {
+    this.restorePersisted();
+    await this.refreshChannels();
+    this.channelTimer = setInterval(() => {
+      void this.refreshChannels();
+    }, 15_000);
+    this.channelTimer.unref?.();
+    bot.client.on('voiceStateUpdate', () => {
+      void this.refreshChannels();
+    });
+  }
+
+  // ---------------------------------------------------------------- state ---
+
+  state(): EngineState {
+    return {
+      decks: { A: this.mixer.decks.A.snapshot(), B: this.mixer.decks.B.snapshot() },
+      pads: this.mixer.pads.map((p) => p.snapshot()),
+      mixer: this.mixer.mixerSnapshot(),
+      voice: this.voice.snapshot(),
+      control: this.control.snapshot(),
+      users: this.presenceList(),
+      channels: this.channels,
+      rev: this.rev,
+      serverTime: Date.now(),
+    };
+  }
+
+  private presenceList(): PresenceUser[] {
+    return [...this.presence.values()]
+      .map((p) => ({
+        id: p.user.id,
+        name: p.user.displayName,
+        avatarUrl: p.user.avatarUrl,
+        isAdmin: p.user.isAdmin,
+        connections: p.sockets,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  private bumpState(): void {
+    this.rev++;
+    this.emit('state', this.state());
+  }
+
+  private toast(level: Toast['level'], message: string, userId?: string): void {
+    this.emit('toast', { level, message } satisfies Toast, userId);
+  }
+
+  private async refreshChannels(): Promise<void> {
+    try {
+      const next = await bot.voiceChannels();
+      if (JSON.stringify(next) !== JSON.stringify(this.channels)) {
+        this.channels = next;
+        this.bumpState();
+      }
+    } catch (err) {
+      log.debug('channel refresh failed:', (err as Error).message);
+    }
+  }
+
+  // ------------------------------------------------------------- presence ---
+
+  attach(user: SessionUser): void {
+    const existing = this.presence.get(user.id);
+    if (existing) {
+      existing.sockets++;
+      existing.user = user;
+      existing.lastSeen = Date.now();
+    } else {
+      this.presence.set(user.id, { user, sockets: 1, lastSeen: Date.now() });
+    }
+    this.control.onUserConnected(user.id);
+    this.bumpState();
+  }
+
+  detach(userId: string): void {
+    const existing = this.presence.get(userId);
+    if (!existing) return;
+    existing.sockets--;
+    if (existing.sockets <= 0) {
+      this.presence.delete(userId);
+      this.control.onUserDisconnected(userId);
+    }
+    this.bumpState();
+  }
+
+  // -------------------------------------------------------------- command ---
+
+  async execute(user: SessionUser, name: string, rawPayload: unknown): Promise<void> {
+    if (!isCommand(name)) throw new CommandError(`Unknown command "${name}".`);
+    const parsed = commandSchemas[name].safeParse(rawPayload ?? {});
+    if (!parsed.success) {
+      throw new CommandError(parsed.error.issues[0]?.message ?? 'Invalid command payload.');
+    }
+
+    if (NEEDS_CONTROL.has(name) && !this.control.has(user.id)) {
+      const holder = this.control.snapshot().holderName;
+      throw new CommandError(
+        holder ? `${holder} currently has control.` : 'Take control before touching the decks.',
+      );
+    }
+
+    await this.run(user, name, parsed.data as never);
+
+    if (NEEDS_CONTROL.has(name)) this.control.touch(user.id);
+    this.bumpState();
+  }
+
+  /** Payloads are already schema-validated, so these lookups cannot miss. */
+  private deckOf(payload: { deck: DeckId }): Deck {
+    return this.mixer.decks[payload.deck];
+  }
+
+  private padOf(payload: { index: number }): Pad {
+    return this.mixer.pads[payload.index];
+  }
+
+  private async run(user: SessionUser, name: CommandKey, payload: any): Promise<void> {
+    switch (name) {
+      // ---- decks -------------------------------------------------------
+      case 'deck:load': {
+        const item = this.readyMedia(payload.mediaId);
+        this.deckOf(payload).load({
+          mediaId: item.id,
+          title: item.title,
+          pcmPath: pcmPath(item.id),
+          bpm: item.bpm,
+        });
+        this.toast('success', `Loaded "${item.title}" onto deck ${payload.deck}.`);
+        return;
+      }
+      case 'deck:eject':
+        this.deckOf(payload).eject();
+        return;
+      case 'deck:play':
+        if (!this.deckOf(payload).loaded) {
+          throw new CommandError(`Deck ${payload.deck} is empty.`);
+        }
+        this.deckOf(payload).play();
+        return;
+      case 'deck:pause':
+        this.deckOf(payload).pause();
+        return;
+      case 'deck:cue':
+        this.deckOf(payload).cue();
+        return;
+      case 'deck:setCue':
+        this.deckOf(payload).setCue(payload.ms);
+        return;
+      case 'deck:seek':
+        this.deckOf(payload).seekMs(payload.ms);
+        return;
+      case 'deck:nudge':
+        this.deckOf(payload).nudgeMs(payload.deltaMs);
+        return;
+      case 'deck:set':
+        this.deckOf(payload).applySettings(payload);
+        return;
+      case 'deck:loop':
+        this.deckOf(payload).setLoop(payload.active, payload.startMs, payload.endMs);
+        return;
+
+      // ---- pads --------------------------------------------------------
+      case 'pad:assign': {
+        const pad = this.padOf(payload);
+        if (payload.mediaId === null) {
+          pad.clear();
+        } else {
+          const item = this.readyMedia(payload.mediaId);
+          pad.assign(item.id, item.title, pcmPath(item.id));
+        }
+        this.persistPads();
+        return;
+      }
+      case 'pad:trigger':
+        this.padOf(payload).trigger();
+        return;
+      case 'pad:stop':
+        this.padOf(payload).stop();
+        return;
+      case 'pad:set':
+        this.padOf(payload).set(payload);
+        this.persistPads();
+        return;
+
+      // ---- mixer -------------------------------------------------------
+      case 'mixer:set':
+        this.mixer.applyMixer(payload);
+        store.db.mixer = this.mixer.mixerSnapshot();
+        store.save();
+        return;
+
+      // ---- voice -------------------------------------------------------
+      case 'voice:join':
+        await this.voice.join(payload.channelId);
+        store.db.lastVoiceChannelId = payload.channelId;
+        store.save();
+        return;
+      case 'voice:leave':
+        this.voice.leave();
+        return;
+
+      // ---- media -------------------------------------------------------
+      case 'media:update': {
+        const item = store.getMedia(payload.id);
+        if (!item) throw new CommandError('That track is no longer in the pool.');
+        if (!user.isAdmin && item.uploadedBy.id !== user.id) {
+          throw new CommandError('Only the uploader or an admin can edit that track.');
+        }
+        if (payload.title !== undefined) item.title = payload.title;
+        if (payload.bpm !== undefined) item.bpm = payload.bpm;
+        if (payload.tags !== undefined) item.tags = payload.tags;
+        store.putMedia(item);
+        this.syncTitles(item);
+        this.emitMedia();
+        return;
+      }
+      case 'media:delete': {
+        const item = store.getMedia(payload.id);
+        if (!item) return;
+        if (!user.isAdmin && item.uploadedBy.id !== user.id) {
+          throw new CommandError('Only the uploader or an admin can delete that track.');
+        }
+        await this.deleteMedia(item);
+        this.toast('info', `Removed "${item.title}" from the pool.`);
+        return;
+      }
+
+      // ---- control -----------------------------------------------------
+      case 'control:request': {
+        const outcome = this.control.request(user);
+        if (outcome === 'granted') this.toast('success', `${user.displayName} took control.`);
+        else if (outcome === 'queued') {
+          this.toast('info', `${user.displayName} is waiting for control.`);
+        }
+        return;
+      }
+      case 'control:release':
+        if (!this.control.release(user.id)) throw new CommandError('You do not have control.');
+        return;
+      case 'control:cancel':
+        this.control.cancel(user.id);
+        return;
+      case 'control:take':
+        if (!user.isAdmin) throw new CommandError('Only admins can force-take control.');
+        this.control.take(user);
+        this.toast('warn', `${user.displayName} force-took control.`);
+        return;
+      case 'control:grant': {
+        const isHolder = this.control.has(user.id);
+        if (!isHolder && !user.isAdmin) {
+          throw new CommandError('Only the current controller or an admin can hand over control.');
+        }
+        const target = this.presence.get(payload.userId);
+        if (!target) throw new CommandError('That DJ is not connected.');
+        this.control.grant({ id: target.user.id, name: target.user.displayName });
+        this.toast('success', `${target.user.displayName} now has control.`);
+        return;
+      }
+      case 'control:heartbeat':
+        this.control.touch(user.id);
+        return;
+
+      default: {
+        const never: never = name;
+        throw new CommandError(`Unhandled command ${String(never)}.`);
+      }
+    }
+  }
+
+  private readyMedia(id: string): MediaItem {
+    const item = store.getMedia(id);
+    if (!item) throw new CommandError('That track is not in the pool.');
+    if (item.status !== 'ready') throw new CommandError(`"${item.title}" is still processing.`);
+    return item;
+  }
+
+  // ---------------------------------------------------------------- media ---
+
+  emitMedia(): void {
+    this.emit('media', store.listMedia());
+  }
+
+  /**
+   * Ingest an uploaded file: decode to raw PCM once, build the waveform
+   * envelope, then publish it to the pool.
+   */
+  async ingest(params: {
+    tempPath: string;
+    originalName: string;
+    sizeBytes: number;
+    user: SessionUser;
+  }): Promise<MediaItem> {
+    const id = crypto.randomUUID();
+    const ext = path.extname(params.originalName).slice(0, 12) || '.bin';
+    const storedPath = path.join(config.paths.mediaDir, `${id}${ext}`);
+    await fsp.rename(params.tempPath, storedPath).catch(async () => {
+      await fsp.copyFile(params.tempPath, storedPath);
+      await fsp.unlink(params.tempPath).catch(() => undefined);
+    });
+
+    const fallbackName = path.basename(params.originalName, path.extname(params.originalName));
+    const item: MediaItem = {
+      id,
+      title: fallbackName.slice(0, 120) || 'Untitled',
+      originalName: params.originalName,
+      durationMs: 0,
+      sizeBytes: params.sizeBytes,
+      uploadedBy: { id: params.user.id, name: params.user.displayName },
+      uploadedAt: Date.now(),
+      peaks: [],
+      bpm: null,
+      tags: [],
+      status: 'processing',
+    };
+    store.putMedia(item);
+    this.emitMedia();
+
+    void decodeQueue.add(async () => {
+      const started = Date.now();
+      try {
+        item.title = await probeTitle(storedPath, item.title);
+        const result = await decodeToPcm(storedPath, pcmPath(id));
+        item.durationMs = result.durationMs;
+        item.peaks = result.peaks;
+        item.status = 'ready';
+        delete item.error;
+        log.info(`ingested "${item.title}" (${(result.durationMs / 1000).toFixed(1)}s) in ${Date.now() - started}ms`);
+      } catch (err) {
+        item.status = 'error';
+        item.error = (err as Error).message.slice(0, 200);
+        log.warn(`failed to ingest ${params.originalName}: ${item.error}`);
+      }
+      store.putMedia(item);
+      this.emitMedia();
+    });
+
+    return item;
+  }
+
+  private async deleteMedia(item: MediaItem): Promise<void> {
+    for (const id of DECK_IDS) {
+      if (this.mixer.decks[id].mediaId === item.id) this.mixer.decks[id].eject();
+    }
+    for (const pad of this.mixer.pads) {
+      if (pad.mediaId === item.id) pad.clear();
+    }
+    this.persistPads();
+    store.removeMedia(item.id);
+
+    await fsp.unlink(pcmPath(item.id)).catch(() => undefined);
+    const ext = path.extname(item.originalName).slice(0, 12) || '.bin';
+    await fsp.unlink(path.join(config.paths.mediaDir, `${item.id}${ext}`)).catch(() => undefined);
+    this.emitMedia();
+  }
+
+  /** Keep loaded decks/pads showing the current title after a rename. */
+  private syncTitles(item: MediaItem): void {
+    for (const id of DECK_IDS) {
+      const deck = this.mixer.decks[id];
+      if (deck.mediaId === item.id) {
+        deck.title = item.title;
+        deck.bpm = item.bpm;
+      }
+    }
+    for (const pad of this.mixer.pads) {
+      if (pad.mediaId === item.id) pad.title = item.title;
+    }
+  }
+
+  private persistPads(): void {
+    store.db.pads = this.mixer.pads.map((p) => ({
+      mediaId: p.mediaId,
+      gain: p.gain,
+      mode: p.mode,
+    }));
+    store.save();
+  }
+
+  private restorePersisted(): void {
+    this.mixer.applyMixer(store.db.mixer);
+    for (let i = 0; i < PAD_COUNT; i++) {
+      const saved = store.db.pads[i];
+      if (!saved) continue;
+      const pad = this.mixer.pads[i];
+      pad.set({ gain: saved.gain, mode: saved.mode });
+      if (!saved.mediaId) continue;
+      const item = store.getMedia(saved.mediaId);
+      if (item?.status !== 'ready') continue;
+      try {
+        pad.assign(item.id, item.title, pcmPath(item.id));
+      } catch (err) {
+        log.warn(`could not restore pad ${i}: ${(err as Error).message}`);
+      }
+    }
+  }
+
+  async shutdown(): Promise<void> {
+    if (this.channelTimer) clearInterval(this.channelTimer);
+    this.voice.leave();
+    this.mixer.destroy();
+    this.control.dispose();
+    await store.flush();
+  }
+}
+
+export function pcmPath(id: string): string {
+  return path.join(config.paths.pcmDir, `${id}.pcm`);
+}
+
+export const engine = new Engine();
