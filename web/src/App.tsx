@@ -9,7 +9,7 @@ import { OutputPanel } from './components/OutputPanel';
 import { CrewPanel } from './components/CrewPanel';
 import { Toasts } from './components/Toasts';
 import { Colophon } from './components/Colophon';
-import { Login } from './components/Login';
+import { Home } from './components/Home';
 import type { SessionUser } from './protocol';
 
 const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
@@ -102,7 +102,7 @@ export default function App() {
     // The callback's ?error= says *why* sign-in was refused (wrong role, state
     // mismatch, ...). The socket only ever reports the generic "Not signed in",
     // so the specific reason must win or the useful message is lost.
-    return <Login error={loginError ?? dj.error} />;
+    return <Home error={loginError ?? dj.error} />;
   }
 
   if (!state || !me) {
