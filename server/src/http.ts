@@ -58,9 +58,11 @@ export function createApp(): express.Express {
     const expected = req.cookies?.[cookieNames.state];
     res.clearCookie(cookieNames.state, { path: '/' });
 
-    if (error) return res.redirect(`/?error=${encodeURIComponent(error)}`);
+    // Failures go back to /login rather than /, so the reason lands beside the
+    // button that failed instead of on the marketing page.
+    if (error) return res.redirect(`/login?error=${encodeURIComponent(error)}`);
     if (!code || !state || !expected || state !== expected) {
-      return res.redirect('/?error=' + encodeURIComponent('Login state mismatch — try again.'));
+      return res.redirect('/login?error=' + encodeURIComponent('Login state mismatch — try again.'));
     }
 
     try {
@@ -68,7 +70,7 @@ export function createApp(): express.Express {
       const fallbackName = profile.global_name || profile.username;
       const access = await checkAccess(profile.id, fallbackName);
       if (!access.allowed) {
-        return res.redirect('/?error=' + encodeURIComponent(access.reason ?? 'Access denied.'));
+        return res.redirect('/login?error=' + encodeURIComponent(access.reason ?? 'Access denied.'));
       }
       const user: SessionUser = {
         id: profile.id,
@@ -82,7 +84,7 @@ export function createApp(): express.Express {
       res.redirect('/');
     } catch (err) {
       log.warn('login failed:', (err as Error).message);
-      res.redirect('/?error=' + encodeURIComponent((err as Error).message));
+      res.redirect('/login?error=' + encodeURIComponent((err as Error).message));
     }
   });
 

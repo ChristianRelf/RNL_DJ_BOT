@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { Home } from './components/Home';
+import { LoginPage } from './components/LoginPage';
 import { Legal } from './components/Legal';
 import './styles.css';
 
@@ -27,6 +28,8 @@ function page() {
       return <Legal page="privacy" />;
     case '/home':
       return <Home />;
+    case '/login':
+      return <LoginPage />;
     default:
       return <App />;
   }

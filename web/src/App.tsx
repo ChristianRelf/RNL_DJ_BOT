@@ -17,18 +17,12 @@ const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
 export default function App() {
   const dj = useDj();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  const [loginError, setLoginError] = useState<string | null>(null);
   const throttled = useThrottledSend(dj.send);
 
-  // Resolve the session before the socket handshake so the login screen does
-  // not flash for users who are already signed in.
+  // Resolve the session before the socket handshake so the home page does not
+  // flash for users who are already signed in. Sign-in failures never land
+  // here — the OAuth callback sends those to /login with the reason.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const error = params.get('error');
-    if (error) {
-      setLoginError(error);
-      window.history.replaceState({}, '', window.location.pathname);
-    }
     fetch('/api/me', { credentials: 'include' })
       .then((res) => setSignedIn(res.ok))
       .catch(() => setSignedIn(false));
@@ -99,10 +93,10 @@ export default function App() {
   }, [dj.status, state]);
 
   if (signedIn === false || dj.status === 'unauthorised') {
-    // The callback's ?error= says *why* sign-in was refused (wrong role, state
-    // mismatch, ...). The socket only ever reports the generic "Not signed in",
-    // so the specific reason must win or the useful message is lost.
-    return <Home error={loginError ?? dj.error} />;
+    // Deliberately renders rather than redirecting to /login: the socket can
+    // reject a session that /api/me still accepts (a role removed mid-session),
+    // and /login bounces valid sessions back here — a redirect would loop.
+    return <Home error={dj.error} />;
   }
 
   if (!state || !me) {

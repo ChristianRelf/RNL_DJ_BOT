@@ -1,16 +1,18 @@
 import { Colophon } from './Colophon';
+import { ConsolePreview } from './ConsolePreview';
 
 /**
  * The shop window. This is what a signed-out visitor gets at `/`, and it stays
  * reachable at `/home` once you are signed in.
  *
- * Everything claimed here is something the software actually does — if a
- * feature is cut or changed, cut it here too. Nothing on this page should need
- * a footnote.
+ * Everything claimed here is something the software actually does, and the
+ * numbers are the shipped defaults — if a feature or a default changes, change
+ * it here too. Nothing on this page should need a footnote.
  */
 
 const EMAIL = 'hello@ronation.live';
 const LICENCE_SUBJECT = encodeURIComponent('deck — licensing enquiry');
+const LICENCE_MAILTO = `mailto:${EMAIL}?subject=${LICENCE_SUBJECT}`;
 
 const SPECS = [
   { value: '2', label: 'decks' },
@@ -22,7 +24,7 @@ const SPECS = [
 const FEATURES = [
   {
     title: 'Two decks',
-    body: 'Waveform scrubbing, cue points, manual and beat-locked loops, pitch control, and one-press tempo matching between decks.',
+    body: 'Waveform scrubbing, cue points, manual and beat-locked loops, beat jumps, pitch control, and one-press tempo matching between decks.',
   },
   {
     title: 'A real isolator',
@@ -41,8 +43,8 @@ const FEATURES = [
     body: 'Drag files in and get waveforms and tempo back automatically. Search, tag, rename, and pre-listen in your own browser without touching the live mix.',
   },
   {
-    title: 'Straight into Discord',
-    body: 'Mixed, encoded and streamed live into a voice channel. Access is gated on your Discord server roles, so the booth is only open to the people you choose.',
+    title: 'Controls that behave',
+    body: 'Right-click any control to reset it, right-drag or shift-drag for fine adjustment, scroll to trim. Keyboard shortcuts for transport and pads.',
   },
 ];
 
@@ -61,12 +63,53 @@ const STEPS = [
   },
 ];
 
+const FAQ = [
+  {
+    q: 'Do I need my own Discord bot?',
+    a: 'Yes. You create a Discord application, and deck runs as your bot under your name. Sign-in uses your own OAuth client, so your members never see ours.',
+  },
+  {
+    q: 'Where does the audio go?',
+    a: 'It is mixed and encoded on your server and streamed live into a voice channel. Nothing is recorded, and nothing leaves your machine except the stream itself.',
+  },
+  {
+    q: 'What can I upload?',
+    a: 'MP3, WAV, FLAC, OGG, M4A, AAC and Opus, plus anything else ffmpeg can decode. Files are capped at 100 MB by default, which you can raise.',
+  },
+  {
+    q: 'Can two people mix at once?',
+    a: 'No, and that is on purpose. One person holds control while the rest watch live. Control passes on request, or automatically after three minutes of inactivity.',
+  },
+  {
+    q: 'What do I need to run it?',
+    a: 'A machine with Docker, a Discord application, and a domain behind a reverse proxy. ffmpeg and the Opus encoder are already in the image.',
+  },
+  {
+    q: 'Does it phone home?',
+    a: 'No. There is no telemetry, no analytics and no third-party scripts anywhere in it. Uploads and settings live in a volume on your server.',
+  },
+];
+
 export function Home({ error }: { error?: string | null }) {
   return (
     <div className="home">
+      <nav className="home-nav">
+        <a href="/home" className="home-nav-brand">
+          <img className="home-nav-logo" src="/deckLogo.png" alt="deck" />
+        </a>
+        <div className="home-nav-links">
+          <a href="#features">Features</a>
+          <a href="#faq">FAQ</a>
+          <a href="#licensing">Licensing</a>
+        </div>
+        <a className="btn tiny home-nav-cta" href="/login">
+          SIGN IN
+        </a>
+      </nav>
+
       <div className="home-inner">
         <header className="home-hero">
-          <img className="home-logo" src="/deckLogo.png" alt="deck" />
+          <span className="home-eyebrow">Discord DJ booth</span>
           <h1>Shared decks for Discord.</h1>
           <p className="home-lede">
             A proper mixing console in the browser, wired straight into a voice channel. Your crew
@@ -76,11 +119,11 @@ export function Home({ error }: { error?: string | null }) {
           {error ? <p className="login-error home-error">{error}</p> : null}
 
           <div className="home-cta">
-            <a className="btn primary home-btn" href="/api/auth/login">
+            <a className="btn primary home-btn" href="/login">
               SIGN IN WITH DISCORD
             </a>
-            <a className="btn home-btn" href={`mailto:${EMAIL}?subject=${LICENCE_SUBJECT}`}>
-              LICENCE IT
+            <a className="btn home-btn" href="#licensing">
+              RUN YOUR OWN
             </a>
           </div>
           <p className="home-consent">
@@ -88,6 +131,8 @@ export function Home({ error }: { error?: string | null }) {
             <a href="/privacy">Privacy Policy</a>.
           </p>
         </header>
+
+        <ConsolePreview />
 
         <ul className="home-specs">
           {SPECS.map((spec) => (
@@ -98,7 +143,7 @@ export function Home({ error }: { error?: string | null }) {
           ))}
         </ul>
 
-        <section className="home-section">
+        <section className="home-section" id="features">
           <h2 className="home-section-title">What you get</h2>
           <div className="home-grid">
             {FEATURES.map((feature) => (
@@ -110,7 +155,7 @@ export function Home({ error }: { error?: string | null }) {
           </div>
         </section>
 
-        <section className="home-section">
+        <section className="home-section" id="steps">
           <h2 className="home-section-title">Getting on the air</h2>
           <ol className="home-steps">
             {STEPS.map((step, index) => (
@@ -125,18 +170,29 @@ export function Home({ error }: { error?: string | null }) {
           </ol>
         </section>
 
-        <section className="home-section home-licence">
+        <section className="home-section" id="faq">
+          <h2 className="home-section-title">Questions</h2>
+          <dl className="home-faq">
+            {FAQ.map((item) => (
+              <div key={item.q}>
+                <dt>{item.q}</dt>
+                <dd>{item.a}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="home-section home-licence" id="licensing">
           <h2 className="home-section-title">Running it yourself</h2>
-          <p>
+          <p className="home-licence-lede">
             deck is self-hosted. It ships as a single container, runs against your own Discord
-            application, and keeps every uploaded file and every setting on your server. Nothing is
-            phoned home, and there is no third-party analytics anywhere in it.
+            application, and keeps every uploaded file and every setting on your server.
           </p>
           <p>
             If you want it for your own community, station or event, get in touch and we will sort
             out a licence.
           </p>
-          <a className="btn primary home-btn" href={`mailto:${EMAIL}?subject=${LICENCE_SUBJECT}`}>
+          <a className="btn primary home-btn" href={LICENCE_MAILTO}>
             TALK TO US ABOUT LICENSING
           </a>
         </section>
