@@ -1,19 +1,22 @@
 import { Colophon } from './Colophon';
 import { ConsolePreview } from './ConsolePreview';
+import { SiteNav } from './SiteNav';
 
 /**
  * The pitch, at /license. The front door is the sign-in page; this is where
  * "find out more" leads, and what you send someone who asks about running it
  * themselves.
  *
- * Everything claimed here is something the software actually does, and the
- * numbers are the shipped defaults — if a feature or a default changes, change
- * it here too. Nothing on this page should need a footnote.
+ * Every claim here is something the software actually does, and every number is
+ * a shipped default — if a feature or a default changes, change it here too.
+ * No invented pricing, no invented adoption, nothing that needs a footnote.
  */
 
 const EMAIL = 'hello@ronation.live';
 const LICENCE_SUBJECT = encodeURIComponent('deck — licensing enquiry');
 const LICENCE_MAILTO = `mailto:${EMAIL}?subject=${LICENCE_SUBJECT}`;
+
+const PROOF = ['Self-hosted', 'Your own Discord app', 'No telemetry'];
 
 const SPECS = [
   { value: '2', label: 'decks' },
@@ -22,30 +25,73 @@ const SPECS = [
   { value: '48k', label: 'stereo Opus' },
 ];
 
-const FEATURES = [
+/** The category distinction the whole product rests on. */
+const CONTRAST = [
   {
-    title: 'Two decks',
-    body: 'Waveform scrubbing, cue points, manual and beat-locked loops, beat jumps, pitch control, and one-press tempo matching between decks.',
+    them: 'Music bots queue links.',
+    us: 'deck mixes records.',
+    body: 'Beatmatch, ride the crossfader, kill the bass on the way in, drop a four-beat loop and hold it. Two decks and a real isolator, not a playlist with a skip button.',
   },
   {
-    title: 'A real isolator',
-    body: 'Three-band EQ that kills properly rather than dipping, a sweepable low-pass and high-pass filter, and input trim on every channel.',
+    them: 'Music bots take requests.',
+    us: 'deck gives your crew a booth.',
+    body: 'One person on the decks at a time, with a queue for who plays next and automatic handover when someone goes idle. Everyone else watches the meters move in real time.',
   },
   {
-    title: 'Eight sample pads',
-    body: 'Fire them as one-shots, loops, or hold-to-play. They run on their own bus that ducks the decks underneath by however much you want.',
+    them: 'Music bots run on someone else’s server.',
+    us: 'deck runs on yours.',
+    body: 'One container, your own Discord application, your files on your disk. Nothing is recorded, nothing is reported, and no third party sees your library.',
+  },
+];
+
+const AUDIENCE = [
+  {
+    title: 'Community servers',
+    body: 'Listening parties, movie nights and the Friday set — without one person screen-sharing a browser tab at everyone.',
   },
   {
-    title: 'Built for a crew',
-    body: 'One person on the decks at a time, with a request queue, live presence, and automatic handover when someone goes idle. Everyone else watches the meters move.',
+    title: 'Internet radio',
+    body: 'A rotating roster of DJs with scheduled shows, all working the same booth and handing over cleanly between sets.',
   },
   {
-    title: 'A pool that does the work',
-    body: 'Drag files in and get waveforms and tempo back automatically. Search, tag, rename, and pre-listen in your own browser without touching the live mix.',
+    title: 'Events and tournaments',
+    body: 'Walk-on music, filler between matches, and a proper fade out of the room when the stream goes live.',
+  },
+];
+
+const PILLARS = [
+  {
+    title: 'Mix like you mean it',
+    body: 'Everything you would reach for on a real controller, in a browser tab. Load a track, find the one, and work it.',
+    points: [
+      'Two decks with waveform scrubbing and cue points',
+      'Beat-locked loops, beat jumps and loop rolls',
+      'Pitch fader with one-press tempo matching',
+      'Three-band EQ that kills properly, plus a sweepable filter',
+      'Equal-power crossfader with slam buttons',
+    ],
   },
   {
-    title: 'Controls that behave',
-    body: 'Right-click any control to reset it, right-drag or shift-drag for fine adjustment, scroll to trim. Keyboard shortcuts for transport and pads.',
+    title: 'Hand the booth around',
+    body: 'Built for a crew from the start, so nobody is passing a laptop or fighting over who is in charge.',
+    points: [
+      'One operator at a time, with a request queue',
+      'Hands over automatically if you idle while someone waits',
+      'Live presence — see who is in and who is playing',
+      'Access gated on the Discord roles you already use',
+      'Everyone else watches the console live, read-only',
+    ],
+  },
+  {
+    title: 'A library that keeps up',
+    body: 'Drop files in and they are ready to play. No tagging session before you can start a set.',
+    points: [
+      'Waveforms and tempo detected on upload',
+      'Search, tag and rename in place',
+      'Pre-listen in your own browser, off air',
+      'Drag straight onto a deck or a sample pad',
+      'Eight pads with one-shot, loop and hold modes',
+    ],
   },
 ];
 
@@ -79,54 +125,47 @@ const FAQ = [
   },
   {
     q: 'Can two people mix at once?',
-    a: 'No, and that is on purpose. One person holds control while the rest watch live. Control passes on request, or automatically after three minutes of inactivity.',
+    a: 'No, and that is on purpose. One person holds control while the rest watch live. Control passes when the holder releases it, and automatically if they sit idle for three minutes while somebody is waiting. Nobody gets bumped off an empty queue.',
   },
   {
     q: 'What do I need to run it?',
     a: 'A machine with Docker, a Discord application, and a domain behind a reverse proxy. ffmpeg and the Opus encoder are already in the image.',
   },
   {
-    q: 'Does it phone home?',
-    a: 'No. There is no telemetry, no analytics and no third-party scripts anywhere in it. Uploads and settings live in a volume on your server.',
+    q: 'What does a licence cost?',
+    a: 'It depends on the size of your server and what you are using it for. Tell us a bit about both and we will come back with a number.',
   },
 ];
 
 export function License() {
   return (
     <div className="lic">
-      <nav className="lic-nav">
-        <a href="/" className="lic-nav-brand" aria-label="deck">
-          <img src="/deckLogo.png" alt="deck" />
-        </a>
-        <div className="lic-nav-links">
-          <a href="#features">Features</a>
-          <a href="#faq">FAQ</a>
-          <a href="#licensing">Licensing</a>
-        </div>
-        <a className="btn tiny lic-nav-cta" href="/login">
-          SIGN IN
-        </a>
-      </nav>
+      <SiteNav current="/license" />
 
       <div className="lic-inner">
         <header className="lic-hero">
           <h1>
-            Shared decks
+            A real DJ booth
             <br />
-            for Discord.
+            for your Discord server.
           </h1>
           <p className="lic-lede">
-            A proper mixing console in the browser, wired straight into a voice channel. Your crew
-            takes turns on the decks; everyone else just listens.
+            Two decks, a proper mixer and eight sample pads — mixed live into a voice channel by
+            you and your crew. Not a queue bot.
           </p>
           <div className="lic-cta">
             <a className="btn primary lic-btn" href={LICENCE_MAILTO}>
-              Licence it
+              Licence it for your server
             </a>
             <a className="btn lic-btn lic-btn-ghost" href="/login">
               Sign in
             </a>
           </div>
+          <ul className="lic-proof">
+            {PROOF.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </header>
 
         <ConsolePreview />
@@ -140,13 +179,45 @@ export function License() {
           ))}
         </ul>
 
+        <section className="lic-section" id="why">
+          <h2 className="lic-section-title">Not another music bot</h2>
+          <div className="lic-contrast">
+            {CONTRAST.map((item) => (
+              <article key={item.us}>
+                <p className="lic-contrast-them">{item.them}</p>
+                <h3>{item.us}</h3>
+                <p className="lic-contrast-body">{item.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className="lic-section" id="features">
           <h2 className="lic-section-title">What you get</h2>
-          <div className="lic-grid">
-            {FEATURES.map((feature) => (
-              <article className="lic-card" key={feature.title}>
-                <h3>{feature.title}</h3>
-                <p>{feature.body}</p>
+          <div className="lic-pillars">
+            {PILLARS.map((pillar) => (
+              <article className="lic-pillar" key={pillar.title}>
+                <div className="lic-pillar-copy">
+                  <h3>{pillar.title}</h3>
+                  <p>{pillar.body}</p>
+                </div>
+                <ul className="lic-pillar-list">
+                  {pillar.points.map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="lic-section" id="who">
+          <h2 className="lic-section-title">Who runs it</h2>
+          <div className="lic-audience">
+            {AUDIENCE.map((item) => (
+              <article key={item.title}>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
               </article>
             ))}
           </div>
@@ -177,18 +248,18 @@ export function License() {
           </dl>
         </section>
 
-        <section className="lic-offer" id="licensing">
-          <h2>Run your own.</h2>
+        <section className="lic-close" id="licensing">
+          <h2>Put a booth in your server.</h2>
           <p>
-            deck is self-hosted. It ships as a single container, runs against your own Discord
-            application, and keeps every uploaded file and every setting on your server.
-          </p>
-          <p className="lic-offer-sub">
-            For your community, station or event — get in touch and we will sort out a licence.
+            deck is self-hosted and licensed per server. Tell us what you are running — a community,
+            a station, an event — and we will sort out a licence that fits.
           </p>
           <a className="btn primary lic-btn" href={LICENCE_MAILTO}>
             Talk to us about licensing
           </a>
+          <span className="lic-close-mail">
+            or email <a href={LICENCE_MAILTO}>{EMAIL}</a>
+          </span>
         </section>
 
         <footer className="lic-foot">
