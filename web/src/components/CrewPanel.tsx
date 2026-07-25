@@ -81,7 +81,7 @@ export function CrewPanel({ control, users, me, send }: CrewPanelProps) {
                   title="Hand over control"
                   onClick={() => void send('control:grant', { userId: entry.userId })}
                 >
-                  hand over
+                  HAND OVER
                 </button>
               ) : null}
             </li>
@@ -110,7 +110,7 @@ export function CrewPanel({ control, users, me, send }: CrewPanelProps) {
                 title="Give this DJ control"
                 onClick={() => void send('control:grant', { userId: user.id })}
               >
-                →
+                GIVE
               </button>
             ) : null}
           </li>

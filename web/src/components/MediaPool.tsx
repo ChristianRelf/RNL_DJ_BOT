@@ -114,7 +114,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
       <header className="panel-head">
         <h2 className="panel-title">Media pool</h2>
         <button type="button" className="btn tiny" onClick={() => inputRef.current?.click()}>
-          + upload
+          UPLOAD
         </button>
       </header>
 
@@ -132,7 +132,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
 
       <input
         className="search"
-        placeholder="Search tracks, tags, uploader…"
+        placeholder="Search title, tag, uploader"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />
@@ -157,7 +157,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
       <ul className="track-list">
         {filtered.length === 0 ? (
           <li className="empty">
-            {media.length === 0 ? 'Drop audio files here to build the pool.' : 'No matches.'}
+            {media.length === 0 ? 'Drop audio files here to build the pool' : 'No matches'}
           </li>
         ) : null}
 
@@ -203,11 +203,11 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                 )}
                 <span className="track-meta mono">
                   {item.status === 'ready'
-                    ? `${formatTime(item.durationMs)} · ${formatBytes(item.sizeBytes)}`
+                    ? `${formatTime(item.durationMs)}  ${formatBytes(item.sizeBytes)}`
                     : item.status === 'processing'
-                      ? 'decoding…'
+                      ? 'decoding...'
                       : item.error ?? 'failed'}
-                  {' · '}
+                  {'   '}
                   {item.uploadedBy.name} {relativeTime(item.uploadedAt)}
                 </span>
               </div>
@@ -220,7 +220,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                   title="Pre-listen in your browser only"
                   onClick={() => setPreviewId(previewId === item.id ? null : item.id)}
                 >
-                  {previewId === item.id ? '■' : '🎧'}
+                  {previewId === item.id ? 'STOP' : 'CUE'}
                 </button>
                 <button
                   type="button"
@@ -249,7 +249,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                     }
                   }}
                 >
-                  🗑
+                  DEL
                 </button>
               </div>
             </li>

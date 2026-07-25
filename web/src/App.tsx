@@ -10,7 +10,7 @@ import { Toasts } from './components/Toasts';
 import { Login } from './components/Login';
 import type { SessionUser } from './protocol';
 
-const DECK_ACCENT = { A: '#22d3ee', B: '#f472b6' } as const;
+const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
 
 export default function App() {
   const dj = useDj();
@@ -92,7 +92,7 @@ export default function App() {
 
   const banner = useMemo(() => {
     if (dj.status === 'offline') return 'Disconnected from the rig.';
-    if (dj.status === 'connecting' && state) return 'Reconnecting…';
+    if (dj.status === 'connecting' && state) return 'Reconnecting...';
     return null;
   }, [dj.status, state]);
 
@@ -104,7 +104,7 @@ export default function App() {
     return (
       <div className="boot">
         <div className="boot-spinner" />
-        <p>{dj.error ?? 'Connecting to the rig…'}</p>
+        <p>{dj.error ?? 'connecting'}</p>
       </div>
     );
   }
@@ -124,10 +124,10 @@ export default function App() {
 
       {locked ? (
         <div className="lock-strip">
-          <strong>View only.</strong>
+          <strong>View only</strong>
           {state.control.holderName
-            ? ` ${state.control.holderName} is on the decks — request control to take over.`
-            : ' Nobody has control — take it to start mixing.'}
+            ? `${state.control.holderName} is on the decks. Request control to take over.`
+            : 'Nobody has control. Take it to start mixing.'}
         </div>
       ) : null}
 
@@ -167,15 +167,15 @@ export default function App() {
 
       <footer className="shortcuts">
         <span>
-          <kbd>Q</kbd>/<kbd>P</kbd> play deck A/B
+          <kbd>Q</kbd> <kbd>P</kbd> play deck A/B
         </span>
         <span>
-          <kbd>1</kbd>–<kbd>8</kbd> pads
+          <kbd>1</kbd>-<kbd>8</kbd> pads
         </span>
         <span>
-          <kbd>[</kbd>/<kbd>]</kbd> crossfade
+          <kbd>[</kbd> <kbd>]</kbd> crossfade
         </span>
-        <span>drag a track onto a deck or pad · double-click a knob to reset</span>
+        <span>double-click a knob to reset it, shift-drag for fine control</span>
       </footer>
 
       <Toasts toasts={dj.toasts} dismiss={dj.dismiss} />

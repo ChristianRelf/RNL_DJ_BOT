@@ -59,9 +59,13 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
         <div className="deck-title">
           <strong title={deck.title ?? undefined}>{deck.title ?? 'Drop a track here'}</strong>
           <span className="deck-sub">
-            {item?.bpm ? `${item.bpm} BPM · ` : ''}
-            {deck.playing ? 'playing' : deck.mediaId ? 'stopped' : 'empty'}
-            {deck.rate !== 1 ? ` · ${formatRate(deck.rate)}` : ''}
+            {[
+              item?.bpm ? `${item.bpm} bpm` : null,
+              deck.playing ? 'playing' : deck.mediaId ? 'stopped' : 'empty',
+              deck.rate !== 1 ? formatRate(deck.rate) : null,
+            ]
+              .filter(Boolean)
+              .join('   ')}
           </span>
         </div>
         <button
@@ -69,9 +73,9 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
           className="ghost"
           disabled={locked || !deck.mediaId}
           onClick={() => void send('deck:eject', { deck: deck.id })}
-          title="Eject"
+          title="Eject the loaded track"
         >
-          ⏏
+          EJ
         </button>
       </header>
 
@@ -132,7 +136,7 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
               onMouseDown={() => void send('deck:nudge', { deck: deck.id, deltaMs: -250 })}
               title="Nudge back"
             >
-              ◀◀
+              {'<<'}
             </button>
             <button
               type="button"
@@ -141,7 +145,7 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
               onMouseDown={() => void send('deck:nudge', { deck: deck.id, deltaMs: 250 })}
               title="Nudge forward"
             >
-              ▶▶
+              {'>>'}
             </button>
           </div>
 
@@ -185,7 +189,7 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
               onClick={() => scaleLoop(0.5)}
               title="Halve the loop"
             >
-              ÷2
+              /2
             </button>
             <button
               type="button"
@@ -194,7 +198,7 @@ export function DeckPanel({ deck, media, locked, accent, send, throttled }: Deck
               onClick={() => scaleLoop(2)}
               title="Double the loop"
             >
-              ×2
+              x2
             </button>
           </div>
 

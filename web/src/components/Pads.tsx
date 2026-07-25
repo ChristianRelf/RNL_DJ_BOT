@@ -10,7 +10,7 @@ interface PadsProps {
 }
 
 const MODES: PadMode[] = ['oneshot', 'loop', 'gate'];
-const MODE_LABEL: Record<PadMode, string> = { oneshot: '1×', loop: '∞', gate: 'HOLD' };
+const MODE_LABEL: Record<PadMode, string> = { oneshot: 'ONE', loop: 'LOOP', gate: 'HOLD' };
 
 export function Pads({ pads, locked, send }: PadsProps) {
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -25,7 +25,7 @@ export function Pads({ pads, locked, send }: PadsProps) {
     <section className="panel pads">
       <header className="panel-head">
         <h2 className="panel-title">Sample pads</h2>
-        <span className="hint">drop a track on a pad · keys 1–8</span>
+        <span className="hint">drop a track on a pad. keys 1-8 fire them.</span>
         <Meter channel="pads" vertical={false} />
       </header>
 
@@ -110,7 +110,7 @@ export function Pads({ pads, locked, send }: PadsProps) {
                 title="Clear pad"
                 onClick={() => void send('pad:assign', { index: pad.index, mediaId: null })}
               >
-                ×
+                CLR
               </button>
             </div>
           </div>

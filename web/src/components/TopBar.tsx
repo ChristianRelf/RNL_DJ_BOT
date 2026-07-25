@@ -76,9 +76,9 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
 
         <span className="voice-status">
           {voice.status === 'ready'
-            ? `live in ${voice.channelName} · ${voice.listeners} listening`
+            ? `on air in ${voice.channelName}, ${voice.listeners} listening`
             : voice.status === 'connecting'
-              ? 'connecting…'
+              ? 'connecting'
               : voice.error
                 ? voice.error
                 : 'off air'}
@@ -90,7 +90,7 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
         {user.avatarUrl ? <img className="avatar" src={user.avatarUrl} alt="" /> : null}
         <span className="me-name">{user.displayName}</span>
         <button type="button" className="btn tiny" onClick={() => void logout()}>
-          sign out
+          SIGN OUT
         </button>
       </div>
     </header>

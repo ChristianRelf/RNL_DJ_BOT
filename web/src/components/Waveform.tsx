@@ -52,12 +52,12 @@ export function Waveform({
     if (loop.active && durationMs > 0) {
       const from = (loop.startMs / durationMs) * width;
       const to = (loop.endMs / durationMs) * width;
-      ctx.fillStyle = 'rgba(250, 204, 21, 0.14)';
+      ctx.fillStyle = 'rgba(255, 156, 43, 0.12)';
       ctx.fillRect(from, 0, Math.max(1, to - from), height);
     }
 
     if (peaks.length === 0) {
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+      ctx.strokeStyle = 'rgba(133, 140, 147, 0.35)';
       ctx.beginPath();
       ctx.moveTo(0, mid);
       ctx.lineTo(width, mid);
@@ -75,15 +75,15 @@ export function Waveform({
         // Slight compression so quiet passages stay visible.
         const amplitude = Math.pow(peak, 0.7) * (mid - 2);
         const x = i * barWidth;
-        ctx.fillStyle = x / width <= progress ? accent : 'rgba(148, 163, 184, 0.45)';
+        ctx.fillStyle = x / width <= progress ? accent : 'rgba(120, 128, 136, 0.55)';
         ctx.fillRect(x, mid - amplitude, Math.max(1, barWidth - 0.5), amplitude * 2 || 1);
       }
     }
 
     if (durationMs > 0 && cueMs > 0) {
       const x = (cueMs / durationMs) * width;
-      ctx.strokeStyle = '#f97316';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#ff9c2b';
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
@@ -91,8 +91,8 @@ export function Waveform({
     }
 
     const px = progress * width;
-    ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#dfe3e6';
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(px, 0);
     ctx.lineTo(px, height);

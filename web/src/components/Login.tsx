@@ -7,12 +7,12 @@ export function Login({ error }: { error: string | null }) {
           <span className="brand-text">DJ</span>
         </div>
         <p className="login-copy">
-          A shared DJ rig for your Discord voice channels. Sign in with Discord to reach the
-          decks — you need to be a member of the server with a DJ role.
+          Shared decks for your Discord voice channels. You need to be in the server with a DJ
+          role to get in.
         </p>
         {error ? <p className="login-error">{error}</p> : null}
         <a className="btn primary login-btn" href="/api/auth/login">
-          Sign in with Discord
+          SIGN IN WITH DISCORD
         </a>
       </div>
     </div>

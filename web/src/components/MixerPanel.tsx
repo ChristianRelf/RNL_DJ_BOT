@@ -141,7 +141,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
             disabled={locked}
             onClick={() => void send('mixer:set', { crossfader: -1 })}
           >
-            ◀ A
+            A
           </button>
           <button
             type="button"
@@ -149,7 +149,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
             disabled={locked}
             onClick={() => void send('mixer:set', { crossfader: 0 })}
           >
-            CENTRE
+            CTR
           </button>
           <button
             type="button"
@@ -157,7 +157,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
             disabled={locked}
             onClick={() => void send('mixer:set', { crossfader: 1 })}
           >
-            B ▶
+            B
           </button>
         </div>
       </div>
