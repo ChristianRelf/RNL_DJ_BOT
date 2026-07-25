@@ -5,7 +5,9 @@ const EMPTY: Meters = {
   A: [0, 0],
   B: [0, 0],
   pads: [0, 0],
+  fx: [0, 0],
   clip: false,
+  reduction: 1,
 };
 
 type Listener = (meters: Meters) => void;

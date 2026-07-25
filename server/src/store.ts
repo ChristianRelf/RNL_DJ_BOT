@@ -24,9 +24,15 @@ export interface PersistedDb {
 
 const DEFAULT_MIXER: MixerState = {
   crossfader: 0,
+  crossfaderCurve: 0,
   master: 1,
+  balance: 0,
+  mono: false,
+  limiter: true,
+  masterEq: { low: 0, mid: 0, high: 0 },
   padBus: 0.9,
   padDuck: 0.25,
+  fx: { type: 'echo', mix: 0, timeMs: 375, feedback: 0.35, tone: 0.6 },
 };
 
 /** Every tool starts off: each one opens a port or reaches out to the network. */
@@ -65,7 +71,15 @@ class Store {
       const raw = fs.readFileSync(config.paths.dbFile, 'utf8');
       const parsed = JSON.parse(raw) as PersistedDb;
       this.data = { ...defaults(), ...parsed };
-      this.data.mixer = { ...DEFAULT_MIXER, ...(parsed.mixer ?? {}) };
+      // Nested sections are merged one level deep too, so a database written
+      // before the master EQ or the effects bus existed gains them at default
+      // rather than as undefined knobs the audio thread would read as NaN.
+      this.data.mixer = {
+        ...DEFAULT_MIXER,
+        ...(parsed.mixer ?? {}),
+        masterEq: { ...DEFAULT_MIXER.masterEq, ...(parsed.mixer?.masterEq ?? {}) },
+        fx: { ...DEFAULT_MIXER.fx, ...(parsed.mixer?.fx ?? {}) },
+      };
       // Merged over the defaults so a database written before a tool existed
       // gains it switched off rather than undefined.
       this.data.tools = { ...DEFAULT_TOOLS, ...(parsed.tools ?? {}) };

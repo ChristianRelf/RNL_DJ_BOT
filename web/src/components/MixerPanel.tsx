@@ -26,9 +26,10 @@ const EQ_MAX_DB = 6;
 const DECK_GAIN = 0.85;
 
 export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanelProps) {
-  // Kill and mute are console-side conveniences built on the plain gain
-  // commands the engine already takes, so they need somewhere to remember what
-  // the control was sitting at before it was slammed to zero.
+  // Kill is a console-side convenience built on the plain EQ command the engine
+  // already takes, so it needs somewhere to remember what the band was sitting
+  // at before it was slammed to zero. Mute is a real deck setting, so it does
+  // not — and it survives a reconnect, which the old parked-gain trick did not.
   const parked = useRef<Record<string, number>>({});
 
   const toggleKill = (id: DeckId, band: 'low' | 'mid' | 'high', value: number) => {
@@ -42,16 +43,6 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
     }
   };
 
-  const toggleMute = (id: DeckId, gain: number) => {
-    const key = `${id}:gain`;
-    if (gain <= 0.0001) {
-      void send('deck:set', { deck: id, gain: parked.current[key] ?? DECK_GAIN });
-    } else {
-      parked.current[key] = gain;
-      void send('deck:set', { deck: id, gain: 0 });
-    }
-  };
-
   return (
     <section className="panel mixer">
       <header className="panel-head">
@@ -62,7 +53,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
       <div className="mixer-strips">
         {DECK_IDS.map((id) => {
           const deck = decks[id];
-          const muted = deck.gain <= 0.0001;
+          const muted = deck.muted;
           return (
             <div className={`strip strip-${id.toLowerCase()}`} key={id}>
               <span className="strip-label">{id}</span>
@@ -131,7 +122,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
                 disabled={locked}
                 aria-pressed={muted}
                 title={muted ? `Unmute deck ${id}` : `Mute deck ${id}`}
-                onClick={() => toggleMute(id, deck.gain)}
+                onClick={() => void send('deck:set', { deck: id, muted: !muted })}
               >
                 {muted ? 'MUTED' : 'MUTE'}
               </button>

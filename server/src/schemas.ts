@@ -34,6 +34,9 @@ export const commandSchemas = {
       trim: finite.min(0).max(2).optional(),
       rate: finite.min(0.5).max(2).optional(),
       filter: finite.min(-1).max(1).optional(),
+      pan: finite.min(-1).max(1).optional(),
+      fxSend: finite.min(0).max(1).optional(),
+      muted: z.boolean().optional(),
       repeat: z.boolean().optional(),
       eq: eq.optional(),
     })
@@ -59,9 +62,24 @@ export const commandSchemas = {
   'mixer:set': z
     .object({
       crossfader: finite.min(-1).max(1).optional(),
+      crossfaderCurve: finite.min(0).max(1).optional(),
       master: finite.min(0).max(1.5).optional(),
+      balance: finite.min(-1).max(1).optional(),
+      mono: z.boolean().optional(),
+      limiter: z.boolean().optional(),
+      masterEq: eq.optional(),
       padBus: finite.min(0).max(1.5).optional(),
       padDuck: finite.min(0).max(1).optional(),
+      fx: z
+        .object({
+          type: z.enum(['echo', 'reverb', 'flanger']).optional(),
+          mix: finite.min(0).max(1).optional(),
+          timeMs: finite.min(20).max(2000).optional(),
+          feedback: finite.min(0).max(0.95).optional(),
+          tone: finite.min(0).max(1).optional(),
+        })
+        .strict()
+        .optional(),
     })
     .strict(),
   'tools:set': z

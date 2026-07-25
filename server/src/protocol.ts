@@ -73,6 +73,12 @@ export interface DeckState {
   eq: DeckEq;
   /** -1 = full low-pass, 0 = bypass, +1 = full high-pass */
   filter: number;
+  /** Stereo position, -1 = hard left, 0 = centre, +1 = hard right */
+  pan: number;
+  /** Post-fader send into the effects bus, 0..1 */
+  fxSend: number;
+  /** Takes the channel off the master without moving the fader. */
+  muted: boolean;
   cueMs: number;
   loop: DeckLoop;
   repeat: boolean;
@@ -92,15 +98,49 @@ export interface PadState {
   mode: PadMode;
 }
 
+/** Effects the send bus can be running. One at a time, like a hardware unit. */
+export type FxType = 'echo' | 'reverb' | 'flanger';
+
+export const FX_TYPES: FxType[] = ['echo', 'reverb', 'flanger'];
+
+export interface FxState {
+  type: FxType;
+  /** Wet return into the master, 0..1 */
+  mix: number;
+  /**
+   * Echo and flanger read this as a delay time in ms; reverb reads it as room
+   * size. 20..2000.
+   */
+  timeMs: number;
+  /** Regeneration, 0..0.95 — reverb reads it as decay. */
+  feedback: number;
+  /** Damping of the wet path, 0 = dark, 1 = bright. */
+  tone: number;
+}
+
 export interface MixerState {
   /** -1 = deck A only, +1 = deck B only */
   crossfader: number;
+  /**
+   * Crossfader shape: 0 is a smooth constant-power blend, 1 is a sharp cut
+   * that reaches full level within a sliver of travel.
+   */
+  crossfaderCurve: number;
   /** Master output gain, 0..1.5 */
   master: number;
+  /** Master left/right balance, -1..1 */
+  balance: number;
+  /** Sums the master to mono — for a club rig or a phone speaker. */
+  mono: boolean;
+  /** Brickwall limiter on the master, in place of the soft clipper. */
+  limiter: boolean;
+  /** Master 3-band EQ in dB, -26..+6 */
+  masterEq: DeckEq;
   /** Sample pad bus gain, 0..1.5 */
   padBus: number;
   /** Ducks the decks while a pad plays, 0 = off, 1 = full duck */
   padDuck: number;
+  fx: FxState;
 }
 
 /**
@@ -184,7 +224,11 @@ export interface Meters {
   A: [number, number];
   B: [number, number];
   pads: [number, number];
+  /** Wet return of the effects bus. */
+  fx: [number, number];
   clip: boolean;
+  /** Gain reduction the master limiter is applying, 0..1 (1 = none). */
+  reduction: number;
 }
 
 export interface Toast {
@@ -208,6 +252,9 @@ export interface ClientCommands {
     trim?: number;
     rate?: number;
     filter?: number;
+    pan?: number;
+    fxSend?: number;
+    muted?: boolean;
     repeat?: boolean;
     eq?: Partial<DeckEq>;
   };
@@ -216,7 +263,11 @@ export interface ClientCommands {
   'pad:trigger': { index: number };
   'pad:stop': { index: number };
   'pad:set': { index: number; gain?: number; mode?: PadMode };
-  'mixer:set': Partial<MixerState>;
+  /** Nested sections patch band by band, so two operators can share a knob row. */
+  'mixer:set': Partial<Omit<MixerState, 'masterEq' | 'fx'>> & {
+    masterEq?: Partial<DeckEq>;
+    fx?: Partial<FxState>;
+  };
   /** The key is rotated server-side, never set from a client. */
   'tools:set': Partial<Omit<ToolsState, 'timecodeKey'>>;
   'voice:join': { channelId: string };

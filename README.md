@@ -10,8 +10,8 @@ them is touching the decks at a time, with a hand-over queue for the rest.
 ```text
  browser (TSX control surface)          server (Node)                    Discord
  ┌───────────────────────────┐   ws    ┌──────────────────────────┐    ┌─────────┐
- │ decks · mixer · pads      │◀──────▶ │ control lock             │    │  voice  │
- │ media pool · crew         │  state  │ mix graph (48k stereo)   │───▶│ channel │
+ │ decks · mixer · fx · pads │◀──────▶ │ control lock             │    │  voice  │
+ │ pool · crew · midi        │  state  │ mix graph (48k stereo)   │───▶│ channel │
  └───────────────────────────┘ +meters │ ffmpeg decode on upload  │opus└─────────┘
               ▲ Discord OAuth2         └──────────────────────────┘
 ```
@@ -23,8 +23,20 @@ loop in/out with halve/double, pitch fader (0.5×–2× turntable-style, pitch f
 speed), nudge, repeat.
 
 **Mixer** — per channel: trim, 3-band isolator EQ (a full cut is a real kill, not a
-dip), single-knob LP/HP filter, channel fader with peak metering. Constant-power
-crossfader, master fader with a soft-clip limiter, and clip indication.
+dip), single-knob LP/HP filter, pan, mute, channel fader with peak metering.
+Crossfader with a blend-to-cut curve, master fader, and clip indication.
+
+**Advanced mixer** — the rest of the desk, on its own tool: per-channel sends and
+pan, a 3-band isolator across the master, left/right balance, a mono fold-down, a
+brickwall limiter with gain-reduction metering, and the bus routing.
+
+**Effects** — one send effect at a time on a bus both decks feed post-fader: tape
+echo, Schroeder reverb, or flanger. Time can be set in beats off whichever deck is
+playing, and follows its pitch fader.
+
+**MIDI** — map a hardware controller onto anything on the console via Web MIDI,
+with pickup, jump and endless-encoder modes. Mappings live in the browser and go
+out as ordinary commands, so the control lock still applies.
 
 **Sample pads** — eight slots for stings and drops, each one-shot / loop / hold,
 with their own bus level and an auto-duck that pulls the decks down under a pad hit.
@@ -211,8 +223,14 @@ envelope is captured during that same pass.
 
 The mix graph renders in 20 ms blocks (one Opus frame). Each deck resamples its
 source with linear interpolation for pitch, runs the isolator and filter, applies
-its smoothed fader, and the mixer sums both decks through a constant-power
-crossfader, adds the pad bus, applies master gain and a cubic soft clipper.
+its smoothed fader and pan; the mixer sums both decks through the crossfader, adds
+the pad bus and the effects return, runs the master isolator, balance and optional
+mono fold, then master gain, the limiter and a cubic soft clipper behind it.
+
+Effect sends are taken **post-fader**, so pulling a channel down takes its tail
+with it, and the wet return is **not** crossfaded — an echo thrown at the end of a
+track has to survive the fade out of it. When nothing is playing the freewheel
+keeps turning for five seconds so a tail rings out rather than being cut off.
 
 Rendering is **pull-driven** by the voice player, so Discord's own 20 ms packet
 cadence clocks the mix and no buffer can drift. When the bot is not in a channel a
@@ -248,14 +266,30 @@ server/src
   auth.ts        Discord OAuth2, session JWT, guild/role gate
   realtime.ts    Socket.IO transport, state coalescing, meter broadcast
   http.ts        auth routes, uploads, pre-listen streaming, static SPA
-  audio/         transcode · source · deck · pad · mixer · dsp
+  audio/         transcode · source · deck · pad · mixer · fx · dsp
   discord/       gateway client · voice connection · slash commands
   protocol.ts    wire contract (mirrored at web/src/protocol.ts)
 web/src
-  App.tsx        layout, keyboard shortcuts, lock gating
+  App.tsx        console assembly, keyboard shortcuts, lock gating
   socket.ts      socket client, throttled command sender
-  components/    deck · mixer · pads · media pool · crew · controls
+  lib/layout.ts  the console grid: cells, collision, presets, storage
+  lib/midi.ts    Web MIDI access, mapping targets, stored bindings
+  components/    deck · mixer · fx · midi · pads · media pool · crew · grid
 ```
+
+## The console
+
+The deck page is a twelve-column grid and every tool sits in an explicit cell of
+it. Tools are dragged in from a tray, moved by their handle and sized by their
+edges; everything snaps to the grid, nothing may overlap (whatever you drop onto
+is pushed down), and a tile shorter than its panel scrolls rather than cropping
+it. Below 860 px the grid stacks into one column and each tool sizes to its own
+content.
+
+The arrangement lives in `localStorage`, never on the server: two operators on
+two screens want different consoles, and tidying yours mid-set should not move
+anyone else's furniture. MIDI mappings are stored the same way, for the same
+reason.
 
 ## Keyboard
 

@@ -1,4 +1,5 @@
 import { SAMPLE_RATE } from '../protocol';
+import type { DeckEq } from '../protocol';
 
 /**
  * Direct-form-I biquad. One instance per channel — the coefficients are shared
@@ -108,4 +109,134 @@ export function softClip(x: number): number {
 export function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return value < min ? min : value > max ? max : value;
+}
+
+/* ------------------------------------------------------------- isolator */
+
+/** Isolator crossover points. */
+const BAND_LOW_HZ = 250;
+const BAND_HIGH_HZ = 2500;
+/** At or below this a band is muted outright, like a hardware kill switch. */
+export const KILL_DB = -25.5;
+
+/**
+ * Stereo 3-band isolator.
+ *
+ * The signal is split into low and high with complementary filters and the mid
+ * is whatever is left over, so the three bands sum back to the original at
+ * unity and a full cut is a real kill rather than a dip. Used by every deck and
+ * by the master bus.
+ */
+export class Isolator {
+  private readonly lowSplit = [new Biquad(), new Biquad()];
+  private readonly highSplit = [new Biquad(), new Biquad()];
+  private gains = { low: 1, mid: 1, high: 1 };
+
+  constructor() {
+    const low = lowPass(BAND_LOW_HZ, 0.707);
+    const high = highPass(BAND_HIGH_HZ, 0.707);
+    for (let ch = 0; ch < 2; ch++) {
+      this.lowSplit[ch].setCoefficients(low);
+      this.highSplit[ch].setCoefficients(high);
+    }
+  }
+
+  setGains(eq: DeckEq): void {
+    this.gains = {
+      low: bandGain(eq.low),
+      mid: bandGain(eq.mid),
+      high: bandGain(eq.high),
+    };
+  }
+
+  /** True when every band sits at unity, so the caller can skip the filters. */
+  get flat(): boolean {
+    return this.gains.low === 1 && this.gains.mid === 1 && this.gains.high === 1;
+  }
+
+  process(ch: 0 | 1, x: number): number {
+    const low = this.lowSplit[ch].process(x);
+    const high = this.highSplit[ch].process(x);
+    return low * this.gains.low + (x - low - high) * this.gains.mid + high * this.gains.high;
+  }
+
+  reset(): void {
+    for (const b of [...this.lowSplit, ...this.highSplit]) b.reset();
+  }
+}
+
+function bandGain(db: number): number {
+  return db <= KILL_DB ? 0 : dbToGain(db);
+}
+
+/* ------------------------------------------------------------- limiter */
+
+/** Where the limiter holds the peak. Just under full scale, to leave codec headroom. */
+const CEILING = 0.97;
+
+/**
+ * Feed-forward peak limiter on the master bus.
+ *
+ * No lookahead — the broadcast path is already latency-sensitive and a 20 ms
+ * frame is not the place to add more — so the attack is fast enough to catch a
+ * transient within a couple of samples and the soft clipper stays behind it as
+ * the backstop for whatever slips through.
+ */
+export class Limiter {
+  /** Current gain applied, 1 = wide open. */
+  gain = 1;
+  private readonly attack = smoothingCoefficient(0.5);
+  private readonly release = smoothingCoefficient(180);
+
+  /** Returns the gain to apply to this sample pair. */
+  step(l: number, r: number): number {
+    const peak = Math.max(Math.abs(l), Math.abs(r));
+    const target = peak > CEILING ? CEILING / peak : 1;
+    const coeff = target < this.gain ? this.attack : this.release;
+    this.gain += (target - this.gain) * coeff;
+    return this.gain;
+  }
+
+  reset(): void {
+    this.gain = 1;
+  }
+}
+
+/* ----------------------------------------------------------- delay line */
+
+/**
+ * Fixed-capacity circular delay with fractional reads, the building block for
+ * every send effect. Reading before writing keeps a feedback loop honest at
+ * delay times shorter than one block.
+ */
+export class DelayLine {
+  private readonly buffer: Float32Array;
+  private write = 0;
+
+  constructor(readonly capacity: number) {
+    this.buffer = new Float32Array(Math.max(2, Math.ceil(capacity)));
+  }
+
+  push(x: number): void {
+    this.buffer[this.write] = x;
+    this.write = (this.write + 1) % this.buffer.length;
+  }
+
+  /** Linearly interpolated read `delay` samples back from the write head. */
+  read(delay: number): number {
+    const n = this.buffer.length;
+    const d = clamp(delay, 1, n - 2);
+    const back = this.write - d;
+    const index = back >= 0 ? back : back + n;
+    const i0 = Math.floor(index);
+    const frac = index - i0;
+    const a = this.buffer[i0 % n];
+    const b = this.buffer[(i0 + 1) % n];
+    return a + (b - a) * frac;
+  }
+
+  reset(): void {
+    this.buffer.fill(0);
+    this.write = 0;
+  }
 }

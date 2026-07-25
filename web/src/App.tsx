@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useDj, useThrottledSend } from './socket';
 import { TopBar } from './components/TopBar';
 import { MediaPool } from './components/MediaPool';
@@ -17,20 +17,26 @@ import { Crossfader } from './components/Crossfader';
 import { OnAir } from './components/OnAir';
 import { SessionClock } from './components/SessionClock';
 import { ShortcutsPanel } from './components/ShortcutsPanel';
-import { LayoutPalette, WidgetChrome } from './components/LayoutEditor';
-import { Widget } from './components/Widget';
+import { LayoutPalette } from './components/LayoutEditor';
+import { ConsoleGrid } from './components/ConsoleGrid';
+import { MixerAdvanced } from './components/MixerAdvanced';
+import { FxRack } from './components/FxRack';
+import { MidiPanel } from './components/MidiPanel';
 import {
-  clampSpan,
-  columnsFor,
+  compact,
   defaultLayout,
+  firstFreeRow,
   fromPreset,
-  GRID_COLUMNS,
+  hasStoredLayout,
   loadLayout,
-  reorder,
+  place,
   saveLayout,
+  spec,
+  STACK_WIDTH_PX,
   type Layout,
   type WidgetId,
 } from './lib/layout';
+import { useMidiRuntime } from './lib/useMidi';
 import type { SessionUser } from './protocol';
 
 const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
@@ -45,27 +51,76 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
 
   const [layout, setLayout] = useState<Layout>(loadLayout);
   const [arranging, setArranging] = useState(false);
-  const [columns, setColumns] = useState(GRID_COLUMNS);
-  const dragFrom = useRef<number | null>(null);
-  const observer = useRef<ResizeObserver | null>(null);
+  // Tools waiting to be sized to their own content: everything on a console
+  // that has never been arranged, and anything added from the tray afterwards.
+  // The palette's heights are guesses about panels whose height depends on what
+  // is in them, so a measurement beats a guess wherever one is available.
+  const [fitting, setFitting] = useState<ReadonlySet<WidgetId>>(() =>
+    hasStoredLayout()
+      ? new Set<WidgetId>()
+      : new Set(layout.filter((item) => !item.hidden).map((item) => item.id)),
+  );
+  const [stacked, setStacked] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < STACK_WIDTH_PX,
+  );
 
-  // A callback ref rather than an effect: the grid only exists once the socket
-  // has delivered a state, so there is nothing to observe on first render.
-  const gridRef = useCallback((node: HTMLElement | null) => {
-    observer.current?.disconnect();
-    observer.current = null;
-    if (!node || typeof ResizeObserver === 'undefined') return;
-    const next = new ResizeObserver(([entry]) => setColumns(columnsFor(entry.contentRect.width)));
-    next.observe(node);
-    observer.current = next;
+  // Below the stacking width the grid stops being a grid, so arranging has to
+  // stand down with it — there would be nothing to arrange.
+  useEffect(() => {
+    const onResize = () => setStacked(window.innerWidth < STACK_WIDTH_PX);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  useEffect(() => () => observer.current?.disconnect(), []);
+  useEffect(() => {
+    if (stacked) setArranging(false);
+  }, [stacked]);
 
   const applyLayout = useCallback((next: Layout) => {
     setLayout(next);
     saveLayout(next);
   }, []);
+
+  /** Drops a tool onto the first row with room for it, then fits it. */
+  const addWidget = useCallback(
+    (id: WidgetId) => {
+      const widget = spec(id);
+      const y = firstFreeRow(layout, 0, widget.w, widget.h);
+      applyLayout(place(layout, id, { x: 0, y, w: widget.w, h: widget.h }));
+      setFitting((prev) => new Set(prev).add(id));
+    },
+    [applyLayout, layout],
+  );
+
+  /**
+   * Sets one tile's height from what its panel actually measured. Several tiles
+   * can report in the same tick, so this builds on the layout as it stands
+   * rather than on the one the render started with.
+   */
+  const fitHeight = useCallback((id: WidgetId, rows: number) => {
+    setLayout((prev) => {
+      const item = prev.find((entry) => entry.id === id);
+      if (!item || item.hidden || item.h === rows) return prev;
+      const next = place(prev, id, { ...item, h: rows });
+      saveLayout(next);
+      return next;
+    });
+    setFitting((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  /** A preset is a fresh start, so its tiles are fitted like a fresh console. */
+  const applyPreset = useCallback(
+    (next: Layout) => {
+      applyLayout(next);
+      setFitting(new Set(next.filter((item) => !item.hidden).map((item) => item.id)));
+    },
+    [applyLayout],
+  );
 
   // Resolve the session before the socket handshake so the home page does not
   // flash for users who are already signed in. Sign-in failures never land
@@ -140,6 +195,16 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
     return null;
   }, [dj.status, state]);
 
+  // A controller keeps working whether or not the MIDI panel is on the console,
+  // so the runtime hangs here rather than inside the widget. It idles until the
+  // socket has delivered a state to act against.
+  const midi = useMidiRuntime(
+    useMemo(
+      () => (state ? { state, send: dj.send, throttled } : null),
+      [dj, state, throttled],
+    ),
+  );
+
   if (signedIn === false || dj.status === 'unauthorised') {
     // Deliberately renders rather than redirecting to /login: the socket can
     // reject a session that /api/me still accepts (a role removed mid-session),
@@ -207,20 +272,25 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
     onAir: <OnAir voice={state.voice} locked={locked} send={dj.send} />,
     clock: <SessionClock control={state.control} me={me} />,
     shortcuts: <ShortcutsPanel />,
-  };
-
-  // Positions of the widgets actually on the console. The move buttons step
-  // through these rather than raw indices, so a hidden widget in between never
-  // makes an arrow look broken.
-  const visible = layout.reduce<number[]>((acc, placed, index) => {
-    if (!placed.hidden) acc.push(index);
-    return acc;
-  }, []);
-
-  const shift = (index: number, delta: number) => {
-    const target = visible[visible.indexOf(index) + delta];
-    if (target === undefined) return;
-    applyLayout(reorder(layout, index, target));
+    mixerAdvanced: (
+      <MixerAdvanced
+        decks={state.decks}
+        mixer={state.mixer}
+        locked={locked}
+        send={dj.send}
+        throttled={throttled}
+      />
+    ),
+    fx: (
+      <FxRack
+        decks={state.decks}
+        mixer={state.mixer}
+        locked={locked}
+        send={dj.send}
+        throttled={throttled}
+      />
+    ),
+    midi: <MidiPanel midi={midi} />,
   };
 
   return (
@@ -232,7 +302,7 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
         connection={dj.status}
         locked={locked}
         send={dj.send}
-        onArrange={view === 'console' ? () => setArranging((on) => !on) : undefined}
+        onArrange={view === 'console' && !stacked ? () => setArranging((on) => !on) : undefined}
         arranging={arranging}
       />
 
@@ -254,75 +324,26 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
         {arranging ? (
           <LayoutPalette
             layout={layout}
-            columns={columns}
-            onShow={(id) =>
-              applyLayout(layout.map((w) => (w.id === id ? { ...w, hidden: false } : w)))
-            }
-            onPreset={(preset) => applyLayout(fromPreset(preset))}
-            onReset={() => applyLayout(defaultLayout())}
+            onAdd={addWidget}
+            onPreset={(preset) => applyPreset(fromPreset(preset))}
+            onCompact={() => applyLayout(compact(layout))}
+            onReset={() => applyPreset(defaultLayout())}
             onDone={() => setArranging(false)}
           />
         ) : null}
 
-        <main
-          className={`console ${arranging ? 'is-arranging' : ''}`}
-          ref={gridRef}
-          style={{ ['--cols' as string]: columns }}
-        >
-          {layout.map((placed, index) => {
-            if (placed.hidden) return null;
-            const position = visible.indexOf(index);
-            return (
-              <Widget
-                key={placed.id}
-                span={placed.span}
-                columns={columns}
-                onDragOver={(event) => {
-                  if (!arranging || dragFrom.current === null) return;
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = 'move';
-                }}
-                onDrop={(event) => {
-                  if (!arranging || dragFrom.current === null) return;
-                  event.preventDefault();
-                  applyLayout(reorder(layout, dragFrom.current, index));
-                  dragFrom.current = null;
-                }}
-              >
-                {arranging ? (
-                  <WidgetChrome
-                    index={index}
-                    id={placed.id}
-                    span={placed.span}
-                    columns={columns}
-                    isFirst={position === 0}
-                    isLast={position === visible.length - 1}
-                    onMove={(delta) => shift(index, delta)}
-                    onResize={(span) =>
-                      applyLayout(
-                        layout.map((w) =>
-                          w.id === placed.id ? { ...w, span: clampSpan(w.id, span) } : w,
-                        ),
-                      )
-                    }
-                    onHide={() =>
-                      applyLayout(
-                        layout.map((w) => (w.id === placed.id ? { ...w, hidden: true } : w)),
-                      )
-                    }
-                    onDragStart={() => {
-                      dragFrom.current = index;
-                    }}
-                    onDragEnd={() => {
-                      dragFrom.current = null;
-                    }}
-                  />
-                ) : null}
-                {widgets[placed.id]}
-              </Widget>
-            );
-          })}
-        </main>
+        <ConsoleGrid
+          layout={layout}
+          arranging={arranging}
+          stacked={stacked}
+          render={(id) => widgets[id]}
+          onChange={applyLayout}
+          onHide={(id) =>
+            applyLayout(layout.map((w) => (w.id === id ? { ...w, hidden: true } : w)))
+          }
+          fitting={fitting}
+          onFitHeight={fitHeight}
+        />
       </>
       )}
 
