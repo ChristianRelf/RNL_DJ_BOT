@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useDj, useThrottledSend } from './socket';
 import { TopBar } from './components/TopBar';
 import { MediaPool } from './components/MediaPool';
@@ -11,6 +11,25 @@ import { Toasts } from './components/Toasts';
 import { Colophon } from './components/Colophon';
 import { SignIn } from './components/SignIn';
 import { ToolsPage } from './components/ToolsPage';
+import { NowPlaying } from './components/NowPlaying';
+import { Transport } from './components/Transport';
+import { Crossfader } from './components/Crossfader';
+import { OnAir } from './components/OnAir';
+import { SessionClock } from './components/SessionClock';
+import { ShortcutsPanel } from './components/ShortcutsPanel';
+import { LayoutPalette, WidgetChrome } from './components/LayoutEditor';
+import {
+  clampSpan,
+  columnsFor,
+  defaultLayout,
+  fromPreset,
+  GRID_COLUMNS,
+  loadLayout,
+  reorder,
+  saveLayout,
+  type Layout,
+  type WidgetId,
+} from './lib/layout';
 import type { SessionUser } from './protocol';
 
 const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
@@ -20,6 +39,32 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
   const dj = useDj();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const throttled = useThrottledSend(dj.send);
+
+  // ------------------------------------------------------------- layout ---
+
+  const [layout, setLayout] = useState<Layout>(loadLayout);
+  const [arranging, setArranging] = useState(false);
+  const [columns, setColumns] = useState(GRID_COLUMNS);
+  const dragFrom = useRef<number | null>(null);
+  const observer = useRef<ResizeObserver | null>(null);
+
+  // A callback ref rather than an effect: the grid only exists once the socket
+  // has delivered a state, so there is nothing to observe on first render.
+  const gridRef = useCallback((node: HTMLElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const next = new ResizeObserver(([entry]) => setColumns(columnsFor(entry.contentRect.width)));
+    next.observe(node);
+    observer.current = next;
+  }, []);
+
+  useEffect(() => () => observer.current?.disconnect(), []);
+
+  const applyLayout = useCallback((next: Layout) => {
+    setLayout(next);
+    saveLayout(next);
+  }, []);
 
   // Resolve the session before the socket handshake so the home page does not
   // flash for users who are already signed in. Sign-in failures never land
@@ -110,6 +155,73 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
     );
   }
 
+  /** Every widget the console can show, built once and placed by the layout. */
+  const widgets: Record<WidgetId, ReactNode> = {
+    pool: <MediaPool media={dj.media} user={me} locked={locked} send={dj.send} />,
+    deckA: (
+      <DeckPanel
+        deck={state.decks.A}
+        other={state.decks.B}
+        media={dj.media}
+        locked={locked}
+        accent={DECK_ACCENT.A}
+        send={dj.send}
+        throttled={throttled}
+      />
+    ),
+    mixer: (
+      <MixerPanel
+        decks={state.decks}
+        mixer={state.mixer}
+        locked={locked}
+        send={dj.send}
+        throttled={throttled}
+      />
+    ),
+    deckB: (
+      <DeckPanel
+        deck={state.decks.B}
+        other={state.decks.A}
+        media={dj.media}
+        locked={locked}
+        accent={DECK_ACCENT.B}
+        send={dj.send}
+        throttled={throttled}
+      />
+    ),
+    output: <OutputPanel mixer={state.mixer} voice={state.voice} />,
+    crew: <CrewPanel control={state.control} users={state.users} me={me} send={dj.send} />,
+    pads: <Pads pads={state.pads} locked={locked} send={dj.send} throttled={throttled} />,
+    nowPlaying: <NowPlaying decks={state.decks} mixer={state.mixer} />,
+    transport: <Transport decks={state.decks} locked={locked} send={dj.send} />,
+    crossfader: (
+      <Crossfader
+        value={state.mixer.crossfader}
+        locked={locked}
+        send={dj.send}
+        throttled={throttled}
+        standalone
+      />
+    ),
+    onAir: <OnAir voice={state.voice} locked={locked} send={dj.send} />,
+    clock: <SessionClock control={state.control} me={me} />,
+    shortcuts: <ShortcutsPanel />,
+  };
+
+  // Positions of the widgets actually on the console. The move buttons step
+  // through these rather than raw indices, so a hidden widget in between never
+  // makes an arrow look broken.
+  const visible = layout.reduce<number[]>((acc, placed, index) => {
+    if (!placed.hidden) acc.push(index);
+    return acc;
+  }, []);
+
+  const shift = (index: number, delta: number) => {
+    const target = visible[visible.indexOf(index) + delta];
+    if (target === undefined) return;
+    applyLayout(reorder(layout, index, target));
+  };
+
   return (
     <div className={`app ${locked ? 'is-locked' : 'is-live'}`}>
       <TopBar
@@ -119,6 +231,8 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
         connection={dj.status}
         locked={locked}
         send={dj.send}
+        onArrange={view === 'console' ? () => setArranging((on) => !on) : undefined}
+        arranging={arranging}
       />
 
       {banner ? <div className="banner">{banner}</div> : null}
@@ -135,43 +249,80 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
       {view === 'tools' ? (
         <ToolsPage state={state} locked={locked} send={dj.send} />
       ) : (
-      <main className="console">
-        <MediaPool media={dj.media} user={me} locked={locked} send={dj.send} />
+      <>
+        {arranging ? (
+          <LayoutPalette
+            layout={layout}
+            columns={columns}
+            onShow={(id) =>
+              applyLayout(layout.map((w) => (w.id === id ? { ...w, hidden: false } : w)))
+            }
+            onPreset={(preset) => applyLayout(fromPreset(preset))}
+            onReset={() => applyLayout(defaultLayout())}
+            onDone={() => setArranging(false)}
+          />
+        ) : null}
 
-        <DeckPanel
-          deck={state.decks.A}
-          other={state.decks.B}
-          media={dj.media}
-          locked={locked}
-          accent={DECK_ACCENT.A}
-          send={dj.send}
-          throttled={throttled}
-        />
-
-        <MixerPanel
-          decks={state.decks}
-          mixer={state.mixer}
-          locked={locked}
-          send={dj.send}
-          throttled={throttled}
-        />
-
-        <DeckPanel
-          deck={state.decks.B}
-          other={state.decks.A}
-          media={dj.media}
-          locked={locked}
-          accent={DECK_ACCENT.B}
-          send={dj.send}
-          throttled={throttled}
-        />
-
-        <OutputPanel mixer={state.mixer} voice={state.voice} />
-
-        <CrewPanel control={state.control} users={state.users} me={me} send={dj.send} />
-
-        <Pads pads={state.pads} locked={locked} send={dj.send} throttled={throttled} />
-      </main>
+        <main
+          className={`console ${arranging ? 'is-arranging' : ''}`}
+          ref={gridRef}
+          style={{ ['--cols' as string]: columns }}
+        >
+          {layout.map((placed, index) => {
+            if (placed.hidden) return null;
+            const position = visible.indexOf(index);
+            return (
+              <div
+                key={placed.id}
+                className="widget"
+                style={{ gridColumn: `span ${Math.min(placed.span, columns)}` }}
+                onDragOver={(event) => {
+                  if (!arranging || dragFrom.current === null) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(event) => {
+                  if (!arranging || dragFrom.current === null) return;
+                  event.preventDefault();
+                  applyLayout(reorder(layout, dragFrom.current, index));
+                  dragFrom.current = null;
+                }}
+              >
+                {arranging ? (
+                  <WidgetChrome
+                    index={index}
+                    id={placed.id}
+                    span={placed.span}
+                    columns={columns}
+                    isFirst={position === 0}
+                    isLast={position === visible.length - 1}
+                    onMove={(delta) => shift(index, delta)}
+                    onResize={(span) =>
+                      applyLayout(
+                        layout.map((w) =>
+                          w.id === placed.id ? { ...w, span: clampSpan(w.id, span) } : w,
+                        ),
+                      )
+                    }
+                    onHide={() =>
+                      applyLayout(
+                        layout.map((w) => (w.id === placed.id ? { ...w, hidden: true } : w)),
+                      )
+                    }
+                    onDragStart={() => {
+                      dragFrom.current = index;
+                    }}
+                    onDragEnd={() => {
+                      dragFrom.current = null;
+                    }}
+                  />
+                ) : null}
+                {widgets[placed.id]}
+              </div>
+            );
+          })}
+        </main>
+      </>
       )}
 
       <footer className="shortcuts">

@@ -221,56 +221,558 @@ body {
 
 /* ---------------------------------------------------------------- layout */
 
+/**
+ * The console is a twelve-column grid whose column count is narrowed by
+ * JavaScript as the viewport shrinks — `--cols` is written on the element.
+ * Each widget spans a number of those columns, clamped to whatever is
+ * available, so a three-column panel never becomes a sliver on a laptop.
+ */
 .console {
   display: grid;
   gap: 8px;
-  grid-template-columns: 300px minmax(320px, 1fr) 304px minmax(320px, 1fr) 288px;
-  grid-template-areas:
-    'pool deckA mixer deckB out'
-    'pool pads  pads  pads  crew';
+  grid-template-columns: repeat(var(--cols, 12), minmax(0, 1fr));
   align-items: start;
   flex: 1;
 }
 
-.pool {
-  grid-area: pool;
-}
-.deck-a {
-  grid-area: deckA;
-}
-.deck-b {
-  grid-area: deckB;
-}
-.mixer {
-  grid-area: mixer;
-}
-.pads {
-  grid-area: pads;
-}
-.output {
-  grid-area: out;
-}
-.crew {
-  grid-area: crew;
+.widget {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
 }
 
-/* The five-column console needs 300+320+304+320+288 plus gaps and padding —
-   1580px — before the flexible deck columns start to squeeze. */
-@media (max-width: 1600px) {
-  .console {
-    grid-template-columns: 290px minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      'pool deckA deckB'
-      'pool mixer out'
-      'pool pads  crew';
-  }
+.widget > .panel {
+  flex: 1;
+  min-height: 0;
 }
 
-@media (max-width: 1000px) {
-  .console {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'pool' 'deckA' 'mixer' 'deckB' 'pads' 'out' 'crew';
-  }
+/* ------------------------------------------------------- layout editing */
+
+/* The console stays live while you arrange it — a set does not stop for
+   furniture — but the controls underneath must not take stray clicks. */
+.console.is-arranging .widget > .panel {
+  outline: 1px dashed var(--line-strong);
+  outline-offset: 2px;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.wchrome {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  background: var(--panel-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.wchrome-grip {
+  display: inline-flex;
+  color: var(--dim);
+  cursor: grab;
+  padding: 1px;
+}
+
+.wchrome-grip:active {
+  cursor: grabbing;
+}
+
+.wchrome-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wchrome-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex: none;
+}
+
+.wchrome-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 2px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.wchrome-btn:hover:not(:disabled) {
+  background: var(--panel-2);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.wchrome-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.wchrome-hide:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: #59333a;
+}
+
+.wchrome-span {
+  min-width: 16px;
+  text-align: center;
+  color: var(--accent);
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.palette-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.palette-head h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.palette-head p {
+  margin: 0;
+  max-width: 66ch;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.palette-actions {
+  display: flex;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.palette-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.palette-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 5px;
+}
+
+.palette-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.palette-chip:hover {
+  border-color: var(--accent-dim);
+  background: var(--panel-3);
+}
+
+.palette-chip svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.palette-chip strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.palette-chip em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.palette-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.palette-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 5px;
+}
+
+.palette-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 11px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.palette-preset:hover {
+  border-color: var(--accent-dim);
+  background: var(--panel-3);
+}
+
+/* A thumbnail of the arrangement: one bar per widget, sized by its span and
+   wrapping exactly as the real grid would. */
+.palette-preset-shape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  height: 22px;
+  align-content: flex-start;
+}
+
+.palette-preset-shape span {
+  height: 6px;
+  border-radius: 1px;
+  background: var(--line-strong);
+  flex-grow: 0;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.palette-preset:hover .palette-preset-shape span {
+  background: var(--accent-dim);
+}
+
+.palette-preset strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.palette-preset em {
+  font-style: normal;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+/* ------------------------------------------------------ standalone xfader */
+
+.crossfader.is-bare {
+  padding-top: 0;
+  border-top: none;
+  max-width: none;
+}
+
+/* -------------------------------------------------------------- transport */
+
+.transport-widget {
+  gap: 7px;
+}
+
+.tw-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.tw-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tw-badge {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 10px;
+  color: #101214;
+}
+
+.tw-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tw-time {
+  flex: none;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.tw-time.is-outro {
+  color: var(--danger);
+}
+
+.tw-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.tw-buttons .btn {
+  flex: 1;
+}
+
+.tw-buttons .btn.sync {
+  flex: 0 0 52px;
+}
+
+/* ------------------------------------------------------------------ clock */
+
+.clock-time {
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  text-align: center;
+  padding: 4px 0 2px;
+}
+
+.clock-stats {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.clock-stats > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.clock-stats dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.clock-stats dd {
+  margin: 0;
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clock-stats dd.is-mine {
+  color: var(--play);
+}
+
+/* ----------------------------------------------------------------- on air */
+
+.onair.is-live {
+  border-color: #2f5a3a;
+}
+
+.onair-state {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: var(--dim);
+  padding: 6px 0 2px;
+}
+
+.onair-state.is-live {
+  color: var(--play);
+}
+
+.onair-channel {
+  font-size: 13px;
+  text-align: center;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onair-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.onair-listeners {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.onair-listeners strong {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.onair-error {
+  margin: 0;
+  font-size: 11px;
+  color: #f0a3a5;
+}
+
+/* ------------------------------------------------------- shortcuts widget */
+
+.sp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sp-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sp-list > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sp-list dt {
+  flex: 0 0 74px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.sp-list dd {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* ----------------------------------------------------------- now playing */
+
+.np-badge {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 12px;
+  color: #101214;
+}
+
+.np-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.np-title {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.np-times .is-outro {
+  color: var(--danger);
+}
+
+.np-bar {
+  height: 4px;
+  background: var(--well);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.np-bar span {
+  display: block;
+  height: 100%;
+}
+
+.np-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 18px;
+}
+
+.np-next {
+  font-size: 11px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np-next-title {
+  color: var(--muted);
 }
 
 .panel {

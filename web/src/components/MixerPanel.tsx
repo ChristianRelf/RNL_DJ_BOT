@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Fader, Knob, Meter, Slider } from './controls';
+import { useRef } from 'react';
+import { Fader, Knob, Meter } from './controls';
+import { Crossfader } from './Crossfader';
 import { formatDb, formatPercent } from '../lib/format';
 import { DECK_IDS, type DeckId, type DeckState, type MixerState } from '../protocol';
 import type { DjClient } from '../socket';
@@ -23,8 +24,6 @@ const KILL_DB = -26;
 const EQ_MAX_DB = 6;
 /** Deck channel fader default, matching the engine. */
 const DECK_GAIN = 0.85;
-/** Auto-fade lengths, in seconds. */
-const FADE_TIMES = [2, 4, 8, 16] as const;
 
 export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanelProps) {
   // Kill and mute are console-side conveniences built on the plain gain
@@ -51,56 +50,6 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
       parked.current[key] = gain;
       void send('deck:set', { deck: id, gain: 0 });
     }
-  };
-
-  // ---------------------------------------------------------- auto fade ---
-
-  const [fadeSeconds, setFadeSeconds] = useState<number>(4);
-  const [fading, setFading] = useState(false);
-  const frame = useRef<number | null>(null);
-  const crossfader = useRef(mixer.crossfader);
-  crossfader.current = mixer.crossfader;
-
-  const stopFade = useCallback(() => {
-    if (frame.current !== null) cancelAnimationFrame(frame.current);
-    frame.current = null;
-    setFading(false);
-  }, []);
-
-  // Losing control mid-fade would leave the animation running against a console
-  // it can no longer drive.
-  useEffect(() => {
-    if (locked) stopFade();
-  }, [locked, stopFade]);
-
-  useEffect(() => stopFade, [stopFade]);
-
-  /** Walks the crossfader across to `target` over the chosen time. */
-  const runFade = (target: number) => {
-    stopFade();
-    const from = crossfader.current;
-    const span = target - from;
-    if (Math.abs(span) < 0.02) return;
-
-    const ms = fadeSeconds * 1000;
-    const started = performance.now();
-    setFading(true);
-
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - started) / ms);
-      if (progress >= 1) {
-        // The last value goes unthrottled, so the fade always lands exactly on
-        // the target rather than wherever the throttle happened to drop it.
-        void send('mixer:set', { crossfader: target });
-        frame.current = null;
-        setFading(false);
-        return;
-      }
-      throttled('mixer:set', { crossfader: from + span * progress });
-      frame.current = requestAnimationFrame(tick);
-    };
-
-    frame.current = requestAnimationFrame(tick);
   };
 
   return (
@@ -236,106 +185,12 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
         </div>
       </div>
 
-      <div className="crossfader">
-        <div className="crossfader-labels">
-          <span className="xf-a">A</span>
-          <span className="muted">CROSSFADER</span>
-          <span className="xf-b">B</span>
-        </div>
-        <Slider
-          label="Crossfader"
-          value={mixer.crossfader}
-          min={-1}
-          max={1}
-          defaultValue={0}
-          centred
-          disabled={locked}
-          // Taking hold of it beats whatever the auto-fade was doing.
-          onGrab={stopFade}
-          onChange={(value) => {
-            stopFade();
-            throttled('mixer:set', { crossfader: value });
-          }}
-        />
-        <div className="crossfader-actions">
-          <button
-            type="button"
-            className="btn tiny"
-            disabled={locked}
-            title="Slam the crossfader to deck A"
-            onClick={() => void send('mixer:set', { crossfader: -1 })}
-          >
-            A
-          </button>
-          <button
-            type="button"
-            className="btn tiny"
-            disabled={locked}
-            title="Centre the crossfader"
-            onClick={() => void send('mixer:set', { crossfader: 0 })}
-          >
-            CTR
-          </button>
-          <button
-            type="button"
-            className="btn tiny"
-            disabled={locked}
-            title="Slam the crossfader to deck B"
-            onClick={() => void send('mixer:set', { crossfader: 1 })}
-          >
-            B
-          </button>
-        </div>
-
-        <div className="autofade">
-          <span className="tool-label">Auto fade</span>
-          {fading ? (
-            <button
-              type="button"
-              className="btn tiny is-fading"
-              onClick={stopFade}
-              title="Stop the fade where it is"
-            >
-              STOP
-            </button>
-          ) : (
-            <div className="autofade-row">
-              <button
-                type="button"
-                className="btn tiny autofade-time"
-                disabled={locked}
-                title="How long the fade takes"
-                onClick={() =>
-                  setFadeSeconds(
-                    (current) =>
-                      FADE_TIMES[(FADE_TIMES.indexOf(current as never) + 1) % FADE_TIMES.length],
-                  )
-                }
-              >
-                {fadeSeconds}s
-              </button>
-              <button
-                type="button"
-                className="btn tiny"
-                disabled={locked}
-                title={`Fade across to deck A over ${fadeSeconds} seconds`}
-                onClick={() => runFade(-1)}
-              >
-                ‹ A
-              </button>
-              <button
-                type="button"
-                className="btn tiny"
-                disabled={locked}
-                title={`Fade across to deck B over ${fadeSeconds} seconds`}
-                onClick={() => runFade(1)}
-              >
-                B ›
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+      <Crossfader
+        value={mixer.crossfader}
+        locked={locked}
+        send={send}
+        throttled={throttled}
+      />
     </section>
   );
 }

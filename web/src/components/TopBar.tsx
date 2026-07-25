@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, MoveRight, PhoneOff, Radio, Wrench } from 'lucide-react';
+import { LayoutGrid, LogOut, MoveRight, PhoneOff, Radio, Wrench } from 'lucide-react';
 import type { ConnectionStatus, DjClient } from '../socket';
 import type { SessionUser, VoiceChannelInfo, VoiceState } from '../protocol';
 
@@ -10,9 +10,21 @@ interface TopBarProps {
   connection: ConnectionStatus;
   locked: boolean;
   send: DjClient['send'];
+  /** Omitted on the tools page, which has no layout to rearrange. */
+  onArrange?: () => void;
+  arranging?: boolean;
 }
 
-export function TopBar({ user, voice, channels, connection, locked, send }: TopBarProps) {
+export function TopBar({
+  user,
+  voice,
+  channels,
+  connection,
+  locked,
+  send,
+  onArrange,
+  arranging,
+}: TopBarProps) {
   const [selected, setSelected] = useState('');
   const target = selected || voice.channelId || channels[0]?.id || '';
 
@@ -89,6 +101,17 @@ export function TopBar({ user, voice, channels, connection, locked, send }: TopB
       </div>
 
       <div className="topbar-right">
+        {onArrange ? (
+          <button
+            type="button"
+            className={`btn tiny ${arranging ? 'is-active' : ''}`}
+            title="Rearrange the console"
+            onClick={onArrange}
+          >
+            <LayoutGrid size={12} />
+            ARRANGE
+          </button>
+        ) : null}
         <a className="btn tiny topbar-tools" href="/deck/tools" title="Timecode, OSC and imports">
           <Wrench size={12} />
           TOOLS
