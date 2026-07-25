@@ -229,29 +229,38 @@ body {
  */
 .console {
   display: grid;
-  gap: 8px;
   grid-template-columns: repeat(var(--cols, 12), minmax(0, 1fr));
+  /* One-pixel rows with no row gap: each widget spans exactly its own height in
+     pixels, and `dense` lets a short widget backfill under a tall neighbour
+     instead of leaving the row's dead space behind. Grid has no masonry mode,
+     and without this a tall media pool forces a gap under everything beside it. */
+  grid-auto-rows: 1px;
+  grid-auto-flow: row dense;
+  column-gap: 8px;
+  row-gap: 0;
   align-items: start;
   flex: 1;
 }
 
 .widget {
+  min-width: 0;
+}
+
+/* The gutter lives here rather than in row-gap, so a row span is exactly the
+   content height and the arithmetic in Widget.tsx stays honest. */
+.widget-inner {
   display: flex;
   flex-direction: column;
   gap: 5px;
   min-width: 0;
-}
-
-.widget > .panel {
-  flex: 1;
-  min-height: 0;
+  padding-bottom: 8px;
 }
 
 /* ------------------------------------------------------- layout editing */
 
 /* The console stays live while you arrange it — a set does not stop for
    furniture — but the controls underneath must not take stray clicks. */
-.console.is-arranging .widget > .panel {
+.console.is-arranging .widget-inner > .panel {
   outline: 1px dashed var(--line-strong);
   outline-offset: 2px;
   pointer-events: none;

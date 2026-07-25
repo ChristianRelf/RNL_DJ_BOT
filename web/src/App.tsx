@@ -18,6 +18,7 @@ import { OnAir } from './components/OnAir';
 import { SessionClock } from './components/SessionClock';
 import { ShortcutsPanel } from './components/ShortcutsPanel';
 import { LayoutPalette, WidgetChrome } from './components/LayoutEditor';
+import { Widget } from './components/Widget';
 import {
   clampSpan,
   columnsFor,
@@ -272,10 +273,10 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
             if (placed.hidden) return null;
             const position = visible.indexOf(index);
             return (
-              <div
+              <Widget
                 key={placed.id}
-                className="widget"
-                style={{ gridColumn: `span ${Math.min(placed.span, columns)}` }}
+                span={placed.span}
+                columns={columns}
                 onDragOver={(event) => {
                   if (!arranging || dragFrom.current === null) return;
                   event.preventDefault();
@@ -318,7 +319,7 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
                   />
                 ) : null}
                 {widgets[placed.id]}
-              </div>
+              </Widget>
             );
           })}
         </main>
