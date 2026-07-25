@@ -1779,6 +1779,194 @@ kbd {
   font-size: 10px;
 }
 
+/* ------------------------------------------------------------- colophon */
+
+.colophon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* Sits opposite the shortcut hints in the console footer. */
+  margin-left: auto;
+}
+
+.colophon.is-block {
+  margin-left: 0;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+}
+
+.colophon-brand {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.colophon-links {
+  display: flex;
+  gap: 10px;
+}
+
+.colophon a {
+  color: var(--dim);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.colophon a:hover {
+  color: var(--text);
+  border-bottom-color: var(--line-strong);
+}
+
+/* ---------------------------------------------------------------- legal */
+
+.legal {
+  min-height: 100%;
+  padding: 24px 16px 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.legal-card {
+  width: min(760px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.legal-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.legal-back {
+  display: block;
+  line-height: 0;
+}
+
+.legal-nav {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.legal-nav a {
+  color: var(--dim);
+  text-decoration: none;
+}
+
+.legal-nav a:hover {
+  color: var(--text);
+}
+
+.legal-nav a.is-current {
+  color: var(--accent);
+}
+
+.legal-body {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.legal-body h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.legal-body h2 {
+  margin: 26px 0 6px;
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.legal-body p,
+.legal-body li {
+  color: #c3c9ce;
+}
+
+.legal-body ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.legal-body li {
+  margin-bottom: 5px;
+}
+
+.legal-body code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--well);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
+.legal-updated {
+  margin: 0 0 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* Points up at the site-wide policies these pages sit under. */
+.legal-note {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.legal-body a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-dim);
+}
+
+.legal-body a:hover {
+  border-bottom-color: var(--accent);
+}
+
+.legal-foot {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.login-consent {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dim);
+  text-align: center;
+}
+
+.login-consent a {
+  color: var(--muted);
+}
+
+.login-card .colophon {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
 /* -------------------------------------------------------------- overlays */
 
 .toasts {

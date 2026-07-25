@@ -8,6 +8,7 @@ import { Pads } from './components/Pads';
 import { OutputPanel } from './components/OutputPanel';
 import { CrewPanel } from './components/CrewPanel';
 import { Toasts } from './components/Toasts';
+import { Colophon } from './components/Colophon';
 import { Login } from './components/Login';
 import type { SessionUser } from './protocol';
 
@@ -186,6 +187,7 @@ export default function App() {
         <span>right-click a control to reset it</span>
         <span>shift-drag or right-drag for fine control</span>
         <span>scroll over a knob or fader to trim it</span>
+        <Colophon />
       </footer>
 
       <Toasts toasts={dj.toasts} dismiss={dj.dismiss} />

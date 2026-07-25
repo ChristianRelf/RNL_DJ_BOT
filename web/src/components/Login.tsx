@@ -1,3 +1,5 @@
+import { Colophon } from './Colophon';
+
 export function Login({ error }: { error: string | null }) {
   return (
     <div className="login">
@@ -11,6 +13,11 @@ export function Login({ error }: { error: string | null }) {
         <a className="btn primary login-btn" href="/api/auth/login">
           SIGN IN WITH DISCORD
         </a>
+        <p className="login-consent">
+          Signing in means you accept the <a href="/terms">Terms</a> and{' '}
+          <a href="/privacy">Privacy Policy</a>.
+        </p>
+        <Colophon block />
       </div>
     </div>
   );
