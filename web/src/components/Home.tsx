@@ -1,48 +1,38 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
 import { ConsolePreview } from './ConsolePreview';
 import { SitePage } from './SiteNav';
 import { Backdrop } from './landing/Backdrop';
-import { Chrome, Readout, type Marker } from './landing/Chrome';
 import { Crossfade, type Contrast } from './landing/Crossfade';
+import { Cue, Mix } from './landing/Mix';
 import { PadPlay } from './landing/PadPlay';
-import { Rack, type Module } from './landing/Rack';
-import { BEAT_S, useFrame, useReducedMotion, useReveal } from './landing/beat';
+import { BEAT_S, useReducedMotion } from './landing/beat';
 
 /**
  * The product pitch, at /home. The front door is the sign-in page; this is
  * where "find out more" leads. Access and the waitlist live on /home/access.
  *
- * The page is a set. Everything that moves runs off one 124 BPM clock — the
- * light behind it, the meters, the lamps, the readout under the headline —
- * because the product is a booth and a booth that drifts is not one. The
- * difference between a music bot and a booth is made on an actual crossfader
- * you can drag, and the sample pads are eight pads you can actually hit.
- * Nothing here describes an interaction it could have just handed you.
+ * The page is one track. The whole set is drawn as a waveform down the left,
+ * the full height of the document; a playhead sits fixed at 40% of the window;
+ * and every block of copy is a cue point that goes live as it crosses the head.
+ * There are no sections and no cards — thirteen cues with identical anatomy,
+ * one transport across the bottom, and one shader behind the lot, all driven by
+ * the same scroll position. See landing/Mix.tsx, which is the whole mechanism.
+ *
+ * Two of the cues are the product rather than a description of it: the
+ * difference between a music bot and a booth is made on a crossfader you drag,
+ * and the sample pads are eight pads you can hit. Anything the page can hand
+ * you, it hands you.
  *
  * Every claim is something the software actually does, and every number is a
  * shipped default — if a feature or a default changes, change it here too. No
  * invented pricing, no invented adoption, nothing that needs a footnote.
  */
 
-const PROOF = ['Run for you', 'Nothing to install', 'No telemetry'];
-
-const TICKER = [
-  'Two decks',
-  'Three-band kill EQ',
-  'Eight sample pads',
-  'Beat-locked loops',
-  'Tape echo · reverb · flanger',
-  'MIDI mapping',
-  'Live in a voice channel',
-  'No install',
-  'No telemetry',
-];
-
 const SPECS = [
-  { value: '2', label: 'decks', note: 'waveform, cue, loops, pitch' },
-  { value: '8', label: 'sample pads', note: 'one-shot, loop or hold' },
-  { value: '3', label: 'band kill EQ', note: 'per channel, plus a filter' },
-  { value: '48k', label: 'stereo Opus', note: 'straight into the channel' },
+  { value: '2', label: 'decks' },
+  { value: '8', label: 'sample pads' },
+  { value: '3', label: 'band kill EQ' },
+  { value: '48k', label: 'stereo Opus' },
 ];
 
 /** The category distinction the whole product rests on. */
@@ -64,11 +54,14 @@ const CONTRAST: readonly Contrast[] = [
   },
 ];
 
-const PILLARS: readonly Module[] = [
+/** One cue each. Six modules of the booth, in the order you meet them. */
+const MODULES = [
   {
-    kicker: 'The decks',
-    title: 'Mix like you mean it',
-    body: 'Everything you would reach for on a real controller, in a browser tab. Load a track, find the one, and work it.',
+    id: 'decks',
+    n: '03',
+    label: 'The decks',
+    statement: 'Mix like you mean it',
+    lede: 'Everything you would reach for on a real controller, in a browser tab. Load a track, find the one, and work it.',
     points: [
       'Two decks with waveform scrubbing and cue points',
       'Beat-locked loops, beat jumps and loop rolls',
@@ -78,9 +71,11 @@ const PILLARS: readonly Module[] = [
     ],
   },
   {
-    kicker: 'The desk',
-    title: 'A mixer with the rest of it',
-    body: 'The compact strip is what you reach for mid-mix. The advanced desk is everything behind it, on its own panel.',
+    id: 'desk',
+    n: '04',
+    label: 'The desk',
+    statement: 'A mixer with the rest of it',
+    lede: 'The compact strip is what you reach for mid-mix. The advanced desk is everything behind it, on its own panel.',
     points: [
       'Per-channel pan, mute and a post-fader effects send',
       'Send effects: tape echo, reverb and flanger, timed in beats',
@@ -90,9 +85,11 @@ const PILLARS: readonly Module[] = [
     ],
   },
   {
-    kicker: 'The crew',
-    title: 'Hand the booth around',
-    body: 'Built for a group from the start, so nobody is passing a laptop or arguing about who is in charge.',
+    id: 'crew',
+    n: '05',
+    label: 'The crew',
+    statement: 'Hand the booth around',
+    lede: 'Built for a group from the start, so nobody is passing a laptop or arguing about who is in charge.',
     points: [
       'One operator at a time, with a request queue',
       'Hands over automatically if you idle while someone waits',
@@ -102,9 +99,11 @@ const PILLARS: readonly Module[] = [
     ],
   },
   {
-    kicker: 'The library',
-    title: 'Drop files in and play',
-    body: 'Uploads are decoded once, on the way in. No tagging session before you can start a set.',
+    id: 'library',
+    n: '06',
+    label: 'The library',
+    statement: 'Drop files in and play',
+    lede: 'Uploads are decoded once, on the way in. No tagging session before you can start a set.',
     points: [
       'Waveforms and tempo read on upload',
       'Search, tag and rename in place',
@@ -114,9 +113,11 @@ const PILLARS: readonly Module[] = [
     ],
   },
   {
-    kicker: 'The console',
-    title: 'Arrange it how you play',
-    body: 'The booth is a grid of tools you place yourself. Your layout is yours — it never moves anyone else’s.',
+    id: 'console',
+    n: '07',
+    label: 'The console',
+    statement: 'Arrange it how you play',
+    lede: 'The booth is a grid of tools you place yourself. Your layout is yours — it never moves anyone else’s.',
     points: [
       'Drag tools in, drag them to size, snapped to a twelve-column grid',
       'Nothing overlaps: what you drop onto gets pushed out of the way',
@@ -126,9 +127,11 @@ const PILLARS: readonly Module[] = [
     ],
   },
   {
-    kicker: 'The wiring',
-    title: 'Fit it into the rest of the show',
-    body: 'The booth does not have to be an island. Switch on what you need from the tools page.',
+    id: 'wiring',
+    n: '08',
+    label: 'The wiring',
+    statement: 'Fit it into the rest of the show',
+    lede: 'The booth does not have to be an island. Switch on what you need from the tools page.',
     points: [
       'Timecode feed over HTTP for overlays and lighting',
       'OSC output to Pure Data, a lighting desk or a VJ rig',
@@ -200,116 +203,30 @@ const FAQ = [
   },
 ];
 
-const MARKERS: readonly Marker[] = [
-  { id: 'top', label: 'Intro' },
-  { id: 'why', label: 'The difference' },
-  { id: 'features', label: 'The rack' },
-  { id: 'pads', label: 'The pads' },
-  { id: 'who', label: 'Who runs it' },
-  { id: 'steps', label: 'Getting in' },
-  { id: 'faq', label: 'Questions' },
-  { id: 'access', label: 'Get access' },
-];
-
 /* --------------------------------------------------------------- pieces */
 
 /**
- * A headline that lands in time. Each word rises on the next eighth note, so
- * the first thing the page does is keep time in front of you.
+ * The opening line lands in time: a word on every eighth note, so the first
+ * thing the page does is keep the tempo it is about to run at.
  */
-function Kinetic({ text, from = 0 }: { text: string; from?: number }) {
+function Kinetic({ text }: { text: string }) {
   return (
     <>
       {text.split(' ').map((word, index) => (
         <span className="kin" key={`${word}-${index}`}>
-          {/* The word spacing is the wrapper's margin, not a space: a space
-              inside an overflow-hidden inline-block is trimmed away. */}
-          <span style={{ animationDelay: `${((from + index) * BEAT_S * 0.5).toFixed(3)}s` }}>{word}</span>
+          {/* The word gap is the wrapper's margin, not a space — a space inside
+              an overflow-hidden inline-block is trimmed away. */}
+          <span style={{ animationDelay: `${(index * BEAT_S * 0.5).toFixed(3)}s` }}>{word}</span>
         </span>
       ))}
     </>
   );
 }
 
-/** A section, labelled the way the console labels a panel. */
-function Bay({
-  id,
-  index,
-  eyebrow,
-  title,
-  lede,
-  children,
-}: {
-  id: string;
-  index: string;
-  eyebrow: string;
-  title: string;
-  lede?: string;
-  children: ReactNode;
-}) {
-  const [ref, shown] = useReveal<HTMLElement>();
-  return (
-    <section className={`bay ${shown ? 'is-shown' : ''}`} id={id} ref={ref}>
-      <header className="bay-head">
-        <span className="bay-tag mono">
-          <i>{index}</i>
-          {eyebrow}
-        </span>
-        <h2>{title}</h2>
-        {lede ? <p>{lede}</p> : null}
-        <span className="bay-rule" aria-hidden="true" />
-      </header>
-      {children}
-    </section>
-  );
-}
-
-/** One spec, counted up on arrival, with a strip of LEDs that keeps time. */
-function Spec({ value, label, note }: { value: string; label: string; note: string }) {
-  const [ref, shown] = useReveal<HTMLLIElement>();
-  const reduced = useReducedMotion();
-  const target = Number.parseInt(value, 10);
-  const suffix = value.replace(/^\d+/, '');
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!shown) return;
-    if (reduced) {
-      setCount(target);
-      return;
-    }
-    let raf = 0;
-    const start = performance.now();
-    const step = (now: number) => {
-      const k = Math.min(1, (now - start) / 900);
-      setCount(Math.round(target * (1 - Math.pow(1 - k, 3))));
-      if (k < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [shown, reduced, target]);
-
-  return (
-    <li className={shown ? 'is-shown' : ''} ref={ref}>
-      <span className="spec-value mono">
-        {count}
-        {suffix}
-      </span>
-      <span className="spec-label">{label}</span>
-      <span className="spec-note">{note}</span>
-      <span className="spec-leds" aria-hidden="true">
-        {Array.from({ length: 8 }, (_, i) => (
-          <i key={i} style={{ animationDelay: `${(i * BEAT_S * 0.125).toFixed(3)}s` }} />
-        ))}
-      </span>
-    </li>
-  );
-}
-
 /**
- * The console illustration, on a plinth. It tilts a little towards the pointer
- * and breathes with the clock — enough that it reads as a running rig rather
- * than a screenshot, not so much that anyone has to wait for it to settle.
+ * The console illustration. It tilts a little towards the pointer — enough to
+ * read as a rig on a desk rather than a screenshot, not enough that anyone has
+ * to wait for it to settle.
  */
 function Rig() {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -320,102 +237,33 @@ function Rig() {
     const el = ref.current;
     if (!el) return;
     const onMove = (event: PointerEvent) => {
-      const x = (event.clientX / window.innerWidth) * 2 - 1;
-      const y = (event.clientY / window.innerHeight) * 2 - 1;
-      el.style.setProperty('--tilt-x', (y * -2.4).toFixed(2));
-      el.style.setProperty('--tilt-y', (x * 3.4).toFixed(2));
+      el.style.setProperty('--tilt-x', ((event.clientY / window.innerHeight) * -4 + 2).toFixed(2));
+      el.style.setProperty('--tilt-y', ((event.clientX / window.innerWidth) * 6 - 3).toFixed(2));
     };
     window.addEventListener('pointermove', onMove, { passive: true });
     return () => window.removeEventListener('pointermove', onMove);
   }, [reduced]);
 
   return (
-    <div className="home-rig" ref={ref}>
-      <span className="home-rig-glow" aria-hidden="true" />
-      <div className="home-rig-tilt">
+    <div className="rig" ref={ref}>
+      <div className="rig-tilt">
         <ConsolePreview />
       </div>
-      <span className="home-rig-caption mono">The console, drawn to scale</span>
     </div>
   );
 }
 
-/** A room that lights where the pointer is, like a panel under a booth lamp. */
-function Room({ title, body }: { title: string; body: string }) {
-  const ref = useRef<HTMLElement | null>(null);
+/** The one list shape on the page: a lamp, a line, a hairline under it. */
+function Rows({ items }: { items: readonly string[] }) {
   return (
-    <article
-      className="room"
-      ref={ref}
-      onPointerMove={(event) => {
-        const el = ref.current;
-        if (!el) return;
-        const box = el.getBoundingClientRect();
-        el.style.setProperty('--mx', `${event.clientX - box.left}px`);
-        el.style.setProperty('--my', `${event.clientY - box.top}px`);
-      }}
-    >
-      <h3>{title}</h3>
-      <p>{body}</p>
-    </article>
-  );
-}
-
-/** The three steps, drawn as a signal path with the light travelling down it. */
-function Steps() {
-  const [ref, shown] = useReveal<HTMLOListElement>();
-  return (
-    <ol className={`path ${shown ? 'is-shown' : ''}`} ref={ref}>
-      <span className="path-line" aria-hidden="true" />
-      {STEPS.map((step, index) => (
-        <li key={step.title} style={{ transitionDelay: `${index * 140}ms` }}>
-          <span className="path-node mono">{index + 1}</span>
-          <h3>{step.title}</h3>
-          <p>{step.body}</p>
+    <ul className="rows">
+      {items.map((item, index) => (
+        <li key={item} style={{ transitionDelay: `${index * 60}ms` }}>
+          <span className="rows-lamp" aria-hidden="true" />
+          {item}
         </li>
       ))}
-    </ol>
-  );
-}
-
-/**
- * The closing panel keeps its own gain-reduction lamp running, so the last
- * thing on the page is still moving when you reach it.
- */
-function Close() {
-  const meterRef = useRef<HTMLSpanElement | null>(null);
-  const [ref, shown] = useReveal<HTMLElement>();
-  const reduced = useReducedMotion();
-
-  useFrame((frame) => {
-    if (reduced || !meterRef.current) return;
-    const level = 0.35 + 0.5 * Math.pow(1 - frame.beat, 2) + frame.energy * 0.2;
-    meterRef.current.style.transform = `scaleX(${Math.min(1, level).toFixed(3)})`;
-  });
-
-  return (
-    // The headline here holds its entrance until you arrive: the same
-    // animation as the hero's, spent on someone who is looking at it.
-    <section className={`home-close ${shown ? 'is-shown' : ''}`} id="access" ref={ref}>
-      <span className="home-close-meter" aria-hidden="true">
-        <span ref={meterRef} />
-      </span>
-      <h2>
-        <Kinetic text="Put a booth in your server." />
-      </h2>
-      <p>
-        Access opens in batches, and every room gets set up properly rather than handed a link.
-        Tell us what you are running — a community, a station, an event — and we will come to you.
-      </p>
-      <div className="site-cta">
-        <a className="site-btn is-primary" href="/home/access">
-          Join the waitlist
-        </a>
-        <a className="site-btn" href="/home/help">
-          Browse the help centre
-        </a>
-      </div>
-    </section>
+    </ul>
   );
 }
 
@@ -425,119 +273,106 @@ export function Home() {
   return (
     <SitePage current="/home" bleed>
       <Backdrop />
-      <Chrome markers={MARKERS} />
 
-      <header className="home-hero" id="top">
-        <div className="home-hero-inner">
-          <div className="home-hero-copy">
-            <Readout />
-            <h1>
-              <Kinetic text="A real DJ booth" />
-              <br />
-              <span className="home-hero-line2">
-                <Kinetic text="for your Discord server." from={3} />
+      <Mix>
+        <Cue
+          id="intro"
+          n="01"
+          label="Intro"
+          lead
+          statement={
+            <>
+              <Kinetic text="A real DJ booth for" />
+              <span className="cue-turn">
+                <Kinetic text="your Discord server." />
               </span>
-            </h1>
-            <p className="home-lede">
-              Two decks, a proper mixer and eight sample pads — mixed live into a voice channel by
-              you and your crew. Not a queue bot.
-            </p>
-            <div className="site-cta">
-              <a className="site-btn is-primary" href="/home/access">
-                Join the waitlist
-              </a>
-              <a className="site-btn" href="/login">
-                Sign in
-              </a>
-            </div>
-            <ul className="home-proof">
-              {PROOF.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-
+            </>
+          }
+          lede="Two decks, a proper mixer and eight sample pads — mixed live into a voice channel by you and your crew. Not a queue bot."
+        >
+          <dl className="readout">
+            {SPECS.map((spec) => (
+              <div key={spec.label}>
+                <dt className="mono">{spec.value}</dt>
+                <dd>{spec.label}</dd>
+              </div>
+            ))}
+          </dl>
           <Rig />
-        </div>
+        </Cue>
 
-        <div className="home-scrollcue" aria-hidden="true">
-          <span />
-          Ride it down
-        </div>
-      </header>
-
-      <div className="home-ticker" aria-hidden="true">
-        <div className="home-ticker-run">
-          {[0, 1].map((copy) => (
-            <span key={copy}>
-              {TICKER.map((item) => (
-                <i key={item}>{item}</i>
-              ))}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="home-wrap">
-        <ul className="home-specs">
-          {SPECS.map((spec) => (
-            <Spec key={spec.label} {...spec} />
-          ))}
-        </ul>
-
-        <Bay
-          id="why"
-          index="01"
-          eyebrow="The difference"
-          title="Not another music bot"
-          lede="Take the fader. Everything left of it is what a music bot does; everything right of it is what a booth does."
+        <Cue
+          id="difference"
+          n="02"
+          label="The difference"
+          statement="Not another music bot"
+          lede="Take the fader. Everything to the left of it is what a music bot does; everything to the right is what a booth does."
         >
           <Crossfade items={CONTRAST} />
-        </Bay>
+        </Cue>
 
-        <Bay
-          id="features"
-          index="02"
-          eyebrow="What you get"
-          title="A booth, not a playlist"
-          lede="Six modules, all of them in the box. There is no paid tier holding half of it back."
-        >
-          <Rack items={PILLARS} />
-        </Bay>
+        {MODULES.map((module) => (
+          <Cue
+            key={module.id}
+            id={module.id}
+            n={module.n}
+            label={module.label}
+            statement={module.statement}
+            lede={module.lede}
+          >
+            <Rows items={module.points} />
+          </Cue>
+        ))}
 
-        <Bay
+        <Cue
           id="pads"
-          index="03"
-          eyebrow="Try it"
-          title="Eight pads. Press one."
-          lede="No sign-up, no demo booking. The keys 1 to 8 work too, exactly as they do on the console."
+          n="09"
+          label="The pads"
+          statement="Eight pads. Press one."
+          lede="No sign-up and no demo to book. The keys 1 to 8 work here too, exactly as they do on the console."
         >
           <PadPlay />
-        </Bay>
+        </Cue>
 
-        <Bay id="who" index="04" eyebrow="Who runs it" title="Built for rooms with a schedule">
-          <div className="rooms">
+        <Cue
+          id="rooms"
+          n="10"
+          label="Who runs it"
+          statement="Built for rooms with a schedule"
+        >
+          <dl className="notes">
             {AUDIENCE.map((item) => (
-              <Room key={item.title} {...item} />
+              <div key={item.title}>
+                <dt>{item.title}</dt>
+                <dd>{item.body}</dd>
+              </div>
             ))}
-          </div>
-        </Bay>
+          </dl>
+        </Cue>
 
-        <Bay
-          id="steps"
-          index="05"
-          eyebrow="Getting started"
-          title="Three steps, none of them yours to build"
+        <Cue
+          id="getting-in"
+          n="11"
+          label="Getting in"
+          statement="Three steps, none of them yours to build"
           lede="No portal, no container, no tokens. The setup that used to take an afternoon is a conversation and an invite."
         >
-          <Steps />
-          <p className="bay-foot">
+          <ol className="steps">
+            {STEPS.map((step, index) => (
+              <li key={step.title}>
+                <span className="steps-no mono">{index + 1}</span>
+                <strong>{step.title}</strong>
+                <span>{step.body}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="cue-foot">
             The <a href="/home/help">help centre</a> covers working the decks once you are in.
           </p>
-        </Bay>
+        </Cue>
 
-        <Bay id="faq" index="06" eyebrow="Questions" title="The things people ask first">
-          <div className="site-faq">
+        <Cue id="questions" n="12" label="Questions" statement="The things people ask first">
+          <div className="asks">
             {FAQ.map((item) => (
               <details key={item.q}>
                 <summary>{item.q}</summary>
@@ -545,10 +380,28 @@ export function Home() {
               </details>
             ))}
           </div>
-        </Bay>
+        </Cue>
 
-        <Close />
-      </div>
+        <Cue
+          id="end"
+          n="13"
+          label="End of set"
+          statement="Put a booth in your server."
+          lede="Access opens in batches, and every room gets set up properly rather than handed a link. Tell us what you are running — a community, a station, an event — and we will come to you."
+        >
+          <div className="cue-cta">
+            <a className="btn is-primary" href="/home/access">
+              Join the waitlist
+            </a>
+            <a className="btn" href="/home/help">
+              Browse the help centre
+            </a>
+            <a className="btn" href="/login">
+              Sign in
+            </a>
+          </div>
+        </Cue>
+      </Mix>
     </SitePage>
   );
 }

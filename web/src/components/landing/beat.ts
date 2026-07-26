@@ -15,11 +15,9 @@ import { useEffect, useRef, useState } from 'react';
  * WebGL uniforms and the live readouts.
  */
 
-export const BPM = 124;
-/** One beat, in seconds. */
+const BPM = 124;
+/** One beat, in seconds. The CSS side of this is `--beat`. */
 export const BEAT_S = 60 / BPM;
-/** One bar of four, in seconds. */
-export const BAR_S = BEAT_S * 4;
 
 export type Frame = {
   /** Seconds since the clock started. */

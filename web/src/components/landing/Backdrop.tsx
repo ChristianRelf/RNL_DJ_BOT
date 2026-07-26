@@ -79,6 +79,10 @@ void main() {
   col *= 0.055 + 0.2 * w;
 
   // --- ribbons ---------------------------------------------------------
+  // The light follows the set: thin at the intro, thick through the middle,
+  // thinning out again for the run-off. It is the same shape as the waveform
+  // down the side of the page, because it is the same track.
+  float dens = 0.3 + 0.95 * sin(clamp(uScroll, 0.0, 1.0) * 3.14159);
   for (int i = 0; i < 7; i++) {
     float fi = float(i);
     float speed = 0.2 + fi * 0.07;
@@ -90,7 +94,7 @@ void main() {
     float core = 0.0016 + 0.0021 * band;
     float glow = core / (d * d * 55.0 + core);
     vec3 tint = mix(blue, amber, fract(fi / 6.5 + warm * 0.45));
-    col += tint * glow * (0.38 + 0.46 * pulse) * lift;
+    col += tint * glow * (0.38 + 0.46 * pulse) * lift * dens;
   }
 
   // --- bars --------------------------------------------------------------
@@ -173,7 +177,23 @@ export function Backdrop() {
   const target = useRef<[number, number]>([0, 0]);
   const eased = useRef<[number, number]>([0, 0]);
   const scroll = useRef(0);
+  // How far down the document we are. Cached rather than read per frame:
+  // `scrollHeight` forces layout, and this runs sixty times a second.
+  const span = useRef(1);
   const reduced = useReducedMotion();
+
+  useEffect(() => {
+    const measure = () => {
+      span.current = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const timer = window.setInterval(measure, 1500);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -261,12 +281,10 @@ export function Backdrop() {
     ];
 
     // The light stays with you the whole way down, but steps back once the
-    // hero has gone by — it is a backdrop for reading at that point. Both
-    // numbers come off `scrollY` and the viewport height, never off the
-    // document height: that is a layout read, and this runs every frame.
+    // first cue has gone by — it is a backdrop for reading at that point.
     const past = window.scrollY / Math.max(1, window.innerHeight);
-    scroll.current = Math.min(1, past / 5);
-    canvas.style.opacity = String(Math.max(0.34, 1 - past * 0.72));
+    scroll.current = Math.min(1, window.scrollY / span.current);
+    canvas.style.opacity = String(Math.max(0.36, 1 - past * 0.68));
 
     draw(frame);
   });

@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #131517;
   --panel: #1a1d21;
   --panel-2: #212529;
@@ -98,7 +98,7 @@ body {
 }
 
 /* The mark is a light wordmark on transparency, so it needs no plate or
-   surrounding type — it carries the branding on its own. */
+   surrounding type â€” it carries the branding on its own. */
 .brand-logo {
   display: block;
   height: 20px;
@@ -225,7 +225,7 @@ body {
  * The console is a free grid: twelve columns, a fixed row height, and an
  * explicit cell for every tool. Sizes come from the layout rather than from the
  * content, so panels line up with each other instead of nearly lining up, and
- * two of them can never overlap — the arithmetic that prevents it lives in
+ * two of them can never overlap â€” the arithmetic that prevents it lives in
  * lib/layout.ts.
  */
 .console {
@@ -239,7 +239,7 @@ body {
 }
 
 /* Below the grid's minimum width the console stacks and every tool sizes to
-   its own content — a twelve-column arrangement on a phone would be a lie. */
+   its own content â€” a twelve-column arrangement on a phone would be a lie. */
 .console.is-stacked {
   display: flex;
   flex-direction: column;
@@ -270,8 +270,8 @@ body {
 
 /* ------------------------------------------------------- layout editing */
 
-/* The console stays live while you arrange it — a set does not stop for
-   furniture — but the controls underneath must not take stray clicks. */
+/* The console stays live while you arrange it â€” a set does not stop for
+   furniture â€” but the controls underneath must not take stray clicks. */
 .console.is-arranging .tile-body > .panel {
   pointer-events: none;
   opacity: 0.8;
@@ -964,7 +964,7 @@ body {
   color: var(--dim);
 }
 
-/* A named cluster of related controls — the console's unit of grouping. */
+/* A named cluster of related controls â€” the console's unit of grouping. */
 .tool-block {
   display: flex;
   flex-direction: column;
@@ -1563,7 +1563,7 @@ body {
   border-radius: var(--radius);
 }
 
-/* Tempo as the room hears it — the number you actually beatmatch against. */
+/* Tempo as the room hears it â€” the number you actually beatmatch against. */
 .bpm-readout {
   display: flex;
   flex-direction: column;
@@ -2736,7 +2736,7 @@ body {
   color: var(--muted);
 }
 
-/* Reads as a switch rather than a checkbox — these change the rig for everyone. */
+/* Reads as a switch rather than a checkbox â€” these change the rig for everyone. */
 .toggle {
   display: flex;
   align-items: center;
@@ -2877,7 +2877,7 @@ kbd {
    The public pages: the pitch, the docs, the guide, the policies and the
    sign-in door.
 
-   The console is the product, so the marketing looks like the console — the
+   The console is the product, so the marketing looks like the console â€” the
    same surfaces, the same hairlines, the same mono labels. What is different
    is the scale: the booth is dense because it is being operated, and these
    pages are airy because they are being read. That is the whole system.
@@ -2889,7 +2889,7 @@ kbd {
 .site {
   /* Wide on purpose. A landing page holding a 1100px column in the middle of
      a 2560px display reads as a document, not as a product. The docs keep a
-     text measure of their own further down — that constraint is about reading,
+     text measure of their own further down â€” that constraint is about reading,
      which is a different job. */
   --measure: min(1680px, 94vw);
   --gutter: clamp(18px, 3.5vw, 56px);
@@ -2958,7 +2958,7 @@ kbd {
   flex: none;
 }
 
-/* The mark is the loudest thing in the bar on purpose — it is the only piece
+/* The mark is the loudest thing in the bar on purpose â€” it is the only piece
    of branding the site has, and it doubles as the way home. */
 .site-nav-brand img {
   height: clamp(34px, 3.4vw, 48px);
@@ -3028,7 +3028,7 @@ kbd {
   }
 
   /* Opened, the links become a stacked sheet under the bar rather than a
-     drawer — there are four of them, and a drawer would be theatre. */
+     drawer â€” there are four of them, and a drawer would be theatre. */
   .site-nav.is-open .site-nav-links {
     position: absolute;
     left: 0;
@@ -3231,7 +3231,7 @@ kbd {
 }
 
 .site-faq details[open] summary::after {
-  content: '−';
+  content: 'âˆ’';
 }
 
 .site-faq summary:hover {
@@ -3373,7 +3373,7 @@ kbd {
    different product here is a promise the console does not keep.
 
    Everything is sized in em against one root font size, so the whole console
-   scales as a unit — a phone gets the same drawing, smaller.
+   scales as a unit â€” a phone gets the same drawing, smaller.
    ------------------------------------------------------------------------ */
 
 .pv {
@@ -3513,7 +3513,7 @@ kbd {
 }
 
 /* Deck panels carry a hairline of their own colour, exactly as the real ones
-   do — it is how you tell them apart at a glance. */
+   do â€” it is how you tell them apart at a glance. */
 .pv-deck.is-deck-a {
   border-top: 2px solid var(--deck-a);
 }
@@ -4272,7 +4272,7 @@ kbd {
 
 /* ===========================================================================
    SIGN-IN DOOR
-   No nav, no footer links, nothing to read — one decision to make.
+   No nav, no footer links, nothing to read â€” one decision to make.
    ------------------------------------------------------------------------ */
 
 .signin {
@@ -4995,7 +4995,7 @@ kbd {
 
 
 /* A slight turn, the way a product shot sits. It straightens when you point at
-   it, which is the only invitation the illustration needs — and it is a static
+   it, which is the only invitation the illustration needs â€” and it is a static
    transform, so there is nothing here to disable for reduced motion. */
 @media (min-width: 1200px) {
   .site-hero-art .pv {
@@ -5338,19 +5338,25 @@ kbd {
 /* ===========================================================================
    THE LANDING PAGE
    ===========================================================================
-   The page is a set.
+   One track, played top to bottom.
 
-   One tempo runs the whole thing â€” 124 BPM, the tempo of the track in the
-   console illustration â€” and everything that moves is a multiple of it. That
-   is what `--beat` is for: an ambient pulse written as `animation-duration:
-   var(--beat)` costs no JavaScript and cannot drift, because every animation
-   on the page started at the same moment with the same period. Only the four
-   things that genuinely need a number per frame â€” the shader, the readouts,
-   the crossfader and the closing meter â€” go anywhere near a rAF loop.
+   The page has a single mechanism and everything is hung off it. The whole set
+   is drawn as one waveform down the left, the full height of the document. A
+   playhead sits fixed at 40% of the window. Scrolling drags the waveform past
+   it; what has gone by is lit and what is still to come is not. Every block of
+   copy is a cue point on that waveform, and it goes live as it crosses the
+   head â€” its lamp lights, its type comes up out of the dim, the transport
+   across the bottom renames itself and the light behind the page flares.
 
-   Surfaces here are translucent rather than solid. There is a live shader
-   behind the page, and a panel that blocks it entirely would put the page back
-   to being a stack of boxes.
+   That last part is the whole visual system, and it is worth being explicit
+   about: nothing on this page is fully lit except the cue you are on. There is
+   no other emphasis mechanism â€” no cards, no boxes, no per-section styling to
+   invent. A page laid out as one instrument reads as one thing.
+
+   The tempo is 124 BPM, the tempo of the track in the console illustration.
+   Ambient pulses are written as `animation-duration: var(--beat)`, which costs
+   no JavaScript and cannot drift. Only the things that genuinely need a number
+   per frame â€” the shader, the playhead, the transport â€” go near a rAF loop.
    ------------------------------------------------------------------------ */
 
 .site.is-bleed {
@@ -5363,14 +5369,12 @@ kbd {
 
 .site-main.is-bleed {
   max-width: none;
-  padding: 0 0 var(--rhythm);
+  padding: 0;
 }
 
-/* The measure the page keeps everywhere except the hero and the closing panel. */
-.home-wrap {
-  max-width: var(--measure);
-  margin: 0 auto;
-  padding: 0 var(--gutter);
+/* The transport is fixed across the bottom, so the page has to end above it. */
+.site.is-bleed .site-foot-base {
+  padding-bottom: 84px;
 }
 
 /* ------------------------------------------------------------- backdrop */
@@ -5396,54 +5400,195 @@ kbd {
 
 .home-backdrop.is-flat {
   background:
-    radial-gradient(60% 55% at 74% 12%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 70%),
-    radial-gradient(55% 55% at 12% 4%, color-mix(in srgb, var(--deck-a) 13%, transparent), transparent 72%),
+    radial-gradient(60% 55% at 74% 12%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    radial-gradient(55% 55% at 12% 4%, color-mix(in srgb, var(--deck-a) 12%, transparent), transparent 72%),
     var(--bg);
 }
 
-/* ----------------------------------------------------------------- hero */
+/* ------------------------------------------------------------------ mix */
 
-.home-hero {
+.mix {
+  /* The waveform column and the space between it and the copy. Every cue mark
+     on the page is positioned off these two numbers. */
+  --spine: clamp(14px, 3vw, 44px);
+  --gap: clamp(16px, 3vw, 54px);
   position: relative;
-  display: grid;
-  align-content: center;
-  min-height: min(100svh, 940px);
-  padding: clamp(96px, 15vh, 168px) 0 clamp(64px, 9vh, 104px);
-}
-
-.home-hero-inner {
-  width: 100%;
-  max-width: var(--measure);
+  max-width: min(1260px, 94vw);
   margin: 0 auto;
-  padding: 0 var(--gutter);
-  display: grid;
-  gap: clamp(38px, 5vw, 72px);
+  padding: 0 var(--gutter) clamp(90px, 14vh, 170px)
+    calc(var(--gutter) + var(--spine) + var(--gap));
+}
+
+/* --------------------------------------------------------------- spine */
+
+.spine {
+  position: absolute;
+  left: var(--gutter);
+  top: 0;
+  bottom: 0;
+  width: var(--spine);
+}
+
+.spine-wave {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: var(--line);
+}
+
+/* The same waveform again in accent, clipped to everything the head has been
+   past. Two copies and a clip is cheaper than redrawing a path per frame, and
+   it cannot fall out of step with the playhead: they are the same number. */
+.spine-wave.is-lit {
+  fill: var(--accent);
+  opacity: 0.9;
+  clip-path: inset(0 0 calc(100% - var(--played, 0px)) 0);
+}
+
+/* Sticky rather than fixed, so the head is pinned to the window while the
+   waveform runs and stops dead at the end of the set â€” which is the bottom of
+   the page. No JavaScript is involved in putting it there. */
+.spine-head {
+  position: sticky;
+  top: 40vh;
+  display: block;
+  height: 0;
+}
+
+.spine-head::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  top: -1px;
+  height: 2px;
+  background: var(--text);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+
+/* The head, carried a little way across the page. It sits at six per cent
+   opacity until a cue lands on it, and the frame loop does the rest. */
+.mix-beam {
+  position: fixed;
+  left: 0;
+  top: 40vh;
+  width: min(46vw, 680px);
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ cue */
+
+.cue {
+  --pad: clamp(74px, 13vh, 150px);
+  position: relative;
+  padding: var(--pad) 0 0;
+}
+
+/* The opening cue clears the nav. Everything after it is on one rhythm, and
+   both the padding and the mark read the same variable, so they cannot drift
+   apart. */
+.cue:first-of-type {
+  --pad: clamp(120px, 19vh, 230px);
+}
+
+.cue-mark {
+  position: absolute;
+  top: var(--pad);
+  left: calc(-1 * (var(--gap) + var(--spine)));
+  width: var(--spine);
+  height: 1px;
+  background: var(--line-strong);
+  transition: background 0.4s linear, box-shadow 0.4s linear;
+}
+
+.cue.is-live .cue-mark {
+  background: var(--accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.cue-label {
+  display: flex;
   align-items: center;
+  gap: 12px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  transition: color 0.45s linear;
 }
 
-@media (min-width: 1020px) {
-  .home-hero-inner {
-    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
-    gap: clamp(48px, 5vw, 96px);
-  }
+.cue-label b {
+  font-weight: 400;
+  color: var(--line-strong);
+  transition: color 0.45s linear;
 }
 
-.home-hero-copy h1 {
-  margin: 20px 0 0;
-  font-size: clamp(40px, 6.2vw, 94px);
-  line-height: 0.98;
-  letter-spacing: -0.042em;
+.cue.is-live .cue-label {
+  color: var(--muted);
+}
+
+.cue.is-live .cue-label b {
+  color: var(--accent);
+}
+
+/* Nothing on the page is fully lit except the cue you are on. This is the
+   whole emphasis system, so it is applied to type, rules, lamps and rows
+   identically â€” the light moves down the page with you and that is all. */
+.cue-statement {
+  margin: 18px 0 0;
+  max-width: 22ch;
+  font-size: clamp(27px, 3.4vw, 48px);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
   font-weight: 500;
+  color: var(--muted);
+  transition: color 0.5s linear;
 }
 
-/* The second line is where the page turns from the problem to the product, so
-   it is where the palette turns too. Per word rather than per line: a gradient
-   clipped across a row of animating boxes tears on half the browsers there are. */
-.home-hero-line2 .kin > span {
-  background: linear-gradient(92deg, var(--text) 10%, var(--accent) 95%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.cue.is-live .cue-statement {
+  color: var(--text);
+}
+
+.cue.is-lead .cue-statement {
+  max-width: 16ch;
+  font-size: clamp(38px, 5.8vw, 88px);
+  line-height: 0.99;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+
+/* Where the page turns from the problem to the product. */
+.cue-turn {
+  color: var(--accent);
+}
+
+.cue-lede {
+  margin: 20px 0 0;
+  max-width: 56ch;
+  font-size: clamp(15px, 1.15vw, 18px);
+  line-height: 1.68;
+  color: var(--muted);
+}
+
+.cue-foot {
+  margin: 26px 0 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.cue-foot a {
+  color: var(--muted);
+}
+
+.cue-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: clamp(28px, 3.4vw, 44px) 0 0;
 }
 
 /* A word rises on the next eighth note. The delay is set per word inline, so
@@ -5471,436 +5616,308 @@ kbd {
   }
 }
 
-.home-lede {
-  margin: 22px 0 0;
-  max-width: 46ch;
-  font-size: clamp(16px, 1.3vw, 20px);
-  line-height: 1.62;
-  color: var(--muted);
-}
+/* -------------------------------------------------------------- buttons */
 
-.home-proof {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  margin: 26px 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 12px;
-  color: var(--dim);
-}
-
-.home-proof li {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.home-proof li::before {
-  content: '';
-  flex: none;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--play);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--play) 70%, transparent);
-}
-
-/* --------------------------------------------------------------- readout */
-
-.home-readout {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 18px;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-.home-readout-live {
+/* Console buttons, not marketing pills: square, hairline, mono. The product
+   is a piece of hardware in a browser tab and its front door should look like
+   one of its own controls. */
+.btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  padding: 14px 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s linear, border-color 0.15s linear, background 0.15s linear;
+}
+
+.btn:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.btn.is-primary {
+  border-color: var(--accent);
   color: var(--accent);
 }
 
-.home-readout-live i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--play);
-  box-shadow: 0 0 10px var(--play);
-  animation: lamp var(--beat) ease-out infinite;
-}
-
-@keyframes lamp {
-  0% {
-    opacity: 1;
-    transform: scale(1.25);
-  }
-  60%,
-  100% {
-    opacity: 0.45;
-    transform: scale(1);
-  }
-}
-
-/* Four lamps counting the bar. The lit one is set from the clock as a data
-   attribute, which is one DOM write a beat rather than a re-render. */
-.home-readout-beats {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.home-readout-beats i {
-  width: 13px;
-  height: 3px;
-  background: var(--line-strong);
-  transition: background 0.08s linear, box-shadow 0.08s linear;
-}
-
-.home-readout-beats[data-beat='1'] i:nth-child(1),
-.home-readout-beats[data-beat='2'] i:nth-child(2),
-.home-readout-beats[data-beat='3'] i:nth-child(3),
-.home-readout-beats[data-beat='4'] i:nth-child(4) {
+.btn.is-primary:hover {
   background: var(--accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
+  color: #161004;
 }
 
-/* ------------------------------------------------------------------ rig */
+/* -------------------------------------------------------------- readout */
 
-.home-rig {
-  position: relative;
-  min-width: 0;
-  perspective: 1400px;
-}
-
-.home-rig-glow {
-  position: absolute;
-  inset: -12% -8%;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 16%, transparent), transparent);
-  animation: rig-breathe var(--bar) ease-in-out infinite;
-}
-
-@keyframes rig-breathe {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.9;
-    transform: scale(1.04);
-  }
-}
-
-/* Enough tilt to read as a rig sitting on a desk, not enough to make anyone
-   chase it with the pointer. */
-.home-rig-tilt {
-  transform: rotateX(calc(var(--tilt-x, 0) * 1deg)) rotateY(calc(var(--tilt-y, 0) * 1deg));
-  transform-style: preserve-3d;
-  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.3, 1);
-  filter: drop-shadow(0 30px 60px rgb(0 0 0 / 45%));
-}
-
-.home-rig-caption {
-  display: block;
-  margin-top: 14px;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--dim);
-  text-align: right;
-}
-
-@media (min-width: 1240px) {
-  .home-rig {
-    margin-right: calc(var(--gutter) * -1);
-  }
-}
-
-/* ------------------------------------------------------------ scroll cue */
-
-.home-scrollcue {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(18px, 3vh, 34px);
-  transform: translateX(-50%);
+/* The four numbers, as a spec plate rather than four boxes in a row. */
+.readout {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 14px clamp(24px, 3.4vw, 54px);
+  margin: clamp(28px, 3.4vw, 46px) 0 0;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.readout div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.readout dt {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-.home-scrollcue span {
-  position: relative;
-  width: 1px;
-  height: 34px;
-  background: var(--line-strong);
-  overflow: hidden;
-}
-
-.home-scrollcue span::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  width: 1px;
-  height: 12px;
-  background: var(--accent);
-  animation: cue-fall calc(var(--bar) * 1.5) ease-in-out infinite;
-}
-
-@keyframes cue-fall {
-  0% {
-    top: -12px;
-  }
-  70%,
-  100% {
-    top: 34px;
-  }
-}
-
-/* --------------------------------------------------------------- ticker */
-
-.home-ticker {
-  overflow: hidden;
-  border-block: 1px solid var(--line);
-  background: color-mix(in srgb, var(--well) 62%, transparent);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-
-.home-ticker-run {
-  display: flex;
-  width: max-content;
-  animation: ticker 44s linear infinite;
-}
-
-.home-ticker-run > span {
-  display: flex;
-}
-
-.home-ticker-run i {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 11px 20px;
-  font-family: var(--mono);
-  font-style: normal;
-  font-size: 11px;
-  letter-spacing: 0.17em;
-  text-transform: uppercase;
-  color: var(--dim);
-  white-space: nowrap;
-}
-
-.home-ticker-run i::after {
-  content: '';
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent-dim);
-}
-
-@keyframes ticker {
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-/* ---------------------------------------------------------------- specs */
-
-.home-specs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1px;
-  margin: var(--rhythm) 0 0;
-  padding: 0;
-  list-style: none;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.home-specs li {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: clamp(22px, 2.6vw, 34px) clamp(18px, 2vw, 26px) clamp(34px, 3.4vw, 46px);
-  background: color-mix(in srgb, var(--panel) 84%, transparent);
-  opacity: 0;
-  transform: translateY(14px);
-  transition: opacity 0.55s ease, transform 0.55s ease, background 0.16s linear;
-}
-
-.home-specs li.is-shown {
-  opacity: 1;
-  transform: none;
-}
-
-.home-specs li:hover {
-  background: color-mix(in srgb, var(--panel-2) 90%, transparent);
-}
-
-.spec-value {
-  font-size: clamp(32px, 3.6vw, 52px);
+  font-size: clamp(20px, 2vw, 30px);
   line-height: 1;
   color: var(--accent);
 }
 
-.spec-label {
-  font-size: 14px;
-  color: var(--text);
-}
-
-.spec-note {
-  font-size: 12px;
+.readout dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--dim);
 }
 
-/* A chase across the beat, one segment per eighth. It is the cheapest
-   possible way to say "this thing is running". */
-.spec-leds {
-  position: absolute;
-  left: clamp(18px, 2vw, 26px);
-  bottom: clamp(14px, 1.6vw, 20px);
-  display: flex;
-  gap: 3px;
+/* ------------------------------------------------------------------ rig */
+
+.rig {
+  margin: clamp(34px, 4.5vw, 64px) 0 0;
+  perspective: 1600px;
 }
 
-.spec-leds i {
-  width: 9px;
-  height: 3px;
-  background: var(--line-strong);
-  animation: led-chase var(--beat) linear infinite;
+.rig-tilt {
+  transform: rotateX(calc(var(--tilt-x, 0) * 1deg)) rotateY(calc(var(--tilt-y, 0) * 1deg));
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.3, 1);
+  filter: drop-shadow(0 34px 70px rgb(0 0 0 / 55%));
 }
 
-@keyframes led-chase {
-  0% {
-    background: var(--accent);
-    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
-  }
-  22%,
-  100% {
-    background: var(--line-strong);
-    box-shadow: none;
-  }
-}
+/* ----------------------------------------------------------------- rows */
 
-/* ------------------------------------------------------------------ bay */
-
-.bay {
-  padding-top: var(--rhythm);
-}
-
-.bay-head {
+/* The one list shape on the page. Everything that is a list of things is this:
+   a lamp, a line, a hairline. The rows come up in order as the cue lands. */
+.rows {
   max-width: 64ch;
-  margin-bottom: clamp(28px, 3.2vw, 48px);
+  margin: clamp(24px, 3vw, 40px) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
 }
 
-.bay-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--accent);
+.rows li {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+  transition: color 0.45s linear;
 }
 
-.bay-tag i {
-  font-style: normal;
-  padding: 3px 7px;
-  border: 1px solid var(--accent-dim);
-  border-radius: 2px;
-  color: var(--accent);
+.cue.is-live .rows li {
+  color: var(--text);
 }
 
-.bay-head h2 {
-  margin: 14px 0 0;
-  font-size: clamp(28px, 3.2vw, 50px);
-  line-height: 1.1;
-  letter-spacing: -0.028em;
-  font-weight: 500;
-  text-wrap: balance;
+.rows-lamp {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  transition: background 0.45s linear, box-shadow 0.45s linear;
 }
 
-.bay-head p {
-  margin: 14px 0 0;
+.cue.is-live .rows-lamp {
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* ---------------------------------------------------------------- notes */
+
+.notes {
+  max-width: 78ch;
+  margin: clamp(24px, 3vw, 40px) 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.notes div {
+  display: grid;
+  gap: 6px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (min-width: 760px) {
+  .notes div {
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 30px;
+    align-items: baseline;
+  }
+}
+
+.notes dt {
   font-size: 16px;
+  color: var(--muted);
+  transition: color 0.45s linear;
+}
+
+.cue.is-live .notes dt {
+  color: var(--text);
+}
+
+.notes dd {
+  margin: 0;
+  font-size: 15px;
   line-height: 1.7;
   color: var(--muted);
 }
 
-/* A hairline that draws itself in as the section arrives â€” the section
-   equivalent of a fader being brought up. */
-.bay-rule {
-  display: block;
-  height: 1px;
-  margin-top: clamp(20px, 2.4vw, 32px);
-  background: linear-gradient(90deg, var(--accent), var(--line) 60%, transparent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.3, 1);
+/* ---------------------------------------------------------------- steps */
+
+.steps {
+  max-width: 78ch;
+  margin: clamp(24px, 3vw, 40px) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
 }
 
-.bay.is-shown .bay-rule {
-  transform: scaleX(1);
+.steps li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 6px 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: baseline;
 }
 
-.bay-foot {
-  margin: 24px 0 0;
-  font-size: 13px;
-  color: var(--dim);
+@media (min-width: 760px) {
+  .steps li {
+    grid-template-columns: 26px 200px minmax(0, 1fr);
+    gap: 30px;
+  }
 }
 
-.bay-foot a {
+.steps-no {
+  grid-row: span 2;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+@media (min-width: 760px) {
+  .steps-no {
+    grid-row: auto;
+  }
+}
+
+.steps strong {
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--muted);
+  transition: color 0.45s linear;
+}
+
+.cue.is-live .steps strong {
+  color: var(--text);
+}
+
+.steps li > span:last-child {
+  font-size: 15px;
+  line-height: 1.7;
   color: var(--muted);
 }
 
-/* ---------------------------------------------------------- crossfader */
+/* ----------------------------------------------------------------- asks */
 
+.asks {
+  max-width: 80ch;
+  margin: clamp(24px, 3vw, 40px) 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.asks details {
+  border-bottom: 1px solid var(--line);
+}
+
+.asks summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 17px 0;
+  font-size: 16px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  transition: color 0.3s linear;
+}
+
+.cue.is-live .asks summary {
+  color: var(--text);
+}
+
+.asks summary::-webkit-details-marker {
+  display: none;
+}
+
+.asks summary::after {
+  content: '+';
+  flex: none;
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.asks details[open] summary::after {
+  content: 'âˆ’';
+}
+
+.asks p {
+  margin: 0;
+  padding: 0 0 20px;
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+/* ----------------------------------------------------------- crossfader */
+
+/* The difference between a music bot and a booth, made on the control that
+   draws the line. Both halves of each sentence sit in the same grid cell, so
+   the wipe cuts the same words in the same place whatever the fader is doing. */
 .xf {
   --x: 0;
-  --pad: clamp(20px, 2.6vw, 40px);
+  margin: clamp(24px, 3vw, 40px) 0 0;
 }
 
 .xf-stage {
   position: relative;
-  overflow: hidden;
   display: grid;
-  gap: clamp(22px, 2.6vw, 38px);
-  padding: clamp(26px, 3vw, 46px) var(--pad);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--panel) 86%, transparent),
-    color-mix(in srgb, var(--panel-2) 86%, transparent)
-  );
-  /* The room warms up as the deck side takes over. */
-  box-shadow: inset 0 0 120px color-mix(in srgb, var(--accent) calc(var(--x) * 12%), transparent);
+  gap: clamp(24px, 3vw, 42px);
+  padding: clamp(24px, 3vw, 40px) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
-/* Both halves of the sentence occupy the same box, so the wipe cuts the same
-   words in the same places whatever the fader is doing. */
 .xf-line {
   display: grid;
-  font-size: clamp(21px, 2.4vw, 36px);
-  line-height: 1.16;
-  letter-spacing: -0.022em;
+  max-width: 26ch;
+  font-size: clamp(21px, 2.4vw, 34px);
+  line-height: 1.14;
+  letter-spacing: -0.025em;
 }
 
 .xf-line > * {
@@ -5925,23 +5942,21 @@ kbd {
 }
 
 .xf-row p {
-  margin: 12px 0 0;
-  max-width: 76ch;
+  margin: 14px 0 0;
+  max-width: 72ch;
   font-size: 15px;
   line-height: 1.7;
   color: var(--muted);
 }
 
-/* The seam has to land exactly where the clip does, so it is positioned
-   against the same box the rows are: the stage, less its own padding. */
 .xf-seam {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(var(--pad) + var(--x) * (100% - 2 * var(--pad)));
+  left: calc(var(--x) * 100%);
   width: 1px;
   background: linear-gradient(180deg, transparent, var(--accent), transparent);
-  box-shadow: 0 0 22px 3px color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 0 22px 3px color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .xf-desk {
@@ -5949,13 +5964,13 @@ kbd {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: clamp(10px, 1.4vw, 18px);
-  margin-top: 20px;
+  margin-top: 22px;
 }
 
 .xf-end {
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--dim);
 }
@@ -5966,7 +5981,7 @@ kbd {
 
 .xf-track {
   position: relative;
-  height: 46px;
+  height: 42px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--well);
@@ -5982,7 +5997,7 @@ kbd {
   bottom: 1px;
   left: 1px;
   width: calc(var(--x) * 100%);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 20%, transparent));
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 18%, transparent));
 }
 
 .xf-cap {
@@ -5990,10 +6005,10 @@ kbd {
   top: -6px;
   bottom: -6px;
   left: calc(var(--x) * 100%);
-  width: 24px;
-  margin-left: -12px;
+  width: 22px;
+  margin-left: -11px;
   border: 1px solid var(--line-strong);
-  border-radius: 3px;
+  border-radius: 2px;
   background: linear-gradient(180deg, var(--panel-3), var(--panel));
   box-shadow: var(--raise), 0 8px 18px rgb(0 0 0 / 48%);
   cursor: grab;
@@ -6028,8 +6043,8 @@ kbd {
   transform: translate(-50%, -50%);
   pointer-events: none;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-size: 9px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--dim);
   animation: hint var(--bar) ease-in-out infinite;
@@ -6038,232 +6053,28 @@ kbd {
 @keyframes hint {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.3;
   }
   50% {
-    opacity: 0.9;
+    opacity: 0.85;
   }
-}
-
-/* ----------------------------------------------------------------- rack */
-
-.rack {
-  display: grid;
-  gap: clamp(16px, 2vw, 28px);
-}
-
-@media (min-width: 1020px) {
-  .rack {
-    grid-template-columns: 220px minmax(0, 1fr);
-    gap: clamp(32px, 4vw, 76px);
-  }
-}
-
-.rack-index {
-  display: none;
-}
-
-@media (min-width: 1020px) {
-  .rack-index {
-    display: block;
-    position: sticky;
-    top: 128px;
-    align-self: start;
-  }
-}
-
-.rack-count {
-  font-size: clamp(40px, 4vw, 62px);
-  line-height: 1;
-  color: var(--accent);
-}
-
-.rack-count i {
-  font-style: normal;
-  font-size: 0.38em;
-  color: var(--dim);
-}
-
-.rack-index ul {
-  display: flex;
-  flex-direction: column;
-  margin: 24px 0 0;
-  padding: 0 0 0 14px;
-  list-style: none;
-  border-left: 1px solid var(--line);
-}
-
-.rack-index li {
-  margin-left: -15px;
-  padding-left: 14px;
-  border-left: 1px solid transparent;
-  transition: border-color 0.25s linear;
-}
-
-.rack-index li.is-active {
-  border-left-color: var(--accent);
-}
-
-.rack-index button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  color: var(--dim);
-  cursor: pointer;
-  transition: color 0.2s linear;
-}
-
-.rack-index li.is-active button {
-  color: var(--text);
-}
-
-.rack-led {
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--line-strong);
-  transition: background 0.2s linear;
-}
-
-.rack-index li.is-active .rack-led {
-  background: var(--accent);
-  animation: lamp var(--beat) ease-out infinite;
-}
-
-.rack-modules {
-  display: grid;
-  gap: clamp(14px, 1.6vw, 22px);
-}
-
-.rack-module {
-  position: relative;
-  overflow: hidden;
-  padding: clamp(24px, 2.6vw, 40px) clamp(22px, 2.4vw, 36px);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  /* Translucent, but not blurred. Six blurred backdrops stacked over a live
-     shader is a scroll that stutters on anything without a discrete GPU, and
-     the panels are opaque enough that nobody would see the blur anyway. */
-  background: color-mix(in srgb, var(--panel) 80%, transparent);
-  opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.6s ease, transform 0.6s ease, border-color 0.3s linear, background 0.3s linear;
-}
-
-.rack-module.is-seen {
-  opacity: 1;
-  transform: none;
-}
-
-.rack-module.is-active {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
-  background: color-mix(in srgb, var(--panel-2) 86%, transparent);
-}
-
-/* The module in front of you carries the same lit edge a live channel does. */
-.rack-module::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: linear-gradient(180deg, var(--accent), var(--deck-a));
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.3, 1);
-}
-
-.rack-module.is-active::before {
-  transform: scaleY(1);
-}
-
-.rack-module header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.rack-module-no {
-  font-size: 12px;
-  color: var(--dim);
-}
-
-.rack-module h3 {
-  margin: 12px 0 0;
-  font-size: clamp(20px, 1.7vw, 28px);
-  font-weight: 500;
-  letter-spacing: -0.018em;
-}
-
-.rack-module > p {
-  margin: 10px 0 0;
-  max-width: 70ch;
-  font-size: 14px;
-  line-height: 1.65;
-  color: var(--muted);
-}
-
-.rack-checks {
-  display: grid;
-  gap: 10px;
-  margin: 20px 0 0;
-  padding: 18px 0 0;
-  list-style: none;
-  border-top: 1px solid var(--line);
-}
-
-.rack-checks li {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--text);
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-.rack-module.is-seen .rack-checks li {
-  opacity: 1;
-  transform: none;
-}
-
-.rack-check-led {
-  flex: none;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent-dim);
-  transition: background 0.3s linear, box-shadow 0.3s linear;
-}
-
-.rack-module.is-active .rack-check-led {
-  background: var(--accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 /* ----------------------------------------------------------------- pads */
 
+/* The one place on the page a raised surface belongs, because these are the
+   only things on it you actually press. */
 .padplay {
   display: grid;
-  gap: 18px;
+  gap: 20px;
+  margin: clamp(24px, 3vw, 40px) 0 0;
 }
 
 .padplay-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(8px, 1vw, 14px);
+  max-width: 720px;
 }
 
 @media (max-width: 560px) {
@@ -6279,11 +6090,11 @@ kbd {
   align-items: flex-start;
   justify-content: space-between;
   aspect-ratio: 1.4 / 1;
-  padding: 12px 14px;
+  padding: 11px 13px;
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: 3px;
   background: linear-gradient(180deg, var(--panel-2), var(--panel));
-  box-shadow: var(--raise), 0 8px 20px rgb(0 0 0 / 34%);
+  box-shadow: var(--raise), 0 6px 16px rgb(0 0 0 / 32%);
   color: var(--muted);
   font: inherit;
   cursor: pointer;
@@ -6303,28 +6114,28 @@ kbd {
 
 .padplay-pad.is-lit {
   transform: translateY(2px);
-  color: #1a1204;
+  color: #161004;
   background: linear-gradient(180deg, #ffc880, var(--accent));
   border-color: var(--accent);
-  box-shadow: 0 0 38px color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 0 34px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
 .padplay-index {
   font-family: var(--mono);
   font-size: 10px;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .padplay-label {
   font-family: var(--mono);
-  font-size: clamp(11px, 1.1vw, 13px);
-  letter-spacing: 0.12em;
+  font-size: clamp(10px, 1.05vw, 12px);
+  letter-spacing: 0.14em;
 }
 
 .padplay-ring {
   position: absolute;
   inset: 0;
-  border-radius: 4px;
+  border-radius: 3px;
   opacity: 0;
   pointer-events: none;
 }
@@ -6346,403 +6157,118 @@ kbd {
 
 .padplay-note {
   margin: 0;
-  max-width: 70ch;
+  max-width: 68ch;
   font-size: 14px;
   line-height: 1.7;
   color: var(--muted);
 }
 
-/* ---------------------------------------------------------------- rooms */
+/* ------------------------------------------------------------ transport */
 
-.rooms {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
-}
-
-.room {
-  position: relative;
-  overflow: hidden;
-  padding: clamp(24px, 2.4vw, 38px) clamp(20px, 2vw, 30px);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
-  transition: border-color 0.2s linear, transform 0.2s ease;
-}
-
-/* A booth lamp that follows the pointer across the panel. */
-.room::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 0.25s linear;
-  background: radial-gradient(
-    240px 240px at var(--mx, 50%) var(--my, 50%),
-    color-mix(in srgb, var(--accent) 15%, transparent),
-    transparent 70%
-  );
-}
-
-.room:hover {
-  border-color: var(--accent-dim);
-  transform: translateY(-3px);
-}
-
-.room:hover::before {
-  opacity: 1;
-}
-
-.room h3,
-.room p {
-  position: relative;
-}
-
-.room h3 {
-  margin: 0 0 10px;
-  font-size: clamp(16px, 1.3vw, 21px);
-  font-weight: 500;
-}
-
-.room p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.65;
-  color: var(--muted);
-}
-
-/* ---------------------------------------------------------------- steps */
-
-.path {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: clamp(16px, 2vw, 30px);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.path-line {
-  display: none;
-}
-
-@media (min-width: 880px) {
-  .path-line {
-    display: block;
-    position: absolute;
-    left: 14px;
-    right: 14px;
-    top: 22px;
-    height: 1px;
-    background: linear-gradient(90deg, var(--accent), var(--line-strong) 70%, transparent);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1) 0.1s;
-  }
-
-  .path.is-shown .path-line {
-    transform: scaleX(1);
-  }
-}
-
-.path li {
-  position: relative;
-  padding-top: 54px;
-  opacity: 0;
-  transform: translateY(18px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
-}
-
-.path.is-shown li {
-  opacity: 1;
-  transform: none;
-}
-
-.path-node {
-  position: absolute;
-  top: 8px;
+/* The only chrome the page has: where you are in the set, how far through,
+   and the one thing there is to do. It never moves, so the call to action is
+   never a banner someone has to be shown twice. */
+.transport {
+  position: fixed;
   left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 18;
   display: grid;
-  place-items: center;
-  width: 29px;
-  height: 29px;
-  border: 1px solid var(--accent-dim);
-  border-radius: 50%;
-  background: var(--bg);
-  font-size: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(12px, 2vw, 26px);
+  padding: 10px clamp(14px, 3vw, 30px);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+@media (min-width: 860px) {
+  .transport {
+    grid-template-columns: 210px minmax(0, 1fr) auto auto;
+  }
+}
+
+.transport-now {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transport-now b {
+  font-weight: 400;
   color: var(--accent);
 }
 
-.path h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.path p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--muted);
-}
-
-/* The FAQ is the site's, wearing the landing page's translucency. */
-.bay .site-faq {
-  background: color-mix(in srgb, var(--panel) 78%, transparent);
-}
-
-.bay .site-faq details {
-  background: none;
-}
-
-/* ---------------------------------------------------------------- close */
-
-.home-close {
-  position: relative;
-  overflow: hidden;
-  margin-top: var(--rhythm);
-  padding: clamp(56px, 9vw, 124px) clamp(20px, 4vw, 60px);
-  text-align: center;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--panel) 62%, transparent),
-    color-mix(in srgb, var(--well) 82%, transparent)
-  );
-}
-
-/* Still metering when you get to the bottom, because the rig is still on. */
-.home-close-meter {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
+.transport-track {
+  display: none;
   height: 2px;
   background: var(--line);
 }
 
-.home-close-meter > span {
-  display: block;
-  height: 100%;
-  transform: scaleX(0.4);
-  transform-origin: left;
-  background: linear-gradient(90deg, var(--deck-a), var(--accent));
-}
-
-.home-close h2 {
-  margin: 0;
-  font-size: clamp(28px, 4vw, 56px);
-  font-weight: 500;
-  letter-spacing: -0.03em;
-}
-
-/* The hero's headline animates at load because that is when you are looking
-   at it. This one is a screen and a half further down, so it waits. */
-.home-close .kin > span {
-  animation-play-state: paused;
-}
-
-.home-close.is-shown .kin > span {
-  animation-play-state: running;
-}
-
-.home-close p {
-  margin: 16px auto 0;
-  max-width: 58ch;
-  font-size: 16px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-
-.home-close .site-cta {
-  justify-content: center;
-}
-
-/* ------------------------------------------------------------ page chrome */
-
-/* The now-playing strip, where the track is the section you are reading and
-   the elapsed time is how far down the page you have got. */
-.home-nowplaying {
-  display: none;
-  position: fixed;
-  left: 18px;
-  bottom: 18px;
-  z-index: 15;
-  width: 238px;
-  padding: 11px 13px;
-  gap: 7px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--well) 78%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 16px 40px rgb(0 0 0 / 40%);
-  pointer-events: none;
-}
-
-@media (min-width: 1240px) {
-  .home-nowplaying {
-    display: grid;
-  }
-}
-
-.home-np-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-.home-np-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--play);
-  box-shadow: 0 0 8px var(--play);
-  animation: lamp var(--beat) ease-out infinite;
-}
-
-.home-np-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.home-np-bar {
-  display: block;
-  height: 3px;
-  background: var(--well);
-  box-shadow: var(--sink);
-}
-
-.home-np-fill {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: linear-gradient(90deg, var(--deck-a), var(--accent));
-}
-
-.home-np-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-/* The section rail: the table of contents as a fader you can grab. */
-.home-rail {
-  display: none;
-  position: fixed;
-  right: 26px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 15;
-}
-
-@media (min-width: 1240px) {
-  .home-rail {
+@media (min-width: 860px) {
+  .transport-track {
     display: block;
   }
 }
 
-.home-rail-track {
-  position: absolute;
-  top: -16px;
-  bottom: -16px;
-  right: -14px;
-  width: 1px;
-  background: var(--line);
-}
-
-.home-rail-cap {
-  position: absolute;
-  right: -2px;
-  margin-top: -2px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
+.transport-fill {
+  display: block;
+  width: 0;
+  height: 100%;
   background: var(--accent);
-  box-shadow: 0 0 12px var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
-.home-rail ul {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 13px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home-rail a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+.transport-time {
+  display: none;
+  font-size: 10px;
+  letter-spacing: 0.1em;
   color: var(--dim);
 }
 
-.home-rail-label {
-  opacity: 0;
-  transform: translateX(6px);
-  transition: opacity 0.2s linear, transform 0.2s ease;
+@media (min-width: 860px) {
+  .transport-time {
+    display: block;
+  }
 }
 
-.home-rail a:hover .home-rail-label,
-.home-rail li.is-active .home-rail-label {
-  opacity: 1;
-  transform: none;
+.transport-cta {
+  padding: 9px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s linear, color 0.15s linear;
 }
 
-.home-rail li.is-active a {
-  color: var(--text);
-}
-
-.home-rail-tick {
-  width: 16px;
-  height: 1px;
-  background: var(--line-strong);
-  transition: width 0.2s ease, background 0.2s linear;
-}
-
-.home-rail a:hover .home-rail-tick {
-  background: var(--muted);
-}
-
-.home-rail li.is-active .home-rail-tick {
-  width: 30px;
+.transport-cta:hover {
   background: var(--accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+  color: #161004;
 }
 
 /* --------------------------------------------------------- less motion */
 
-/* Asked for less movement: the page keeps its light and its layout and loses
-   its pulse. Nothing here is load-bearing, so nothing is missed. */
+/* Asked for less movement: the page keeps its light, its layout and its
+   playhead, and loses its pulse. Nothing here is load-bearing. */
 @media (prefers-reduced-motion: reduce) {
   .kin > span,
-  .home-ticker-run,
-  .spec-leds i,
-  .home-readout-live i,
-  .home-np-dot,
-  .home-rig-glow,
-  .home-scrollcue span::after,
   .xf-hint,
-  .rack-index li.is-active .rack-led,
   .padplay-pad.is-lit .padplay-ring {
     animation: none;
   }
@@ -6752,23 +6278,7 @@ kbd {
     transform: none;
   }
 
-  .home-specs li,
-  .rack-module,
-  .rack-checks li,
-  .path li {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-
-  .bay-rule,
-  .path-line,
-  .rack-module::before {
-    transform: none;
-    transition: none;
-  }
-
-  .home-rig-tilt {
+  .rig-tilt {
     transition: none;
   }
 }
