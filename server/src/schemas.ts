@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PAD_COUNT } from './protocol';
+import { WEBHOOK_PATTERN } from './tools/nowPlaying';
 
 const deckId = z.enum(['A', 'B']);
 const padIndex = z.number().int().min(0).max(PAD_COUNT - 1);
@@ -97,6 +98,23 @@ export const commandSchemas = {
       // resolves it and refuses anything that is not a plain unicast target.
       oscHost: z.string().trim().min(1).max(190).optional(),
       oscPort: z.number().int().min(1).max(65535).optional(),
+      channelStatus: z.boolean().optional(),
+      // Discord's own cap on a voice channel status is 500; this is shorter
+      // because it is a caption, and a paragraph in a channel list is a mess.
+      channelStatusText: z.string().trim().max(120).optional(),
+      presence: z.boolean().optional(),
+      announce: z.boolean().optional(),
+      // Only a Discord webhook, and only https. That is what makes the tool
+      // safe to point anywhere: there is no host here for anyone to aim back
+      // at the machine the rig runs on. Empty clears it.
+      announceWebhook: z
+        .string()
+        .trim()
+        .max(220)
+        .refine((value) => value === '' || WEBHOOK_PATTERN.test(value), {
+          message: 'That is not a Discord webhook URL.',
+        })
+        .optional(),
     })
     .strict(),
   'voice:join': z.object({ channelId: z.string().min(1).max(32) }).strict(),

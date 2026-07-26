@@ -95,7 +95,7 @@ export function decodeToPcm(inputPath: string, pcmPath: string): Promise<DecodeR
       'pipe:1',
     ];
 
-    const proc = spawn(config.ffmpeg.ffmpeg, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn(config.bin.ffmpeg, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     const out = fs.createWriteStream(pcmPath);
     const envelope = new PeakEnvelope();
     let bytes = 0;
@@ -113,7 +113,7 @@ export function decodeToPcm(inputPath: string, pcmPath: string): Promise<DecodeR
     proc.on('error', (err) =>
       fail(
         new Error(
-          `could not run ffmpeg ("${config.ffmpeg.ffmpeg}"): ${err.message}. ` +
+          `could not run ffmpeg ("${config.bin.ffmpeg}"): ${err.message}. ` +
             'Install ffmpeg or set FFMPEG_PATH.',
         ),
       ),
@@ -162,7 +162,7 @@ export function decodeToPcm(inputPath: string, pcmPath: string): Promise<DecodeR
 export async function probeTitle(inputPath: string, fallback: string): Promise<string> {
   return new Promise((resolve) => {
     const proc = spawn(
-      config.ffmpeg.ffprobe,
+      config.bin.ffprobe,
       [
         '-v',
         'quiet',

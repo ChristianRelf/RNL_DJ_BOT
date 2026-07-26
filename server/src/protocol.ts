@@ -211,6 +211,20 @@ export interface ToolsState {
   osc: boolean;
   oscHost: string;
   oscPort: number;
+  /**
+   * Captions the voice channel while the rig is in it. The one tool that is on
+   * by default: it writes nothing outside the channel already being played to,
+   * and it is how people who never open the console know the decks are live.
+   */
+  channelStatus: boolean;
+  /** What the caption says. Blank falls back to the built-in wording. */
+  channelStatusText: string;
+  /** Shows the current track as the playback bot's Discord activity. */
+  presence: boolean;
+  /** Posts each track to a Discord channel as it takes over the mix. */
+  announce: boolean;
+  /** Discord webhook URL the announcements go to. Blank means nowhere. */
+  announceWebhook: string;
 }
 
 export type VoiceStatus = 'disconnected' | 'connecting' | 'ready' | 'error';

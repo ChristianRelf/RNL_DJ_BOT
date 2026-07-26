@@ -28,6 +28,7 @@ import {
   type VoiceChannelInfo,
 } from './protocol';
 import { oscSender } from './tools/osc';
+import { nowPlaying } from './tools/nowPlaying';
 
 const log = createLogger('engine');
 
@@ -82,6 +83,7 @@ export class Engine extends EventEmitter {
     this.restorePersisted();
     // Tools are persisted, so one left on survives a restart.
     this.syncOsc();
+    this.syncNowPlaying();
     await this.refreshChannels();
     this.channelTimer = setInterval(() => {
       void this.refreshChannels();
@@ -214,6 +216,15 @@ export class Engine extends EventEmitter {
     store.db.tools = next;
     store.save();
     this.syncOsc();
+    this.syncNowPlaying();
+    // The caption is written once at join, so a change to the wording while
+    // the rig is already in a channel has to be pushed rather than waited for.
+    if (
+      next.channelStatus !== before.channelStatus ||
+      next.channelStatusText !== before.channelStatusText
+    ) {
+      this.voice.refreshChannelStatus();
+    }
   }
 
   /** Starts, stops or repoints the OSC sender to match the stored settings. */
@@ -221,6 +232,16 @@ export class Engine extends EventEmitter {
     const tools = store.db.tools;
     if (tools.osc) oscSender.start(() => this.state(), tools.oscHost, tools.oscPort);
     else oscSender.stop();
+  }
+
+  /** Points the now-playing watcher at whichever of its two tools are on. */
+  syncNowPlaying(): void {
+    const tools = store.db.tools;
+    nowPlaying.configure({
+      presence: tools.presence,
+      webhook: tools.announce && tools.announceWebhook ? tools.announceWebhook : null,
+      snapshot: () => this.state(),
+    });
   }
 
   // ----------------------------------------------------------------- queue ---

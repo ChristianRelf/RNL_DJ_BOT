@@ -74,7 +74,11 @@ const DEFAULT_MIXER: MixerState = {
   fx: { type: 'echo', mix: 0, timeMs: 375, feedback: 0.35, tone: 0.6 },
 };
 
-/** Every tool starts off: each one opens a port or reaches out to the network. */
+/**
+ * Every tool that opens a port or reaches out to the network starts off. The
+ * channel caption is the exception: it writes to the channel the rig is
+ * already playing into and nowhere else, so it is on unless someone says not.
+ */
 const DEFAULT_TOOLS: ToolsState = {
   timecode: false,
   timecodeKey: '',
@@ -82,6 +86,11 @@ const DEFAULT_TOOLS: ToolsState = {
   osc: false,
   oscHost: '127.0.0.1',
   oscPort: 9000,
+  channelStatus: true,
+  channelStatusText: '',
+  presence: false,
+  announce: false,
+  announceWebhook: '',
 };
 
 function defaults(): PersistedDb {

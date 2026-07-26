@@ -105,9 +105,15 @@ export const config = {
     dbFile: path.join(dataDir, 'db.json'),
     webDist: path.resolve(__dirname, '../../web/dist'),
   },
-  ffmpeg: {
+  /**
+   * External binaries the rig shells out to. None of them are on the realtime
+   * path — ffmpeg decodes at upload time, yt-dlp only runs when someone pastes
+   * a link — so a missing one costs a feature rather than the mix.
+   */
+  bin: {
     ffmpeg: process.env.FFMPEG_PATH ?? 'ffmpeg',
     ffprobe: process.env.FFPROBE_PATH ?? 'ffprobe',
+    ytdlp: process.env.YTDLP_PATH ?? 'yt-dlp',
   },
   logLevel: (process.env.LOG_LEVEL ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
 } as const;

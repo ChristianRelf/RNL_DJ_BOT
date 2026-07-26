@@ -12,14 +12,33 @@ import {
   type AudioPlayer,
   type VoiceConnection,
 } from '@discordjs/voice';
-import { ChannelType, Events, PermissionsBitField } from 'discord.js';
+import { ChannelType, Events, PermissionsBitField, Routes } from 'discord.js';
 import type { GuildMember, VoiceBasedChannel } from 'discord.js';
 import { bot } from './bot';
 import { createLogger } from '../logger';
+import { store } from '../store';
 import type { Mixer } from '../audio/mixer';
 import type { VoiceState } from '../protocol';
 
 const log = createLogger('voice');
+
+/**
+ * What the voice channel says about itself while the rig is in it.
+ *
+ * Discord shows a channel's status under its name to everyone in the server, so
+ * this is the one place the booth announces itself to people who never open the
+ * console — the channel list says the decks are live without anyone asking.
+ *
+ * The wording is editable from the tools page; this is what it falls back to.
+ */
+const CHANNEL_STATUS = 'deck is in command';
+
+/** The caption as configured, or null when the tool is switched off. */
+function captionText(): string | null {
+  const tools = store.db.tools;
+  if (!tools.channelStatus) return null;
+  return tools.channelStatusText.trim() || CHANNEL_STATUS;
+}
 
 /**
  * Owns the single voice connection and keeps the mixer wired into it.
@@ -115,6 +134,15 @@ export class VoiceManager extends EventEmitter {
     const missing = required.filter((p) => !permissions?.has(p.flag)).map((p) => p.name);
     if (missing.length > 0) {
       throw new Error(`Missing ${missing.join(' + ')} permission in #${channel.name}.`);
+    }
+
+    // Not one of the three above: the booth plays perfectly well without being
+    // able to caption the channel, so this is a note rather than a refusal.
+    if (captionText() && !permissions?.has(PermissionsBitField.Flags.SetVoiceChannelStatus)) {
+      log.info(
+        `no Set Voice Channel Status permission in #${channel.name}; ` +
+          'the channel status will stay blank',
+      );
     }
 
     // A full channel rejects the bot unless it can move members past the limit.
@@ -217,6 +245,39 @@ export class VoiceManager extends EventEmitter {
     this.arm(player);
     this.setStatus('ready');
     log.info(`joined #${channel.name}`);
+
+    // Deliberately not awaited: the booth is already live and a caption is not
+    // worth holding the join open for a REST round trip.
+    void this.writeChannelStatus(channel.id, captionText() ?? '');
+  }
+
+  /**
+   * Re-writes the caption for the channel already joined. Called when the tool
+   * is switched or reworded mid-set, which is the only time the status can go
+   * stale — every other path through here joins or leaves.
+   */
+  refreshChannelStatus(): void {
+    if (!this.channelId || this.status !== 'ready') return;
+    void this.writeChannelStatus(this.channelId, captionText() ?? '');
+  }
+
+  /**
+   * Writes the channel's status line, or clears it with an empty string.
+   *
+   * Best effort in both directions. It needs the Set Voice Channel Status
+   * permission, which the join deliberately does not require — a rig that
+   * refused to play because it could not write a caption would be a bad trade.
+   */
+  private async writeChannelStatus(channelId: string, status: string): Promise<void> {
+    try {
+      await bot.client.rest.put(Routes.channelVoiceStatus(channelId), { body: { status } });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Failing to clear on the way out is usually just the bot having already
+      // left, which is not worth a warning every time someone stops playing.
+      if (status) log.warn(`could not set the channel status: ${message}`);
+      else log.debug(`could not clear the channel status: ${message}`);
+    }
   }
 
   private arm(player: AudioPlayer): void {
@@ -233,6 +294,10 @@ export class VoiceManager extends EventEmitter {
   }
 
   private teardown(notify: boolean): void {
+    // Sent before the connection goes away, while the bot is still a member of
+    // the channel — Discord will not take a status from a bot that has left.
+    if (this.channelId) void this.writeChannelStatus(this.channelId, '');
+
     const player = this.player;
     this.player = null;
     player?.stop(true);
