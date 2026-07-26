@@ -13,7 +13,7 @@ import {
   type VoiceConnection,
 } from '@discordjs/voice';
 import { ChannelType, Events, PermissionsBitField, Routes } from 'discord.js';
-import type { GuildMember, VoiceBasedChannel } from 'discord.js';
+import type { GuildMember, VoiceBasedChannel, VoiceState as DiscordVoiceState } from 'discord.js';
 import { bot } from './bot';
 import { createLogger } from '../logger';
 import { store } from '../store';
@@ -56,6 +56,8 @@ export class VoiceManager extends EventEmitter {
   private status: VoiceState['status'] = 'disconnected';
   private lastError: string | null = null;
   private joining: Promise<void> | null = null;
+  /** The stage situation already acted on: `channelId:requestToSpeakTimestamp`. */
+  private stageAttempt: string | null = null;
 
   constructor(private readonly mixer: Mixer) {
     super();
@@ -77,8 +79,82 @@ export class VoiceManager extends EventEmitter {
           ` (session ${next.sessionId ? 'present' : 'missing'})`;
         if (this.status === 'connecting') log.info(line);
         else log.debug(line);
+        void this.takeTheStage(next);
       });
     });
+  }
+
+  /**
+   * Gets the rig onto the stage, whenever it finds itself on one.
+   *
+   * A stage channel puts everyone who arrives in the audience, muted at the
+   * server, and a booth in the audience is a booth nobody can hear — it keeps
+   * mixing and encoding perfectly while the room sits in silence. Joining one
+   * directly and being dragged into one both land here, because both produce
+   * the same thing: our own voice state, suppressed, in a stage.
+   *
+   * Three outcomes, in the order they are worth trying:
+   *  - We can unsuppress ourselves (the rig is a stage moderator, or holds Mute
+   *    Members) — up we go, no one has to do anything.
+   *  - A moderator has offered us the floor, which Discord records by putting a
+   *    request-to-speak timestamp on us. The same call accepts it.
+   *  - Neither: raise a hand, and take the offer through the branch above when
+   *    it arrives.
+   *
+   * Every attempt changes our voice state, which fires this again, so each
+   * distinct situation is tried exactly once — keyed on the channel and the
+   * timestamp, so a fresh offer is always a fresh attempt even if the last one
+   * failed a moment ago.
+   */
+  private async takeTheStage(state: DiscordVoiceState): Promise<void> {
+    const channel = state.channel;
+    if (!channel || channel.type !== ChannelType.GuildStageVoice) {
+      this.stageAttempt = null;
+      return;
+    }
+    if (!state.suppress) {
+      // Speaking. Clear the record so a later demotion back to the audience is
+      // treated as new rather than as something already tried.
+      if (this.stageAttempt) log.info(`speaking on stage in #${channel.name}`);
+      this.stageAttempt = null;
+      return;
+    }
+
+    const attempt = `${channel.id}:${state.requestToSpeakTimestamp ?? 'none'}`;
+    if (this.stageAttempt === attempt) return;
+    this.stageAttempt = attempt;
+
+    try {
+      await state.setSuppressed(false);
+      log.info(
+        state.requestToSpeakTimestamp
+          ? `accepted the invitation to speak in #${channel.name}`
+          : `went up on stage in #${channel.name}`,
+      );
+      // Cleared here rather than on the state update this causes, so the event
+      // that confirms it does not report the same thing a second time.
+      this.stageAttempt = null;
+      return;
+    } catch (err) {
+      log.debug(`could not go up on stage yet: ${(err as Error).message}`);
+    }
+
+    // Already asked and still waiting — asking twice would not make it arrive
+    // any sooner, and it would clear the hand a moderator is looking at.
+    if (state.requestToSpeakTimestamp) {
+      log.info(`waiting for a moderator to bring the rig up in #${channel.name}`);
+      return;
+    }
+
+    try {
+      await state.setRequestToSpeak(true);
+      log.info(`asked to speak in #${channel.name}`);
+    } catch (err) {
+      log.warn(
+        `cannot get on stage in #${channel.name} — the bot needs the Request to Speak ` +
+          `permission, or to be made a stage moderator: ${(err as Error).message}`,
+      );
+    }
   }
 
   snapshot(): VoiceState {
@@ -157,7 +233,9 @@ export class VoiceManager extends EventEmitter {
     }
 
     if (channel.type === ChannelType.GuildStageVoice) {
-      log.info(`#${channel.name} is a stage channel; the bot needs to be a speaker to be heard`);
+      // Arriving in the audience is normal and handled — `takeTheStage` picks
+      // it up off our own voice state a moment after the join lands.
+      log.info(`#${channel.name} is a stage channel; the rig will try to go up`);
     }
 
     this.teardown(false);
@@ -298,6 +376,7 @@ export class VoiceManager extends EventEmitter {
     // the channel — Discord will not take a status from a bot that has left.
     if (this.channelId) void this.writeChannelStatus(this.channelId, '');
 
+    this.stageAttempt = null;
     const player = this.player;
     this.player = null;
     player?.stop(true);

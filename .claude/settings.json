@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(grep -n \"^\\\\.\\\\|^/\\\\* \\\\|^  \\\\.\" web/src/styles.css)",
-      "Bash(grep -n \"^/\\\\* \\\\|^\\\\/\\\\* -\\\\{3,\\\\}\" styles.css)"
+      "Bash(grep -n \"^/\\\\* \\\\|^\\\\/\\\\* -\\\\{3,\\\\}\" styles.css)",
+      "Bash(node -e ' *)"
     ]
   }
 }
