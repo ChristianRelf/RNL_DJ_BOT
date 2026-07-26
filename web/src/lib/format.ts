@@ -6,6 +6,19 @@ export function formatTime(ms: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/**
+ * Like formatTime, but grows an hours field rather than counting past 60
+ * minutes — a queue two hours deep should not read as "120:00".
+ */
+export function formatSpan(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) ms = 0;
+  const total = Math.floor(ms / 1000);
+  const hours = Math.floor(total / 3600);
+  if (hours === 0) return formatTime(ms);
+  const minutes = Math.floor((total % 3600) / 60);
+  return `${hours}:${String(minutes).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
 export function formatTimeMs(ms: number): string {
   const tenths = Math.floor((Math.max(0, ms) % 1000) / 100);
   return `${formatTime(ms)}.${tenths}`;

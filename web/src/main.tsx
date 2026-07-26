@@ -2,9 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { Home } from './components/Home';
-import { License } from './components/License';
-import { Setup } from './components/Setup';
-import { Guide } from './components/Guide';
+import { Access } from './components/Access';
+import { Help } from './components/Help';
 import { SignIn } from './components/SignIn';
 import { Legal } from './components/Legal';
 import './styles.css';
@@ -36,16 +35,18 @@ function page() {
     // links handed out before the restructure still land somewhere sensible.
     case '/home':
       return <Home />;
+    // /license and /home/license are kept as aliases: they were handed out
+    // before access moved to a waitlist.
+    case '/home/access':
     case '/home/license':
     case '/license':
-      return <License />;
-    case '/home/setup':
-    case '/setup':
-      return <Setup />;
+      return <Access />;
+    // The booth guide became the help centre; its old paths still land here.
+    case '/home/help':
     case '/home/guides':
     case '/home/guide':
     case '/guide':
-      return <Guide />;
+      return <Help />;
     // `/` and /login are both the front door; a live session goes on to /deck.
     default:
       return <SignIn checkSession />;

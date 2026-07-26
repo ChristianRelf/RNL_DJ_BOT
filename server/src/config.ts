@@ -112,9 +112,14 @@ export const config = {
   logLevel: (process.env.LOG_LEVEL ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
 } as const;
 
-if (missing.length > 0) {
+// Deduplicated: a variable that stands in for two settings — the playback
+// application also covering sign-in, say — would otherwise be named twice in
+// the same breath, which reads like two different problems.
+const missingOnce = [...new Set(missing)];
+
+if (missingOnce.length > 0) {
   throw new Error(
-    `Missing required environment variable${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}.\n` +
+    `Missing required environment variable${missingOnce.length > 1 ? 's' : ''}: ${missingOnce.join(', ')}.\n` +
       '  Copy .env.example to .env and fill it in (docker compose reads .env automatically).',
   );
 }

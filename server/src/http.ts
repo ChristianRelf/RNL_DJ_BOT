@@ -34,6 +34,37 @@ const upload = multer({
   limits: { fileSize: config.http.maxUploadBytes, files: 8 },
 });
 
+/** The most people who can be waiting at once, as a backstop against a flood. */
+const WAITLIST_LIMIT = 5000;
+/**
+ * Attempts allowed from one address per hour. Counted against every request
+ * rather than every stored entry, so it is set high enough that somebody
+ * mistyping their address a few times never meets it — the honeypot and the
+ * duplicate check are what actually stop a script.
+ */
+const WAITLIST_PER_HOUR = 12;
+
+const waitlistHits = new Map<string, { count: number; resetAt: number }>();
+
+/**
+ * A plain fixed-window limiter. In memory rather than in the database because
+ * a restart clearing it is the right behaviour — the limit exists to stop a
+ * script, not to punish anyone across days.
+ */
+function withinRate(address: string): boolean {
+  const now = Date.now();
+  const hit = waitlistHits.get(address);
+  if (!hit || now > hit.resetAt) {
+    // Sweeping here keeps the map from growing without a timer to prune it.
+    for (const [key, value] of waitlistHits) if (now > value.resetAt) waitlistHits.delete(key);
+    waitlistHits.set(address, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return true;
+  }
+  if (hit.count >= WAITLIST_PER_HOUR) return false;
+  hit.count++;
+  return true;
+}
+
 function mediaFilePath(item: MediaItem): string {
   const ext = path.extname(item.originalName).slice(0, 12) || '.bin';
   return path.join(config.paths.mediaDir, `${item.id}${ext}`);
@@ -117,6 +148,69 @@ export function createApp(): express.Express {
   app.get('/api/me', (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
     res.json({ user: req.user, publicUrl: config.http.publicUrl });
+  });
+
+  // --------------------------------------------------------- waitlist ---
+
+  /**
+   * Requests for access. The only endpoint here that anyone can reach without
+   * a Discord session, so it is also the only one that needs its own defences:
+   * a per-address rate limit, a field no human ever fills in, hard length caps
+   * and a ceiling on the list as a whole.
+   *
+   * What comes back is deliberately the same whether the entry was stored or
+   * quietly dropped — a form that reports "you are already on the list" is a
+   * way to ask whether an address is.
+   */
+  app.post('/api/waitlist', express.json({ limit: '32kb' }), (req, res) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const text = (value: unknown, max: number) =>
+      typeof value === 'string' ? value.trim().slice(0, max) : '';
+
+    // A field hidden from people and irresistible to form-fillers.
+    if (text(body.website, 80)) return res.json({ ok: true });
+
+    if (!withinRate(req.ip ?? 'unknown')) {
+      return res.status(429).json({ error: 'Too many requests — try again later.' });
+    }
+
+    const entry = {
+      discord: text(body.discord, 60),
+      email: text(body.email, 160),
+      community: text(body.community, 120),
+      size: text(body.size, 40),
+      note: text(body.note, 600),
+    };
+
+    if (!entry.discord) return res.status(400).json({ error: 'Add your Discord handle.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(entry.email)) {
+      return res.status(400).json({ error: 'That email address does not look right.' });
+    }
+    if (!entry.community) return res.status(400).json({ error: 'Tell us where it is for.' });
+
+    const list = store.db.waitlist;
+    const already = list.some(
+      (item) =>
+        item.email.toLowerCase() === entry.email.toLowerCase() ||
+        item.discord.toLowerCase() === entry.discord.toLowerCase(),
+    );
+    if (!already && list.length < WAITLIST_LIMIT) {
+      list.push({ id: crypto.randomUUID(), ...entry, at: Date.now() });
+      store.save();
+      log.info(`waitlist: ${entry.discord} (${entry.community}) — ${list.length} waiting`);
+    }
+    res.json({ ok: true });
+  });
+
+  /** The list itself, for whoever is handing out access. */
+  app.get('/api/waitlist', requireOwner, (_req, res) => {
+    res.json({ waitlist: [...store.db.waitlist].sort((a, b) => b.at - a.at) });
+  });
+
+  app.delete('/api/waitlist/:id', requireOwner, (req, res) => {
+    store.db.waitlist = store.db.waitlist.filter((entry) => entry.id !== req.params.id);
+    store.save();
+    res.json({ waitlist: [...store.db.waitlist].sort((a, b) => b.at - a.at) });
   });
 
   // ------------------------------------------------------------- bots ---
@@ -312,9 +406,20 @@ export function createApp(): express.Express {
     });
   }
 
-  app.use((err: Error & { code?: string }, _req: Request, res: Response, _next: express.NextFunction) => {
+  app.use((
+    err: Error & { code?: string; type?: string },
+    _req: Request,
+    res: Response,
+    _next: express.NextFunction,
+  ) => {
     if (err?.code === 'LIMIT_FILE_SIZE') {
       res.status(413).json({ error: `Files must be under ${config.http.maxUploadBytes / 1048576} MB.` });
+      return;
+    }
+    // A body past the JSON limit is the sender's to fix, and saying so beats
+    // the 500 it would otherwise fall through to.
+    if (err?.type === 'entity.too.large') {
+      res.status(413).json({ error: 'That was too long — shorten it and try again.' });
       return;
     }
     log.error('unhandled http error:', err?.message ?? err);

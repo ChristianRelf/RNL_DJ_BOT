@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Copy, Download } from 'lucide-react';
 import { BotsPanel } from './BotsPanel';
+import { WaitlistPanel } from './WaitlistPanel';
 import type { ClientCommands, EngineState, SessionUser, ToolsState } from '../protocol';
 import type { DjClient } from '../socket';
 
@@ -305,7 +306,10 @@ export function ToolsPage({ state, user, locked, send }: ToolsPageProps) {
 
       <div className="tools-list">
         {user.isOwner ? (
-          <BotsPanel user={user} live={state.bot} voiceLive={state.voice.status === 'ready'} />
+          <>
+            <BotsPanel user={user} live={state.bot} voiceLive={state.voice.status === 'ready'} />
+            <WaitlistPanel />
+          </>
         ) : null}
 
         <Tool

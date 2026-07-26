@@ -15,6 +15,7 @@
 
 export type WidgetId =
   | 'pool'
+  | 'queue'
   | 'deckA'
   | 'mixer'
   | 'deckB'
@@ -106,6 +107,16 @@ export const WIDGETS: WidgetSpec[] = [
     h: 26,
     minW: 2,
     minH: 10,
+  },
+  {
+    id: 'queue',
+    name: 'Queue',
+    hint: 'What is lined up next, and who asked for it',
+    group: 'library',
+    w: 3,
+    h: 18,
+    minW: 2,
+    minH: 8,
   },
   {
     id: 'deckA',
@@ -625,12 +636,13 @@ export const PRESETS: Preset[] = [
     name: 'Library',
     hint: 'A wide pool for tagging and prepping between sets',
     place: [
-      ['pool', 0, 0, 6, 30],
-      ['deckA', 6, 0, 3, 25],
-      ['deckB', 9, 0, 3, 25],
-      ['nowPlaying', 6, 25, 6, 7],
-      ['crew', 0, 30, 3, 10],
-      ['shortcuts', 3, 30, 3, 10],
+      ['pool', 0, 0, 5, 30],
+      ['queue', 5, 0, 3, 30],
+      ['deckA', 8, 0, 4, 25],
+      ['nowPlaying', 8, 25, 4, 7],
+      ['deckB', 8, 32, 4, 25],
+      ['crew', 0, 30, 5, 10],
+      ['shortcuts', 5, 30, 3, 10],
     ],
   },
 ];

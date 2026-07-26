@@ -11,7 +11,7 @@ them is touching the decks at a time, with a hand-over queue for the rest.
  browser (TSX control surface)          server (Node)                    Discord
  ┌───────────────────────────┐   ws    ┌──────────────────────────┐    ┌─────────┐
  │ decks · mixer · fx · pads │◀──────▶ │ control lock             │    │  voice  │
- │ pool · crew · midi        │  state  │ mix graph (48k stereo)   │───▶│ channel │
+ │ pool · queue · crew · midi│  state  │ mix graph (48k stereo)   │───▶│ channel │
  └───────────────────────────┘ +meters │ ffmpeg decode on upload  │opus└─────────┘
               ▲ Discord OAuth2         └──────────────────────────┘
 ```
@@ -41,6 +41,10 @@ out as ordinary commands, so the control lock still applies.
 **Sample pads** — eight slots for stings and drops, each one-shot / loop / hold,
 with their own bus level and an auto-duck that pulls the decks down under a pad hit.
 
+**Queue** — a shared list of what plays next. Anyone signed in can add to it
+without holding the decks; loading, reordering and clearing need control. Auto
+mode loads and plays the next track whenever a deck runs out.
+
 **Media pool** — drag-and-drop upload, per-track rename, tags, BPM, delete. Anything
 ffmpeg can read is accepted and decoded once at upload time. Drag a track straight
 onto a deck or a pad. The headphone button pre-listens **in your own browser only**,
@@ -55,9 +59,13 @@ Admins can force-take.
 with a bot token, so the gate cannot be spoofed by the client.
 
 **Swappable playback bot** — the account the room hears is separate from the one
-people sign in through. The rig owner can add their own bots by pasting a token
-and switch which one is on air without a restart; tokens are encrypted at rest
-and never sent back to a browser.
+people sign in through. An owner can add bots by pasting a token and switch which
+one is on air without a restart; tokens are encrypted at rest and never sent back
+to a browser.
+
+**Waitlist** — access is granted in batches rather than self-served. `/home/access`
+takes requests (honeypot, per-address rate limit, no duplicates) and the owner
+works through them from the tools page.
 
 **Slash commands** — `/dj panel`, `/dj now`, `/dj summon [channel]`, `/dj leave`.
 
@@ -312,7 +320,8 @@ web/src
   socket.ts      socket client, throttled command sender
   lib/layout.ts  the console grid: cells, collision, presets, storage
   lib/midi.ts    Web MIDI access, mapping targets, stored bindings
-  components/    deck · mixer · fx · midi · pads · media pool · crew · grid
+  components/    deck · mixer · fx · midi · pads · pool · queue · crew · grid
+                 site: home · access (waitlist) · help centre · legal
 ```
 
 ## The console

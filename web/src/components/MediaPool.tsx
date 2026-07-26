@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Headphones, Pencil, Square, Trash2, Upload } from 'lucide-react';
+import { Headphones, ListPlus, Pencil, Square, Trash2, Upload } from 'lucide-react';
 import { formatBytes, formatTime, relativeTime } from '../lib/format';
 import type { ClientCommands, MediaItem, SessionUser } from '../protocol';
 import type { DjClient } from '../socket';
@@ -364,6 +364,19 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                     onClick={() => setEditing(editing === item.id ? null : item.id)}
                   >
                     <Pencil size={12} />
+                  </button>
+                  {/* Not gated on the control lock: lining a track up is open
+                      to anyone signed in, which is the point of a shared
+                      queue. Only playing it needs the decks. */}
+                  <button
+                    type="button"
+                    className="btn tiny"
+                    disabled={item.status !== 'ready'}
+                    title="Add to the queue"
+                    aria-label={`Queue ${item.title}`}
+                    onClick={() => void send('queue:add', { mediaId: item.id })}
+                  >
+                    <ListPlus size={12} />
                   </button>
                   <button
                     type="button"

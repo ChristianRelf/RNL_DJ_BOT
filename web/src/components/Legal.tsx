@@ -1,4 +1,4 @@
-import { Colophon } from './Colophon';
+import { SitePage } from './SiteNav';
 
 /**
  * Terms and Privacy for the decks, served as whole pages by the SPA fallback
@@ -18,37 +18,26 @@ const UPDATED = '25 July 2026';
 
 export function Legal({ page }: { page: 'terms' | 'privacy' }) {
   return (
-    <div className="legal">
-      <div className="legal-card">
-        <header className="legal-head">
-          <a href="/" className="legal-back">
-            <img className="brand-logo" src="/deckLogo.png" alt="deck" />
-          </a>
-          <nav className="legal-nav">
-            <a href="/terms" className={page === 'terms' ? 'is-current' : ''}>
-              Terms
-            </a>
-            <a href="/privacy" className={page === 'privacy' ? 'is-current' : ''}>
-              Privacy
-            </a>
-            <a href="/">Back to the decks</a>
-          </nav>
-        </header>
+    <SitePage>
+      <nav className="doc-tabs" aria-label="Policies">
+        <a href="/terms" className={page === 'terms' ? 'is-current' : ''}>
+          Terms
+        </a>
+        <a href="/privacy" className={page === 'privacy' ? 'is-current' : ''}>
+          Privacy
+        </a>
+        <a href="/deck">Back to the decks</a>
+      </nav>
 
-        {page === 'terms' ? <Terms /> : <Privacy />}
-
-        <footer className="legal-foot">
-          <Colophon block />
-        </footer>
-      </div>
-    </div>
+      {page === 'terms' ? <Terms /> : <Privacy />}
+    </SitePage>
   );
 }
 
 /** Points at the site-wide policies these pages sit under. */
 function SitePolicies() {
   return (
-    <p className="legal-note">
+    <p className="doc-note">
       The decks are part of RO. Nation LIVE. The{' '}
       <a href={`${SITE}/legal/terms`}>site Terms of Service</a>, the{' '}
       <a href={`${SITE}/legal/privacy`}>site Privacy Policy</a> and the{' '}
@@ -60,9 +49,9 @@ function SitePolicies() {
 
 function Terms() {
   return (
-    <article className="legal-body">
+    <article className="doc-body">
       <h1>Terms of Service</h1>
-      <p className="legal-updated">Last updated: {UPDATED}</p>
+      <p className="doc-updated">Last updated: {UPDATED}</p>
 
       <SitePolicies />
 
@@ -153,9 +142,9 @@ function Terms() {
 
 function Privacy() {
   return (
-    <article className="legal-body">
+    <article className="doc-body">
       <h1>Privacy Policy</h1>
-      <p className="legal-updated">Last updated: {UPDATED}</p>
+      <p className="doc-updated">Last updated: {UPDATED}</p>
 
       <SitePolicies />
 

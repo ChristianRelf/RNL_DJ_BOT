@@ -139,6 +139,33 @@ export interface FxState {
   tone: number;
 }
 
+/**
+ * One track lined up to play.
+ *
+ * Only the media id is stored: the title, artwork and duration are read from
+ * the pool by whoever is displaying it, so a rename never leaves a stale copy
+ * sitting in the queue.
+ */
+export interface QueueItem {
+  /** Queue entry id — not the media id, so the same track can be queued twice. */
+  id: string;
+  mediaId: string;
+  addedBy: { id: string; name: string };
+  addedAt: number;
+}
+
+export interface QueueState {
+  items: QueueItem[];
+  /**
+   * Load and play the next track automatically when a deck runs out. Off by
+   * default: a deck going quiet is sometimes the point.
+   */
+  auto: boolean;
+}
+
+/** The most tracks that can be lined up at once. */
+export const QUEUE_LIMIT = 200;
+
 export interface MixerState {
   /** -1 = deck A only, +1 = deck B only */
   crossfader: number;
@@ -229,6 +256,7 @@ export interface PresenceUser {
 export interface EngineState {
   decks: Record<DeckId, DeckState>;
   pads: PadState[];
+  queue: QueueState;
   mixer: MixerState;
   tools: ToolsState;
   bot: ActiveBot;
@@ -281,6 +309,15 @@ export interface ClientCommands {
     eq?: Partial<DeckEq>;
   };
   'deck:loop': { deck: DeckId; active: boolean; startMs?: number; endMs?: number };
+  /** Adds to the end, or to the front when `next` is set. */
+  'queue:add': { mediaId: string; next?: boolean };
+  /** Your own entries, or anyone's with control or admin. */
+  'queue:remove': { id: string };
+  'queue:move': { id: string; to: number };
+  'queue:clear': Record<string, never>;
+  /** Takes the next track off the queue and loads it onto a deck. */
+  'queue:load': { deck: DeckId; play?: boolean };
+  'queue:set': { auto: boolean };
   'pad:assign': { index: number; mediaId: string | null };
   'pad:trigger': { index: number };
   'pad:stop': { index: number };

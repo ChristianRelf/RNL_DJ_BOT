@@ -64,10 +64,10 @@ export function SignIn({ error, checkSession }: SignInProps) {
         {reason ? <p className="signin-error">{reason}</p> : null}
 
         <div className="signin-actions">
-          <a className="btn primary signin-btn" href="/api/auth/login">
+          <a className="site-btn is-primary signin-btn" href="/api/auth/login">
             Sign in with Discord
           </a>
-          <a className="btn signin-btn signin-btn-ghost" href="/home">
+          <a className="site-btn signin-btn" href="/home">
             Find out more
           </a>
         </div>
@@ -76,6 +76,14 @@ export function SignIn({ error, checkSession }: SignInProps) {
           Sign-in happens at Discord — no new account, and we never see your password. You need the
           DJ role to reach the decks.
         </p>
+
+        {/* The three things somebody arriving cold most wants to know, in the
+            order they tend to ask them. */}
+        <ul className="signin-facts">
+          <li>Two decks, a mixer and eight pads</li>
+          <li>Live in a voice channel</li>
+          <li>Run for you, no telemetry</li>
+        </ul>
       </main>
 
       <footer className="signin-foot">

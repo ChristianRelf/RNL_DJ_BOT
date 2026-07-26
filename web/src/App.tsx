@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { useDj, useThrottledSend } from './socket';
 import { TopBar } from './components/TopBar';
 import { MediaPool } from './components/MediaPool';
+import { QueuePanel } from './components/QueuePanel';
 import { DeckPanel } from './components/DeckPanel';
 import { MixerPanel } from './components/MixerPanel';
 import { Pads } from './components/Pads';
@@ -224,6 +225,15 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
   /** Every widget the console can show, built once and placed by the layout. */
   const widgets: Record<WidgetId, ReactNode> = {
     pool: <MediaPool media={dj.media} user={me} locked={locked} send={dj.send} />,
+    queue: (
+      <QueuePanel
+        queue={state.queue}
+        media={dj.media}
+        me={me}
+        locked={locked}
+        send={dj.send}
+      />
+    ),
     deckA: (
       <DeckPanel
         deck={state.decks.A}

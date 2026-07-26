@@ -17,6 +17,7 @@ import type { Pad } from './audio/pad';
 import {
   DECK_IDS,
   PAD_COUNT,
+  QUEUE_LIMIT,
   type DeckId,
   type EngineState,
   type MediaItem,
@@ -56,7 +57,12 @@ export class Engine extends EventEmitter {
   constructor() {
     super();
     this.mixer.on('trackEnded', (deck) => {
-      this.toast('info', `Deck ${deck} reached the end of the track.`);
+      // The queue gets first refusal on a deck that has just run out. Only
+      // then is it worth telling anyone the track ended, because with
+      // auto-advance on the answer is "and here is the next one".
+      if (!this.advanceQueue(deck)) {
+        this.toast('info', `Deck ${deck} reached the end of the track.`);
+      }
       this.bumpState();
     });
     this.control.on('change', () => this.bumpState());
@@ -94,6 +100,7 @@ export class Engine extends EventEmitter {
     return {
       decks: { A: this.mixer.decks.A.snapshot(), B: this.mixer.decks.B.snapshot() },
       pads: this.mixer.pads.map((p) => p.snapshot()),
+      queue: { items: [...store.db.queue.items], auto: store.db.queue.auto },
       mixer: this.mixer.mixerSnapshot(),
       tools: { ...store.db.tools },
       bot: activeBot(),
@@ -216,6 +223,44 @@ export class Engine extends EventEmitter {
     else oscSender.stop();
   }
 
+  // ----------------------------------------------------------------- queue ---
+
+  /**
+   * Takes the next playable track off the queue and puts it on a deck.
+   *
+   * Entries whose media has gone — deleted, or still failing to decode — are
+   * dropped as they are reached rather than jamming the queue behind something
+   * that will never play.
+   */
+  private loadNext(deck: DeckId, play: boolean): MediaItem | null {
+    const queue = store.db.queue;
+    while (queue.items.length > 0) {
+      const [entry] = queue.items.splice(0, 1);
+      const item = store.getMedia(entry.mediaId);
+      if (!item || item.status !== 'ready') continue;
+      this.mixer.decks[deck].load({
+        mediaId: item.id,
+        title: item.title,
+        pcmPath: pcmPath(item.id),
+        bpm: item.bpm,
+      });
+      if (play) this.mixer.decks[deck].play();
+      store.save();
+      return item;
+    }
+    store.save();
+    return null;
+  }
+
+  /** Auto-advance. Returns true if the queue filled the deck. */
+  private advanceQueue(deck: DeckId): boolean {
+    if (!store.db.queue.auto || store.db.queue.items.length === 0) return false;
+    const item = this.loadNext(deck, true);
+    if (!item) return false;
+    this.toast('info', `Deck ${deck}: "${item.title}" from the queue.`);
+    return true;
+  }
+
   /** Payloads are already schema-validated, so these lookups cannot miss. */
   private deckOf(payload: { deck: DeckId }): Deck {
     return this.mixer.decks[payload.deck];
@@ -268,6 +313,74 @@ export class Engine extends EventEmitter {
         return;
       case 'deck:loop':
         this.deckOf(payload).setLoop(payload.active, payload.startMs, payload.endMs);
+        return;
+
+      // ---- queue -------------------------------------------------------
+      case 'queue:add': {
+        const item = this.readyMedia(payload.mediaId);
+        const queue = store.db.queue;
+        if (queue.items.length >= QUEUE_LIMIT) {
+          throw new CommandError(`The queue is full (${QUEUE_LIMIT} tracks).`);
+        }
+        const entry = {
+          id: crypto.randomUUID(),
+          mediaId: item.id,
+          addedBy: { id: user.id, name: user.displayName },
+          addedAt: Date.now(),
+        };
+        // "Play next" jumps the whole queue, so it is worth saying out loud.
+        if (payload.next) queue.items.unshift(entry);
+        else queue.items.push(entry);
+        store.save();
+        this.toast(
+          'success',
+          payload.next
+            ? `"${item.title}" is up next.`
+            : `"${item.title}" queued — ${queue.items.length} in the queue.`,
+        );
+        return;
+      }
+      case 'queue:remove': {
+        const queue = store.db.queue;
+        const index = queue.items.findIndex((entry) => entry.id === payload.id);
+        if (index < 0) return;
+        const entry = queue.items[index];
+        // Your own entry is yours to pull. Anyone else's needs the decks or
+        // admin — the same shape as editing somebody's upload.
+        const mine = entry.addedBy.id === user.id;
+        if (!mine && !user.isAdmin && !this.control.has(user.id)) {
+          throw new CommandError('Take control to remove somebody else\'s track.');
+        }
+        queue.items.splice(index, 1);
+        store.save();
+        return;
+      }
+      case 'queue:move': {
+        const queue = store.db.queue;
+        const from = queue.items.findIndex((entry) => entry.id === payload.id);
+        if (from < 0) return;
+        const to = Math.max(0, Math.min(queue.items.length - 1, payload.to));
+        if (to === from) return;
+        const [entry] = queue.items.splice(from, 1);
+        queue.items.splice(to, 0, entry);
+        store.save();
+        return;
+      }
+      case 'queue:clear':
+        store.db.queue.items = [];
+        store.save();
+        this.toast('info', `${user.displayName} cleared the queue.`);
+        return;
+      case 'queue:load': {
+        if (store.db.queue.items.length === 0) throw new CommandError('The queue is empty.');
+        const item = this.loadNext(payload.deck, payload.play ?? false);
+        if (!item) throw new CommandError('Nothing in the queue could be loaded.');
+        this.toast('success', `Loaded "${item.title}" onto deck ${payload.deck}.`);
+        return;
+      }
+      case 'queue:set':
+        store.db.queue.auto = payload.auto;
+        store.save();
         return;
 
       // ---- pads --------------------------------------------------------
@@ -461,6 +574,8 @@ export class Engine extends EventEmitter {
       if (pad.mediaId === item.id) pad.clear();
     }
     this.persistPads();
+    // A deleted track must not sit in the queue waiting to fail to load.
+    store.db.queue.items = store.db.queue.items.filter((entry) => entry.mediaId !== item.id);
     store.removeMedia(item.id);
 
     await fsp.unlink(pcmPath(item.id)).catch(() => undefined);

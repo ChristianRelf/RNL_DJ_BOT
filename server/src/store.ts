@@ -3,7 +3,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { config } from './config';
 import { createLogger } from './logger';
-import type { MediaItem, MixerState, PadMode, ToolsState } from './protocol';
+import type { MediaItem, MixerState, PadMode, QueueState, ToolsState } from './protocol';
 
 const log = createLogger('store');
 
@@ -29,6 +29,24 @@ export interface PersistedBot {
   addedAt: number;
 }
 
+/**
+ * Somebody asking for access. Written by the public endpoint, read only by an
+ * owner — this is the one place in the database that holds details of people
+ * who are not in the guild, so it stays out of the state broadcast entirely.
+ */
+export interface WaitlistEntry {
+  id: string;
+  /** Discord handle, which is how access is actually granted. */
+  discord: string;
+  email: string;
+  /** The community, station or event they are asking on behalf of. */
+  community: string;
+  /** Rough size, in their own words. Free text because "about 400" is an answer. */
+  size: string;
+  note: string;
+  at: number;
+}
+
 export interface PersistedDb {
   version: 1;
   media: Record<string, MediaItem>;
@@ -36,6 +54,8 @@ export interface PersistedDb {
   tools: ToolsState;
   pads: PersistedPad[];
   lastVoiceChannelId: string | null;
+  queue: QueueState;
+  waitlist: WaitlistEntry[];
   bots: PersistedBot[];
   /** Which bot to play through. Null means the one from the environment. */
   activeBotId: string | null;
@@ -72,6 +92,8 @@ function defaults(): PersistedDb {
     tools: { ...DEFAULT_TOOLS },
     pads: Array.from({ length: 8 }, () => ({ mediaId: null, gain: 0.9, mode: 'oneshot' as PadMode })),
     lastVoiceChannelId: null,
+    queue: { items: [], auto: false },
+    waitlist: [],
     bots: [],
     activeBotId: null,
   };
@@ -108,6 +130,13 @@ class Store {
         this.data.pads = defaults().pads;
       }
       if (!Array.isArray(this.data.bots)) this.data.bots = [];
+      if (!Array.isArray(this.data.waitlist)) this.data.waitlist = [];
+      // A queue written before this existed, or hand-edited, comes back empty
+      // rather than as an array of undefined the engine would trip over.
+      this.data.queue = {
+        items: Array.isArray(parsed.queue?.items) ? parsed.queue.items.filter((i) => i?.mediaId) : [],
+        auto: Boolean(parsed.queue?.auto),
+      };
       log.info(`loaded ${Object.keys(this.data.media).length} media items`);
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {

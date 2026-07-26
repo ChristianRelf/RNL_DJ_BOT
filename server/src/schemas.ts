@@ -49,6 +49,12 @@ export const commandSchemas = {
       endMs: finite.min(0).optional(),
     })
     .strict(),
+  'queue:add': z.object({ mediaId, next: z.boolean().optional() }).strict(),
+  'queue:remove': z.object({ id: z.string().min(1).max(64) }).strict(),
+  'queue:move': z.object({ id: z.string().min(1).max(64), to: z.number().int().min(0).max(500) }).strict(),
+  'queue:clear': z.object({}).strict(),
+  'queue:load': z.object({ deck: deckId, play: z.boolean().optional() }).strict(),
+  'queue:set': z.object({ auto: z.boolean() }).strict(),
   'pad:assign': z.object({ index: padIndex, mediaId: mediaId.nullable() }).strict(),
   'pad:trigger': z.object({ index: padIndex }).strict(),
   'pad:stop': z.object({ index: padIndex }).strict(),
@@ -131,6 +137,13 @@ export const NEEDS_CONTROL = new Set<CommandKey>([
   'deck:nudge',
   'deck:set',
   'deck:loop',
+  // Anyone signed in may line a track up — that is the point of a shared queue,
+  // and it does not touch what the room is hearing. Rearranging what somebody
+  // else is about to play does, so the rest of these need the lock.
+  'queue:move',
+  'queue:clear',
+  'queue:load',
+  'queue:set',
   'pad:assign',
   'pad:trigger',
   'pad:stop',
