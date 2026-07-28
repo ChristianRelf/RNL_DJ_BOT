@@ -12,7 +12,7 @@
     "dev:server": "npm run dev -w server",
     "dev:web": "npm run dev -w web",
     "build": "npm run build -w web && npm run build -w server",
-    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
+    "typecheck": "node scripts/check-protocol.mjs && npm run typecheck -w server && npm run typecheck -w web",
     "start": "npm run start -w server"
   },
   "devDependencies": {

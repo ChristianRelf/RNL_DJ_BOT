@@ -20,6 +20,53 @@ const DUCK_RELEASE = smoothingCoefficient(220);
 const METER_DECAY = 0.86;
 /** Frames the freewheel keeps turning after the last note, so a tail rings out. */
 const FX_TAIL_FRAMES = 250;
+/** Frames of render-cost history, ~10 seconds at 20 ms each. */
+const FRAME_HISTORY = 500;
+
+/**
+ * How long frames are taking to render.
+ *
+ * The voice player pulls a frame every 20 ms and a late one is a dropout, so
+ * the headroom in that budget is the number that decides what the mix graph can
+ * afford. It is measured rather than reasoned about: everything expensive added
+ * from here on is justified against this, and the p95 is what a degrade path
+ * would watch.
+ */
+export class FrameTimer {
+  private readonly samples = new Float64Array(FRAME_HISTORY);
+  private readonly scratch = new Float64Array(FRAME_HISTORY);
+  private count = 0;
+  private next = 0;
+  private highest = 0;
+
+  add(ms: number): void {
+    this.samples[this.next] = ms;
+    this.next = (this.next + 1) % FRAME_HISTORY;
+    if (this.count < FRAME_HISTORY) this.count++;
+    if (ms > this.highest) this.highest = ms;
+  }
+
+  /** [median, 95th percentile] in ms. Sorted on demand, not on every frame. */
+  percentiles(): [number, number] {
+    const n = this.count;
+    if (n === 0) return [0, 0];
+    const view = this.scratch.subarray(0, n);
+    view.set(this.samples.subarray(0, n));
+    view.sort();
+    return [view[n >> 1], view[Math.min(n - 1, Math.floor(n * 0.95))]];
+  }
+
+  /** The worst frame since the last reset — the one that would have dropped. */
+  get max(): number {
+    return this.highest;
+  }
+
+  reset(): void {
+    this.count = 0;
+    this.next = 0;
+    this.highest = 0;
+  }
+}
 
 /**
  * A mixer patch. The nested sections arrive band by band rather than wholesale,
@@ -86,12 +133,14 @@ export class Mixer extends EventEmitter {
     fx: [0, 0],
     clip: false,
     reduction: 1,
+    frameMs: [0, 0],
   };
   private clipHold = 0;
 
   private tail = 0;
   private fxTail = 0;
   private freewheel: NodeJS.Timeout | null = null;
+  readonly frameTimer = new FrameTimer();
   private stream: MixerStream | null = null;
   private pullDriven = false;
 
@@ -200,11 +249,14 @@ export class Mixer extends EventEmitter {
   }
 
   meters(): Meters {
+    // Sampled here rather than per frame: this runs at the meter rate, ~15 Hz.
+    this.meterValues.frameMs = this.frameTimer.percentiles();
     return this.meterValues;
   }
 
   /** Render exactly one 20 ms Opus frame of interleaved s16le stereo. */
   renderFrame(): Buffer {
+    const started = process.hrtime.bigint();
     const n = FRAME_SAMPLES;
 
     const endedA = this.decks.A.render(this.aL, this.aR, n);
@@ -337,6 +389,7 @@ export class Mixer extends EventEmitter {
     if (endedA) this.emit('trackEnded', 'A');
     if (endedB) this.emit('trackEnded', 'B');
 
+    this.frameTimer.add(Number(process.hrtime.bigint() - started) / 1e6);
     return this.out;
   }
 

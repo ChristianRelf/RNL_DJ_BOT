@@ -293,6 +293,12 @@ export interface Meters {
   clip: boolean;
   /** Gain reduction the master limiter is applying, 0..1 (1 = none). */
   reduction: number;
+  /**
+   * What one 20 ms frame costs to render, as [median, 95th percentile] in ms.
+   * The budget is 20 — the voice player pulls a frame every 20 ms and a late
+   * one is a dropout, so this is the number that says how much room is left.
+   */
+  frameMs: [number, number];
 }
 
 export interface Toast {

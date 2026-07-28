@@ -167,8 +167,50 @@ export class Deck {
   }
 
   /**
+   * True while the read head is moving. Position keeps advancing through the
+   * transport fade after a pause, so the last few milliseconds are not replayed
+   * when the deck starts again.
+   */
+  private get advancing(): boolean {
+    return this.playing || this.envelope > 0.0005;
+  }
+
+  /**
+   * How many frames can be rendered before the position hits something that
+   * needs handling — the end of a loop, or the end of the track.
+   *
+   * The read head only ever moves forward (`rate` is clamped above zero), so
+   * the distance to a boundary divided by the rate is the number of frames
+   * until it fires. If the envelope closes mid-run the head advances *less*
+   * than that, which only ever makes the estimate conservative.
+   */
+  private runLength(
+    remaining: number,
+    src: PcmSource,
+    looping: boolean,
+    loopEnd: number,
+  ): number {
+    if (!this.advancing) return remaining;
+    let run = remaining;
+    // At least one frame, always: a head already sitting past a boundary — a
+    // seek beyond the loop end, say — has to render a frame and then wrap,
+    // exactly as the per-sample form did, or this would not terminate.
+    if (looping) {
+      run = Math.min(run, Math.max(1, Math.ceil((loopEnd - this.position) / this.rate)));
+    }
+    return Math.min(run, Math.max(1, Math.ceil((src.frames - 1 - this.position) / this.rate)));
+  }
+
+  /**
    * Render `n` sample frames into the supplied buffers (overwrite, not sum).
    * Returns true when the deck reached the end of the track this block.
+   *
+   * The block is rendered as a series of *runs*, each ending where the read
+   * head meets a boundary. In the ordinary case — no loop wrap, no end of
+   * track — that is one run covering the whole block, and the inner loop is
+   * what it always was. Splitting it this way is what lets the source be read
+   * a run at a time rather than a sample at a time, and it is where quantised
+   * actions land later: a scheduled cue point is simply another boundary.
    */
   render(outL: Float32Array, outR: Float32Array, n: number): boolean {
     this.updateCoefficients();
@@ -186,54 +228,62 @@ export class Deck {
     let peakL = 0;
     let peakR = 0;
 
-    for (let i = 0; i < n; i++) {
-      this.envelope += ((this.playing ? 1 : 0) - this.envelope) * TRANSPORT_FADE;
-      this.smoothedGain += (targetGain - this.smoothedGain) * GAIN_SMOOTHING;
+    let i = 0;
+    while (i < n) {
+      const run = src ? this.runLength(n - i, src, looping, loopEnd) : n - i;
+      const end = i + run;
 
-      let l = 0;
-      let r = 0;
-      if (src) {
-        src.sample(this.position, this.scratch);
-        l = this.scratch[0];
-        r = this.scratch[1];
+      for (; i < end; i++) {
+        this.envelope += ((this.playing ? 1 : 0) - this.envelope) * TRANSPORT_FADE;
+        this.smoothedGain += (targetGain - this.smoothedGain) * GAIN_SMOOTHING;
 
-        if (this.playing || this.envelope > 0.0005) {
-          this.position += this.rate;
-          if (looping && this.position >= loopEnd) {
-            this.position = loopStart + (this.position - loopEnd);
-          } else if (this.position >= src.frames - 1) {
-            if (this.repeat) {
-              this.position = looping ? loopStart : 0;
-            } else {
-              this.position = Math.max(0, src.frames - 1);
-              if (this.playing) {
-                this.playing = false;
-                reachedEnd = true;
-              }
+        let l = 0;
+        let r = 0;
+        if (src) {
+          src.sample(this.position, this.scratch);
+          l = this.scratch[0];
+          r = this.scratch[1];
+          if (this.advancing) this.position += this.rate;
+        }
+
+        l = this.isolator.process(0, l);
+        r = this.isolator.process(1, r);
+
+        l = this.filters[0].process(l);
+        r = this.filters[1].process(r);
+
+        this.smoothedPanL += (targetPanL - this.smoothedPanL) * PAN_SMOOTHING;
+        this.smoothedPanR += (targetPanR - this.smoothedPanR) * PAN_SMOOTHING;
+
+        const g = this.smoothedGain * this.envelope;
+        l *= g * this.smoothedPanL;
+        r *= g * this.smoothedPanR;
+
+        outL[i] = l;
+        outR[i] = r;
+        const al = l < 0 ? -l : l;
+        const ar = r < 0 ? -r : r;
+        if (al > peakL) peakL = al;
+        if (ar > peakR) peakR = ar;
+      }
+
+      // Whichever boundary ended the run, handled once instead of tested on
+      // every frame. When the run simply filled the block none of these hold.
+      if (src && this.advancing) {
+        if (looping && this.position >= loopEnd) {
+          this.position = loopStart + (this.position - loopEnd);
+        } else if (this.position >= src.frames - 1) {
+          if (this.repeat) {
+            this.position = looping ? loopStart : 0;
+          } else {
+            this.position = Math.max(0, src.frames - 1);
+            if (this.playing) {
+              this.playing = false;
+              reachedEnd = true;
             }
           }
         }
       }
-
-      l = this.isolator.process(0, l);
-      r = this.isolator.process(1, r);
-
-      l = this.filters[0].process(l);
-      r = this.filters[1].process(r);
-
-      this.smoothedPanL += (targetPanL - this.smoothedPanL) * PAN_SMOOTHING;
-      this.smoothedPanR += (targetPanR - this.smoothedPanR) * PAN_SMOOTHING;
-
-      const g = this.smoothedGain * this.envelope;
-      l *= g * this.smoothedPanL;
-      r *= g * this.smoothedPanR;
-
-      outL[i] = l;
-      outR[i] = r;
-      const al = l < 0 ? -l : l;
-      const ar = r < 0 ? -r : r;
-      if (al > peakL) peakL = al;
-      if (ar > peakR) peakR = ar;
     }
 
     this.meter[0] = peakL;

@@ -502,7 +502,7 @@ export function Slider({
 /* ------------------------------------------------------------------ meter */
 
 /** The stereo lanes of the meter bus — the scalars alongside them are not lanes. */
-type MeterChannel = keyof Omit<Meters, 'clip' | 'reduction'>;
+type MeterChannel = keyof Omit<Meters, 'clip' | 'reduction' | 'frameMs'>;
 
 /**
  * Level meter driven straight from the meter bus — it never re-renders, it

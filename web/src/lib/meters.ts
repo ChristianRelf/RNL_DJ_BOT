@@ -8,6 +8,7 @@ const EMPTY: Meters = {
   fx: [0, 0],
   clip: false,
   reduction: 1,
+  frameMs: [0, 0],
 };
 
 type Listener = (meters: Meters) => void;
