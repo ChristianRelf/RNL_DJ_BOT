@@ -11,6 +11,7 @@
     "bench": "node scripts/bench.mjs",
     "quality": "node scripts/quality.mjs",
     "starve": "node scripts/starve.mjs",
+    "stream": "node scripts/stream.mjs",
     "beats": "node scripts/beats.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
