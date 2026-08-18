@@ -108,7 +108,7 @@ export class Deck {
   }
 
   load(req: DeckLoadRequest): void {
-    const next = new PcmSource(req.pcmPath, this.id === 'A' ? 0 : 3);
+    const next = PcmSource.fromFile(req.pcmPath, this.id === 'A' ? 0 : 3);
     this.source?.close();
     this.source = next;
     this.mediaId = req.mediaId;
@@ -440,6 +440,10 @@ export class Deck {
       loop: { ...this.loop },
       repeat: this.repeat,
       bpm: this.bpm,
+      // Only while running: a paused deck whose source is dry is waiting, not
+      // dropping out, and flagging it would light the console up every time
+      // somebody loaded a track and left it sitting.
+      starved: this.playing && (this.source?.starving ?? false),
     };
   }
 

@@ -10,6 +10,7 @@
     "smoke": "node scripts/smoke.mjs",
     "bench": "node scripts/bench.mjs",
     "quality": "node scripts/quality.mjs",
+    "starve": "node scripts/starve.mjs",
     "beats": "node scripts/beats.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

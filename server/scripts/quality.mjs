@@ -101,7 +101,7 @@ for (const { freq, rate } of cases) {
   // Start a little in, so neither reader is sitting on the file's first frames.
   const start = 20000.5;
 
-  const src = new PcmSource(file);
+  const src = PcmSource.fromFile(file);
   const cubicL = new Float32Array(N);
   const cubicR = new Float32Array(N);
   src.readBlock(start, rate, rate, cubicL, cubicR, 0, N);
@@ -133,7 +133,7 @@ for (const { freq, rate } of cases) {
 {
   const file = writeSine(path.join(tmp, 'unity.pcm'), 4, 997);
   const raw = fs.readFileSync(file);
-  const src = new PcmSource(file);
+  const src = PcmSource.fromFile(file);
   const L = new Float32Array(N);
   const R = new Float32Array(N);
   const start = 30000;
@@ -155,7 +155,7 @@ for (const { freq, rate } of cases) {
 // --- reading across a window refill must not seam ---------------------------
 {
   const file = writeSine(path.join(tmp, 'seam.pcm'), 30, 1000);
-  const src = new PcmSource(file);
+  const src = PcmSource.fromFile(file);
   const L = new Float32Array(960);
   const R = new Float32Array(960);
   // Walk well past the four-second window so it refills several times, and

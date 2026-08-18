@@ -138,6 +138,13 @@ export interface DeckState {
   loop: DeckLoop;
   repeat: boolean;
   bpm: number | null;
+  /**
+   * The deck is loaded and playing, but its audio is not arriving fast enough
+   * and it has faded down waiting. Always false for a deck reading a local
+   * file; the console shows it so a dropout reads as a supply problem rather
+   * than as the deck having silently stopped.
+   */
+  starved: boolean;
 }
 
 export type PadMode = 'oneshot' | 'loop' | 'gate';

@@ -1,9 +1,6 @@
-import fs from 'node:fs';
-import os from 'node:os';
 import { Biquad, lowPass } from './dsp';
 import { CHANNELS, SAMPLE_RATE } from '../protocol';
-
-const BYTES_PER_SAMPLE_FRAME = CHANNELS * 2;
+import { FileWindowReader, type WindowReader } from './windowReader';
 
 /**
  * Window length, in frames. Four seconds is long enough that a deck at any
@@ -36,6 +33,17 @@ const AA_FRAMES = 4096;
 const AA_MASK = AA_FRAMES - 1;
 
 /**
+ * How long a source takes to fade out when its reader runs dry, and to come
+ * back when the bytes arrive. 30 ms is long enough that neither edge clicks and
+ * short enough that nobody mistakes it for a mix move.
+ *
+ * Unreachable with a local file — the page cache does not run out — but it is
+ * the ordinary case for a reader fed over a socket, which is the point of it.
+ */
+const STARVE_FADE_FRAMES = Math.round(SAMPLE_RATE * 0.03);
+const STARVE_STEP = 1 / STARVE_FADE_FRAMES;
+
+/**
  * Catmull-Rom through four points. Small enough that V8 inlines it, which is
  * what lets both read loops share it instead of keeping two copies in step.
  */
@@ -47,36 +55,37 @@ function cubic(y0: number, y1: number, y2: number, y3: number, t: number): numbe
 }
 
 /**
- * One shared read buffer. Refills are synchronous and happen on the audio path,
- * so two of them can never be in flight at once. Backed by an `Int16Array` so
- * the de-interleave reads aligned 16-bit words instead of assembling them a
- * byte at a time — about three times quicker, and it is the hottest loop here.
- */
-const readInts = new Int16Array(PLANE_FRAMES * CHANNELS);
-const readBuffer = Buffer.from(readInts.buffer, readInts.byteOffset, readInts.byteLength);
-const LITTLE_ENDIAN = os.endianness() === 'LE';
-
-/**
- * Random-access reader over a decoded s16le/48k/stereo file.
+ * Random-access reader over decoded s16le/48k/stereo audio.
  *
- * The file stays on disk and a four-second window of it lives in memory as
- * planar float. Float rather than the raw bytes because the mix graph is float
- * throughout and converting per sample — four bounds-checked `readInt16LE`
- * calls for every output frame — was the single most expensive thing on the
+ * The bytes stay wherever the `WindowReader` keeps them and a four-second
+ * window lives here as planar float. Float rather than raw bytes because the
+ * mix graph is float throughout and converting per sample — four bounds-checked
+ * reads for every output frame — was the single most expensive thing on the
  * audio path. Planar rather than interleaved because every consumer wants one
  * channel at a time, and because it is what lets a whole block be copied
  * outright when nothing needs resampling.
  *
- * A refill is ~1.5 MB out of the page cache about once a second per deck, and
- * three quarters of the window it lands in is usually already resident and
- * simply moved down, so the steady-state cost is a fraction of that.
+ * A refill is ~1.5 MB about once a second per deck, and three quarters of the
+ * window it lands in is usually already resident and simply moved down, so the
+ * steady-state cost is a fraction of that.
  */
 export class PcmSource {
-  readonly frames: number;
-
-  private readonly fd: number;
   private readonly planeL = new Float32Array(PLANE_FRAMES);
   private readonly planeR = new Float32Array(PLANE_FRAMES);
+
+  /**
+   * This source's read buffer.
+   *
+   * Per instance rather than shared: it was once a single module-level buffer,
+   * which held only because every refill was synchronous and none could
+   * overlap. A reader that fetches its bytes from anywhere but the page cache
+   * breaks that assumption, and a shared scratch buffer under two interleaved
+   * refills is a data race that would surface as one deck playing a slice of
+   * the other's audio. Backed by an `Int16Array` so the de-interleave reads
+   * aligned 16-bit words rather than assembling them a byte at a time — about
+   * three times quicker, and it is the hottest loop here.
+   */
+  private readonly readInts = new Int16Array(PLANE_FRAMES * CHANNELS);
 
   /** File frame sitting at plane index 0. Negative at the start of a file. */
   private base = 0;
@@ -85,6 +94,19 @@ export class PcmSource {
   /** Positions this window can interpolate, [lo, hi). */
   private lo = 0;
   private hi = 0;
+  /**
+   * File frame the planes hold real data up to, or Infinity when the last read
+   * was fully satisfied. Finite means the reader came up short — an underrun,
+   * not the end of the file — and it is what stops the window claiming to cover
+   * frames that never arrived.
+   */
+  private dataEnd = Infinity;
+  /** Fade applied while the reader is dry. 1 is running, 0 is faded out. */
+  private starveGain = 1;
+  private starved = false;
+  /** Last sample rendered, held and decayed rather than stepped to silence. */
+  private lastL = 0;
+  private lastR = 0;
   /**
    * Fraction of the window used before this source refills. Spread per source
    * so two decks that started together do not refill on the same frame for the
@@ -103,31 +125,33 @@ export class PcmSource {
     rate: number;
   } | null = null;
 
-  constructor(private readonly filePath: string, ordinal = 0) {
-    const stat = fs.statSync(filePath);
-    const usable = stat.size - (stat.size % BYTES_PER_SAMPLE_FRAME);
-    this.frames = Math.floor(usable / BYTES_PER_SAMPLE_FRAME);
-    this.fd = fs.openSync(filePath, 'r');
+  constructor(private readonly reader: WindowReader, ordinal = 0) {
     this.threshold = REFILL_AT * (1 + (ordinal % 5) * 0.06);
     this.refill(0, true);
+  }
+
+  /** Convenience for the ordinary case: a decoded file on local disk. */
+  static fromFile(filePath: string, ordinal = 0): PcmSource {
+    return new PcmSource(new FileWindowReader(filePath), ordinal);
+  }
+
+  get frames(): number {
+    return this.reader.totalFrames;
   }
 
   get durationMs(): number {
     return (this.frames / SAMPLE_RATE) * 1000;
   }
 
-  get path(): string {
-    return this.filePath;
+  /** True while the reader cannot keep up and the source is faded down. */
+  get starving(): boolean {
+    return this.starved;
   }
 
   close(): void {
     if (this.closed) return;
     this.closed = true;
-    try {
-      fs.closeSync(this.fd);
-    } catch {
-      /* already gone */
-    }
+    this.reader.dispose();
   }
 
   /* -------------------------------------------------------------- window */
@@ -157,15 +181,26 @@ export class PcmSource {
     // the end of a track — the head sits on the last frame and cannot be
     // covered by anything — and without this it would re-read the whole window
     // on every block for as long as the deck stayed there.
-    if (start === this.placed) return;
+    //
+    // A window that came up short last time is the exception: it has to be
+    // asked again, or a source that underran once would stay silent for as long
+    // as the head sat still, however quickly the bytes turned up.
+    if (start === this.placed && this.dataEnd === Infinity) return;
     const base = start - GUARD;
 
     // Three quarters of a forward step is usually already in the planes. Moving
     // it down beats reading it again by an order of magnitude, and a forward
     // step is what almost every refill is.
+    //
+    // Only ever from planes that were filled completely, though. A short read
+    // pads the rest of the window with held edge samples, and carrying those
+    // forward would hand the next window a region it believes is audio — a
+    // recovered source would play the padding and report no underrun at all,
+    // because as far as the coverage check is concerned the frames are there.
+    // The re-read this costs happens once, on the refill after a dropout.
     const shift = base - this.base;
     let kept = 0;
-    if (this.hi > this.lo && shift > 0 && shift < PLANE_FRAMES) {
+    if (this.hi > this.lo && shift > 0 && shift < PLANE_FRAMES && this.dataEnd === Infinity) {
       this.planeL.copyWithin(0, shift);
       this.planeR.copyWithin(0, shift);
       kept = PLANE_FRAMES - shift;
@@ -180,6 +215,9 @@ export class PcmSource {
     // the kernel wants there.
     this.lo = Math.max(0, base + 1);
     this.hi = Math.min(this.frames, base + PLANE_FRAMES - 2);
+    // Never claim to cover frames the reader did not deliver. A held edge
+    // sample is honest at the end of a file and a lie in the middle of one.
+    if (this.dataEnd < this.hi) this.hi = Math.max(this.lo, this.dataEnd - 1);
   }
 
   /**
@@ -192,32 +230,18 @@ export class PcmSource {
     const readTo = Math.min(this.frames, from + count);
     const wanted = Math.max(0, readTo - readFrom);
 
-    let got = 0;
-    if (wanted > 0) {
-      const bytes = fs.readSync(
-        this.fd,
-        readBuffer,
-        0,
-        wanted * BYTES_PER_SAMPLE_FRAME,
-        readFrom * BYTES_PER_SAMPLE_FRAME,
-      );
-      got = Math.floor(bytes / BYTES_PER_SAMPLE_FRAME);
-    }
+    const got = wanted > 0 ? this.reader.read(readFrom, wanted, this.readInts) : 0;
+    // Short of what the source says exists means the bytes have not arrived,
+    // which is a different thing from running off the end of the file.
+    this.dataEnd = got < wanted ? readFrom + got : Infinity;
 
     const head = at + (readFrom - from);
+    const ints = this.readInts;
     const inv = 1 / 32768;
-    if (LITTLE_ENDIAN) {
-      for (let k = 0; k < got; k++) {
-        const j = k * 2;
-        this.planeL[head + k] = readInts[j] * inv;
-        this.planeR[head + k] = readInts[j + 1] * inv;
-      }
-    } else {
-      for (let k = 0; k < got; k++) {
-        const j = k * BYTES_PER_SAMPLE_FRAME;
-        this.planeL[head + k] = readBuffer.readInt16LE(j) * inv;
-        this.planeR[head + k] = readBuffer.readInt16LE(j + 2) * inv;
-      }
+    for (let k = 0; k < got; k++) {
+      const j = k * 2;
+      this.planeL[head + k] = ints[j] * inv;
+      this.planeR[head + k] = ints[j + 1] * inv;
     }
 
     // Before the first sample and after the last, hold the edge rather than
@@ -338,10 +362,20 @@ export class PcmSource {
     if (!this.covers(from, to)) {
       this.refill(startPos, span >= 0);
       if (!this.covers(from, to)) {
-        // Off the end of the file, or a span longer than the whole window.
-        // Neither is reachable at a playable rate; silence is the honest answer.
-        outL.fill(0, at, at + n);
-        outR.fill(0, at, at + n);
+        // Either the head has run off the end of the file, or the reader has
+        // not delivered these frames yet. The first is silence by rights; the
+        // second is an underrun, and a step to zero would click on every
+        // dropout — so the last sample rendered is held and decayed instead.
+        this.starved = true;
+        let g = this.starveGain;
+        const hl = this.lastL;
+        const hr = this.lastR;
+        for (let i = 0; i < n; i++) {
+          if (g > 0) g = Math.max(0, g - STARVE_STEP);
+          outL[at + i] = hl * g;
+          outR[at + i] = hr * g;
+        }
+        this.starveGain = g;
         return startPos + span;
       }
     }
@@ -357,6 +391,7 @@ export class PcmSource {
       const p = startPos - base;
       outL.set(L.subarray(p, p + n), at);
       outR.set(R.subarray(p, p + n), at);
+      this.settle(outL, outR, at, n);
       return startPos + n;
     }
 
@@ -384,6 +419,7 @@ export class PcmSource {
         pos += rate;
         rate += step;
       }
+      this.settle(outL, outR, at, n);
       return pos;
     }
 
@@ -397,7 +433,34 @@ export class PcmSource {
       rate += step;
     }
 
+    this.settle(outL, outR, at, n);
     return pos;
+  }
+
+  /**
+   * Book-keeping after a block that actually rendered: remember the last sample
+   * so a dropout has something to decay from, and fade back in if the source is
+   * coming out of one.
+   *
+   * The ramp is a second pass over the block rather than a multiply inside the
+   * read loops, because it applies on the order of once a session and those
+   * loops run 48000 times a second.
+   */
+  private settle(outL: Float32Array, outR: Float32Array, at: number, n: number): void {
+    if (this.starveGain < 1) {
+      let g = this.starveGain;
+      for (let i = 0; i < n; i++) {
+        if (g < 1) g = Math.min(1, g + STARVE_STEP);
+        outL[at + i] *= g;
+        outR[at + i] *= g;
+      }
+      this.starveGain = g;
+      if (g >= 1) this.starved = false;
+    } else {
+      this.starved = false;
+    }
+    this.lastL = outL[at + n - 1];
+    this.lastR = outR[at + n - 1];
   }
 
   /**
@@ -412,6 +475,12 @@ export class PcmSource {
   /** Pulls the window forward when the head is running out of read-ahead. */
   prefetch(pos: number, forward: boolean): void {
     if (this.closed) return;
+    // The reader is told before the refill, not after: one that fetches its
+    // bytes from somewhere slower than the page cache needs the warning while
+    // there is still window left to play through, which is exactly what this
+    // threshold measures.
+    const lead = forward ? LEAD_FORWARD : LEAD_REVERSE;
+    this.reader.prefetch(Math.max(0, Math.round(pos - WINDOW_FRAMES * lead)), PLANE_FRAMES);
     if (pos < this.lo || this.headroom(pos) < this.threshold) this.refill(pos, forward);
   }
 }

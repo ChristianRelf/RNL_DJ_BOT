@@ -43,7 +43,7 @@ export class Pad {
   }
 
   assign(mediaId: string, title: string, pcmPath: string): void {
-    const next = new PcmSource(pcmPath, this.index + 5);
+    const next = PcmSource.fromFile(pcmPath, this.index + 5);
     this.source?.close();
     this.source = next;
     this.mediaId = mediaId;
