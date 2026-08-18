@@ -174,3 +174,41 @@ export const NEEDS_CONTROL = new Set<CommandKey>([
   'voice:join',
   'voice:leave',
 ]);
+
+/**
+ * The audio-streaming channel.
+ *
+ * Kept apart from `commandSchemas` because these are not commands: they carry
+ * no authority over the mix, they are answered rather than executed, and they
+ * arrive at a few a second per playing deck rather than when somebody touches a
+ * control. They still get validated, and harder than most — `frames` sizes a
+ * buffer, so a NaN or a negative here is not a bad command but a crash.
+ */
+const trackId = z.string().min(1).max(128);
+
+export const hostTrackSchema = z
+  .object({
+    trackId,
+    title: z.string().min(1).max(200),
+    path: z.string().max(1024),
+    // A quarter of a million frames is about 90 minutes. Long enough for a
+    // recorded set, short enough that a bad number cannot ask for a gigabyte.
+    frames: z.number().int().min(0).max(48000 * 60 * 90),
+    sizeBytes: z.number().int().min(0).max(4 * 1024 * 1024 * 1024),
+  })
+  .strict();
+
+/** A folder scan. The ceiling is a backstop against somebody picking C:\. */
+export const hostTracksSchema = z
+  .object({ tracks: z.array(hostTrackSchema).max(20_000) })
+  .strict();
+
+export const audioChunkSchema = z
+  .object({
+    sourceKey: z.string().min(1).max(32),
+    fromFrame: z.number().int().min(0),
+    seq: z.number().int().min(0),
+  })
+  .strict();
+
+export const audioGoneSchema = z.object({ trackId }).strict();

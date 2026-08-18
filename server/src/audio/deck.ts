@@ -1,4 +1,5 @@
 import { PcmSource } from './source';
+import type { WindowReader } from './windowReader';
 import { Biquad, Isolator, clamp, dbToGain, filterCoefficients, smoothingCoefficient } from './dsp';
 import { SAMPLE_RATE } from '../protocol';
 import type { DeckEq, DeckId, DeckState } from '../protocol';
@@ -26,7 +27,12 @@ const BEND_BIAS = 0.25;
 export interface DeckLoadRequest {
   mediaId: string;
   title: string;
-  pcmPath: string;
+  /**
+   * Where this track's audio comes from. Built by the rig rather than the deck,
+   * because whether it is a decoded file on disk or a ring fed by the host
+   * device is a question about the rig's library, not about the deck.
+   */
+  reader: WindowReader;
   bpm: number | null;
 }
 
@@ -108,7 +114,7 @@ export class Deck {
   }
 
   load(req: DeckLoadRequest): void {
-    const next = PcmSource.fromFile(req.pcmPath, this.id === 'A' ? 0 : 3);
+    const next = new PcmSource(req.reader, this.id === 'A' ? 0 : 3);
     this.source?.close();
     this.source = next;
     this.mediaId = req.mediaId;

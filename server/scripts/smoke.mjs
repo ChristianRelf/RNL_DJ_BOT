@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Mixer } from '../dist/audio/mixer.js';
+import { FileWindowReader } from '../dist/audio/windowReader.js';
 import { FRAME_SAMPLES, SAMPLE_RATE } from '../dist/protocol.js';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dj-smoke-'));
@@ -89,7 +90,7 @@ try {
   check('silent when idle', framePeak(frame) === 0);
 
   // --- playback ----------------------------------------------------------
-  A.load({ mediaId: 'short', title: 'sine', pcmPath: shortFile, bpm: null });
+  A.load({ mediaId: 'short', title: 'sine', reader: new FileWindowReader(shortFile), bpm: null });
   check('duration read from file', Math.abs(A.durationMs - 4000) < 2, `${A.durationMs}ms`);
 
   A.play();
@@ -129,7 +130,7 @@ try {
   check('stops at the end of the track', !A.playing);
 
   // --- windowed source ---------------------------------------------------
-  B.load({ mediaId: 'long', title: 'long sine', pcmPath: longFile, bpm: null });
+  B.load({ mediaId: 'long', title: 'long sine', reader: new FileWindowReader(longFile), bpm: null });
   check('long file duration', Math.abs(B.durationMs - 170_000) < 5, `${B.durationMs}ms`);
   B.seekMs(120_000);
   B.play();
@@ -198,7 +199,7 @@ try {
 
   // --- pads ---------------------------------------------------------------
   const pad = mixer.pads[0];
-  pad.assign('short', 'sine', shortFile);
+  pad.assign('short', 'sine', new FileWindowReader(shortFile));
   pad.set({ gain: 1 });
   B.pause();
   mixer.applyMixer({ crossfader: 0, padBus: 1, padDuck: 0 });

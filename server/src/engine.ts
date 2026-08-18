@@ -1,8 +1,11 @@
 ﻿import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { Mixer } from './audio/mixer';
+import { HostSession } from './audio/hostSession';
+import { FileWindowReader, type WindowReader } from './audio/windowReader';
 import { VoiceManager } from './discord/voice';
 import { ControlLock } from './control';
 import { bot } from './discord/bot';
@@ -46,15 +49,28 @@ interface Presence {
  * `execute`, which is the single place permissions, validation and state
  * broadcasting are enforced — the Discord slash commands use the same path.
  */
+/**
+ * How long the rig keeps playing after the hosting device drops before it gives
+ * up and pauses.
+ *
+ * Comfortably inside the eight seconds of audio the ring already holds, so the
+ * decision is made while there is still sound coming out. Socket.io reconnects
+ * on its own within a second or two, and pausing the moment a tab's connection
+ * hiccups would stop the music for something nobody would otherwise have heard.
+ */
+const HOST_GRACE_MS = 6000;
+
 export class Engine extends EventEmitter {
   readonly mixer = new Mixer();
   readonly voice = new VoiceManager(this.mixer);
   readonly control = new ControlLock();
+  readonly host = new HostSession();
 
   private presence = new Map<string, Presence>();
   private channels: VoiceChannelInfo[] = [];
   private rev = 0;
   private channelTimer: NodeJS.Timeout | null = null;
+  private hostGrace: NodeJS.Timeout | null = null;
 
   constructor() {
     super();
@@ -72,6 +88,31 @@ export class Engine extends EventEmitter {
       this.toast('warn', `${name} timed out — control passed on.`),
     );
     this.voice.on('change', () => this.bumpState());
+
+    // Losing the host does not stop the audio — the ring is still full and the
+    // decks play on out of it. What it starts is a clock: if nobody is serving
+    // by the time that runs out, the set is paused where it actually stopped
+    // rather than left to run silently on through the rest of the track.
+    this.host.on('lost', () => {
+      this.toast('warn', 'The device hosting this library dropped — playing from the buffer.');
+      if (this.hostGrace) clearTimeout(this.hostGrace);
+      this.hostGrace = setTimeout(() => {
+        this.hostGrace = null;
+        if (this.host.hosted) return;
+        const running = DECK_IDS.filter((id) => this.mixer.decks[id].playing);
+        for (const id of running) this.mixer.decks[id].pause();
+        if (running.length > 0) {
+          this.toast('error', 'Nobody is hosting the library — playback paused.');
+        }
+        this.bumpState();
+      }, HOST_GRACE_MS);
+      this.hostGrace.unref?.();
+    });
+    this.host.on('gained', () => {
+      if (this.hostGrace) clearTimeout(this.hostGrace);
+      this.hostGrace = null;
+    });
+    this.host.on('change', () => this.bumpState());
     // Swapping the playback bot changes what the console should be showing —
     // which account is on air, and which channels that account can see.
     onBotChange(() => {
@@ -109,6 +150,7 @@ export class Engine extends EventEmitter {
       bot: activeBot(),
       voice: this.voice.snapshot(),
       control: this.control.snapshot(),
+      host: this.host.snapshot(),
       users: this.presenceList(),
       channels: this.channels,
       rev: this.rev,
@@ -263,7 +305,7 @@ export class Engine extends EventEmitter {
       this.mixer.decks[deck].load({
         mediaId: item.id,
         title: item.title,
-        pcmPath: pcmPath(item.id),
+        reader: this.makeReader(item.id, `deck:${deck}`),
         bpm: item.bpm,
       });
       if (play) this.mixer.decks[deck].play();
@@ -283,6 +325,31 @@ export class Engine extends EventEmitter {
     return true;
   }
 
+  /**
+   * Where a track's audio comes from.
+   *
+   * A file decoded to disk by an older version of the rig still plays from
+   * there, so an existing library keeps working untouched rather than needing a
+   * migration or a re-import. Everything else is served by whichever device is
+   * hosting, over the socket.
+   */
+  private makeReader(mediaId: string, sourceKey: string): WindowReader {
+    const legacy = pcmPath(mediaId);
+    if (fs.existsSync(legacy)) {
+      this.host.drop(sourceKey);
+      return new FileWindowReader(legacy);
+    }
+
+    const reader = this.host.reader(sourceKey, mediaId);
+    if (reader) return reader;
+
+    throw new CommandError(
+      this.host.hosted
+        ? 'That track is not in the music folder being hosted - rescan it and try again.'
+        : 'No device is hosting this library. Open the console and connect your music folder.',
+    );
+  }
+
   /** Payloads are already schema-validated, so these lookups cannot miss. */
   private deckOf(payload: { deck: DeckId }): Deck {
     return this.mixer.decks[payload.deck];
@@ -300,7 +367,7 @@ export class Engine extends EventEmitter {
         this.deckOf(payload).load({
           mediaId: item.id,
           title: item.title,
-          pcmPath: pcmPath(item.id),
+          reader: this.makeReader(item.id, `deck:${payload.deck}`),
           bpm: item.bpm,
         });
         this.toast('success', `Loaded "${item.title}" onto deck ${payload.deck}.`);
@@ -308,6 +375,7 @@ export class Engine extends EventEmitter {
       }
       case 'deck:eject':
         this.deckOf(payload).eject();
+        this.host.drop(`deck:${payload.deck}`);
         return;
       case 'deck:play':
         if (!this.deckOf(payload).loaded) {
@@ -410,9 +478,10 @@ export class Engine extends EventEmitter {
         const pad = this.padOf(payload);
         if (payload.mediaId === null) {
           pad.clear();
+          this.host.drop(`pad:${payload.index}`);
         } else {
           const item = this.readyMedia(payload.mediaId);
-          pad.assign(item.id, item.title, pcmPath(item.id));
+          pad.assign(item.id, item.title, this.makeReader(item.id, `pad:${payload.index}`));
         }
         this.persistPads();
         return;
@@ -689,8 +758,10 @@ export class Engine extends EventEmitter {
       const item = store.getMedia(saved.mediaId);
       if (item?.status !== 'ready') continue;
       try {
-        pad.assign(item.id, item.title, pcmPath(item.id));
+        pad.assign(item.id, item.title, this.makeReader(item.id, `pad:${i}`));
       } catch (err) {
+        // A pad whose audio is not reachable yet is left empty rather than
+        // taking the restore down. The host may simply not have connected.
         log.warn(`could not restore pad ${i}: ${(err as Error).message}`);
       }
     }
@@ -698,6 +769,8 @@ export class Engine extends EventEmitter {
 
   async shutdown(): Promise<void> {
     if (this.channelTimer) clearInterval(this.channelTimer);
+    if (this.hostGrace) clearTimeout(this.hostGrace);
+    this.host.dispose();
     this.voice.leave();
     this.mixer.destroy();
     this.control.dispose();

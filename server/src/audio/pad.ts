@@ -1,4 +1,5 @@
 import { PcmSource } from './source';
+import type { WindowReader } from './windowReader';
 import { clamp, smoothingCoefficient } from './dsp';
 import { FRAME_SAMPLES, SAMPLE_RATE } from '../protocol';
 import type { PadMode, PadState } from '../protocol';
@@ -42,8 +43,8 @@ export class Pad {
     return this.source !== null && (this.playing || this.envelope > 0.0005);
   }
 
-  assign(mediaId: string, title: string, pcmPath: string): void {
-    const next = PcmSource.fromFile(pcmPath, this.index + 5);
+  assign(mediaId: string, title: string, reader: WindowReader): void {
+    const next = new PcmSource(reader, this.index + 5);
     this.source?.close();
     this.source = next;
     this.mediaId = mediaId;

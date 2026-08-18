@@ -4,9 +4,28 @@ import { checkAccess, readSessionToken, verifySession } from './auth';
 import { engine, CommandError } from './engine';
 import { store } from './store';
 import { createLogger } from './logger';
+import { audioChunkSchema, audioGoneSchema, hostTracksSchema } from './schemas';
 import type { Ack, SessionUser, Toast } from './protocol';
 
 const log = createLogger('realtime');
+
+/**
+ * Events that belong to the audio transport rather than to the control surface.
+ *
+ * `onAny` funnels everything else into the command path, which is where
+ * permissions and the control lock are enforced. These carry no authority over
+ * the mix — they answer requests the server made — so they are handled on their
+ * own and must not reach `execute`, which would rightly refuse them as unknown
+ * commands.
+ */
+const TRANSPORT_EVENTS = new Set([
+  'hello',
+  'host:claim',
+  'host:release',
+  'host:tracks',
+  'audio:chunk',
+  'audio:gone',
+]);
 
 /** Coalescing window for state broadcasts. */
 const STATE_COALESCE_MS = 50;
@@ -24,7 +43,10 @@ export function createRealtime(httpServer: HttpServer): IOServer {
     serveClient: false,
     pingInterval: 20_000,
     pingTimeout: 25_000,
-    maxHttpBufferSize: 1e6,
+    // A quarter-second audio chunk is 48 KB, but the ceiling has to clear a
+    // whole folder scan in one message as well — twenty thousand tracks of
+    // title and path. Still small enough to be a real limit.
+    maxHttpBufferSize: 8e6,
   });
 
   // Authenticate on the handshake and re-check guild membership every time, so
@@ -58,8 +80,10 @@ export function createRealtime(httpServer: HttpServer): IOServer {
 
     socket.emit('hello', { user, state: engine.state(), media: store.listMedia() });
 
+    wireHost(socket, user);
+
     socket.onAny(async (event: string, payload: unknown, ack?: (res: Ack) => void) => {
-      if (event === 'hello') return;
+      if (TRANSPORT_EVENTS.has(event)) return;
       const respond = typeof ack === 'function' ? ack : () => undefined;
       try {
         await engine.execute(user, event, payload);
@@ -74,6 +98,7 @@ export function createRealtime(httpServer: HttpServer): IOServer {
     });
 
     socket.on('disconnect', () => {
+      engine.host.release(socket.id);
       engine.detach(user.id);
       log.info(`${user.displayName} disconnected`);
     });
@@ -81,6 +106,73 @@ export function createRealtime(httpServer: HttpServer): IOServer {
 
   wireBroadcasts(io);
   return io;
+}
+
+/**
+ * The audio channel for one socket.
+ *
+ * A console that has a music folder open offers to host; the server answers by
+ * asking it for audio, a few times a second per playing deck. Nothing here goes
+ * through the control lock: hosting is not a thing you do to the mix, it is
+ * where the mix comes from.
+ */
+function wireHost(socket: Socket, user: SessionUser): void {
+  socket.on('host:claim', (payload: unknown, ack?: (res: Ack) => void) => {
+    const respond = typeof ack === 'function' ? ack : () => undefined;
+    const parsed = hostTracksSchema.safeParse(payload ?? {});
+    if (!parsed.success) {
+      respond({ ok: false, error: parsed.error.issues[0]?.message ?? 'Bad track list.' });
+      return;
+    }
+
+    const result = engine.host.claim({
+      socketId: socket.id,
+      userId: user.id,
+      userName: user.displayName,
+      tracks: parsed.data.tracks,
+      // Bound to this socket, so a request can never be sent to a console that
+      // has since been replaced as host.
+      send: (need) => socket.emit('audio:need', need),
+    });
+    respond(result.ok ? { ok: true } : { ok: false, error: result.reason ?? 'Already hosted.' });
+  });
+
+  socket.on('host:tracks', (payload: unknown, ack?: (res: Ack) => void) => {
+    const respond = typeof ack === 'function' ? ack : () => undefined;
+    const parsed = hostTracksSchema.safeParse(payload ?? {});
+    if (!parsed.success) {
+      respond({ ok: false, error: 'Bad track list.' });
+      return;
+    }
+    const ok = engine.host.update(socket.id, parsed.data.tracks);
+    respond(ok ? { ok: true } : { ok: false, error: 'You are not hosting this rig.' });
+  });
+
+  socket.on('host:release', () => {
+    engine.host.release(socket.id);
+  });
+
+  // The hot one: a few of these a second per playing deck. No ack — the ring
+  // either takes the chunk or does not, and a chunk that arrives too late to be
+  // useful is dropped rather than reported, because by then the deck has
+  // already faded and asked again.
+  socket.on('audio:chunk', (payload: unknown, pcm: unknown) => {
+    const parsed = audioChunkSchema.safeParse(payload ?? {});
+    if (!parsed.success || !Buffer.isBuffer(pcm)) return;
+    engine.host.chunk(
+      socket.id,
+      parsed.data.sourceKey,
+      parsed.data.seq,
+      parsed.data.fromFrame,
+      pcm,
+    );
+  });
+
+  socket.on('audio:gone', (payload: unknown) => {
+    const parsed = audioGoneSchema.safeParse(payload ?? {});
+    if (!parsed.success) return;
+    engine.host.gone(socket.id, parsed.data.trackId);
+  });
 }
 
 function wireBroadcasts(io: IOServer): void {

@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Mixer } from '../dist/audio/mixer.js';
+import { FileWindowReader } from '../dist/audio/windowReader.js';
 import { FRAME_MS, PAD_COUNT, SAMPLE_RATE } from '../dist/protocol.js';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dj-bench-'));
@@ -72,13 +73,13 @@ try {
   run(mixer, 200);
   report('idle', mixer.frameTimer);
 
-  A.load({ mediaId: 'a', title: 'a', pcmPath: trackA, bpm: 128 });
+  A.load({ mediaId: 'a', title: 'a', reader: new FileWindowReader(trackA), bpm: 128 });
   A.play();
   mixer.applyMixer({ crossfader: -1 });
   run(mixer, FRAMES);
   report('one deck, unity rate', mixer.frameTimer);
 
-  B.load({ mediaId: 'b', title: 'b', pcmPath: trackB, bpm: 124 });
+  B.load({ mediaId: 'b', title: 'b', reader: new FileWindowReader(trackB), bpm: 124 });
   B.play();
   mixer.applyMixer({ crossfader: 0 });
   run(mixer, FRAMES);
@@ -117,7 +118,7 @@ try {
   report('+ reverb send', mixer.frameTimer);
 
   for (let i = 0; i < PAD_COUNT; i++) {
-    mixer.pads[i].assign('stab', 'stab', stab);
+    mixer.pads[i].assign('stab', 'stab', new FileWindowReader(stab));
     mixer.pads[i].trigger();
   }
   run(mixer, FRAMES);

@@ -308,6 +308,55 @@ export interface PresenceUser {
   connections: number;
 }
 
+/**
+ * Which device is serving this rig's audio.
+ *
+ * Deck plays straight off a folder on somebody's machine — nothing is uploaded
+ * and the server keeps no audio at all — so exactly one console at a time holds
+ * the library and answers requests for it. When nobody does, the decks have
+ * nothing to play.
+ */
+export interface HostState {
+  hosted: boolean;
+  userId: string | null;
+  userName: string | null;
+  trackCount: number;
+}
+
+/**
+ * A track the hosting device can serve, from its folder scan.
+ *
+ * The id is a content hash rather than a path, so renaming a file or moving it
+ * within the folder keeps whatever the server knows about it — the beat grid,
+ * the cue point, the tags.
+ */
+export interface HostTrackInfo {
+  trackId: string;
+  title: string;
+  path: string;
+  /** Decoded length in sample frames. Authoritative: the ring sizes requests off it. */
+  frames: number;
+  sizeBytes: number;
+}
+
+/** Server asking the host for audio. Answered with `audio:chunk`. */
+export interface AudioNeedMessage {
+  sourceKey: string;
+  trackId: string;
+  fromFrame: number;
+  frames: number;
+  /** Bumped on every seek; a chunk carrying a stale one is dropped on arrival. */
+  seq: number;
+}
+
+/** Host answering, with interleaved s16le stereo as a binary attachment. */
+export interface AudioChunkMessage {
+  sourceKey: string;
+  fromFrame: number;
+  seq: number;
+  pcm: ArrayBuffer | Uint8Array;
+}
+
 export interface EngineState {
   decks: Record<DeckId, DeckState>;
   pads: PadState[];
@@ -317,6 +366,7 @@ export interface EngineState {
   bot: ActiveBot;
   voice: VoiceState;
   control: ControlState;
+  host: HostState;
   users: PresenceUser[];
   channels: VoiceChannelInfo[];
   rev: number;

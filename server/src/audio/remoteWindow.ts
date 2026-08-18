@@ -38,6 +38,14 @@ export const CHUNK_FRAMES = Math.round(SAMPLE_RATE / 4);
  */
 const MAX_OUTSTANDING = 8;
 
+/** Buffer health for one source. Enough to tell a slow link from a demand bug. */
+export interface ReaderStats {
+  buffered: number;
+  outstanding: number;
+  restarts: number;
+  requested: number;
+}
+
 /** A request for audio, addressed to whichever device is hosting the library. */
 export interface AudioNeed {
   sourceKey: string;
@@ -88,7 +96,7 @@ export class RemoteWindowReader implements WindowReader {
   constructor(
     readonly totalFrames: number,
     private readonly sourceKey: string,
-    private readonly trackId: string,
+    readonly trackId: string,
     private readonly onNeed: (need: AudioNeed) => void,
   ) {
     this.restart(0);
@@ -104,7 +112,7 @@ export class RemoteWindowReader implements WindowReader {
   }
 
   /** Enough to tell a slow link from a demand bug, on the console and in tests. */
-  get stats(): { buffered: number; outstanding: number; restarts: number; requested: number } {
+  get stats(): ReaderStats {
     return {
       buffered: this.count,
       outstanding: this.outstanding,
