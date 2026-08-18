@@ -24,7 +24,7 @@ export function WaitlistPanel() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    fetch('/api/waitlist', { credentials: 'include' })
+    fetch('/api/portal/overview', { credentials: 'include' })
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error ?? `Could not read the list (${res.status}).`);
@@ -37,7 +37,7 @@ export function WaitlistPanel() {
   useEffect(load, [load]);
 
   const remove = (id: string) => {
-    fetch(`/api/waitlist/${id}`, { method: 'DELETE', credentials: 'include' })
+    fetch(`/api/portal/waitlist/${id}`, { method: 'DELETE', credentials: 'include' })
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (res.ok) setEntries(body.waitlist);

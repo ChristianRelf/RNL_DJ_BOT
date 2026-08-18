@@ -6,6 +6,8 @@ import type { ClientCommands, EngineState, SessionUser, ToolsState } from '../pr
 import type { DjClient } from '../socket';
 
 interface ToolsPageProps {
+  /** This rig's API prefix. */
+  api: string;
   state: EngineState;
   user: SessionUser;
   locked: boolean;
@@ -100,7 +102,7 @@ function Tool({
 
 /* ------------------------------------------------------------ url import */
 
-function UrlImport({ enabled }: { enabled: boolean }) {
+function UrlImport({ enabled, api }: { enabled: boolean; api: string }) {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -111,7 +113,7 @@ function UrlImport({ enabled }: { enabled: boolean }) {
     setBusy(true);
     setResult(null);
     try {
-      const res = await fetch('/api/media/import', {
+      const res = await fetch(`${api}/media/import`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
@@ -293,10 +295,10 @@ function Announce({
 
 /* -------------------------------------------------------------- timecode */
 
-function Timecode({ tools }: { tools: ToolsState }) {
+function Timecode({ tools, api }: { tools: ToolsState; api: string }) {
   // Never touch window during render — it is not always there.
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
-  const url = `${origin}/api/timecode?key=${tools.timecodeKey}`;
+  const url = `${origin}${api}/timecode?key=${tools.timecodeKey}`;
   return (
     <>
       <label className="tool-field">
@@ -401,7 +403,7 @@ function Osc({
 
 /* ------------------------------------------------------------------ page */
 
-export function ToolsPage({ state, user, locked, send }: ToolsPageProps) {
+export function ToolsPage({ state, user, locked, send, api }: ToolsPageProps) {
   const tools = state.tools;
   const set = (patch: ClientCommands['tools:set']) => void send('tools:set', patch);
 
@@ -429,9 +431,9 @@ export function ToolsPage({ state, user, locked, send }: ToolsPageProps) {
       ) : null}
 
       <div className="tools-list">
-        {user.isOwner ? (
+        {user.isPlatformAdmin ? (
           <>
-            <BotsPanel user={user} live={state.bot} voiceLive={state.voice.status === 'ready'} />
+            <BotsPanel user={user} live={state.bot} voiceLive={state.voice.status === 'ready'} api={api} />
             <WaitlistPanel />
           </>
         ) : null}
@@ -443,7 +445,7 @@ export function ToolsPage({ state, user, locked, send }: ToolsPageProps) {
           locked={locked}
           onToggle={(timecode) => set({ timecode })}
         >
-          <Timecode tools={tools} />
+          <Timecode tools={tools} api={api} />
         </Tool>
 
         <Tool
@@ -453,7 +455,7 @@ export function ToolsPage({ state, user, locked, send }: ToolsPageProps) {
           locked={locked}
           onToggle={(urlImport) => set({ urlImport })}
         >
-          <UrlImport enabled={tools.urlImport} />
+          <UrlImport enabled={tools.urlImport} api={api} />
         </Tool>
 
         <Tool

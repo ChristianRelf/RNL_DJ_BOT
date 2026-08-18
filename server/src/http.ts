@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import express, { type Request, type Response } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
 import {
@@ -13,16 +13,18 @@ import {
   cookieNames,
   exchangeCode,
   issueSession,
+  isPlatformAdmin,
+  maySignIn,
   newState,
-  requireOwner,
+  requirePlatformAdmin,
   requireUser,
   setStateCookie,
 } from './auth';
-import * as bots from './discord/bots';
 import { BotError } from './discord/bots';
 import { config } from './config';
-import { engine } from './engine';
-import { store } from './store';
+import { rigs } from './rigManager';
+import type { Rig } from './rig';
+import * as platform from './db/platform';
 import { createLogger } from './logger';
 import { fetchAudio, ImportError } from './tools/importUrl';
 import { DECK_IDS, type MediaItem, type SessionUser } from './protocol';
@@ -85,6 +87,12 @@ function sendBotError(res: Response, err: unknown): void {
   res.status(500).json({ error: 'That did not work — check the server log.' });
 }
 
+declare module 'express-serve-static-core' {
+  interface Request {
+    rig?: Rig;
+  }
+}
+
 export function createApp(): express.Express {
   const app = express();
   app.set('trust proxy', true);
@@ -93,7 +101,16 @@ export function createApp(): express.Express {
   app.use(attachUser);
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, voice: engine.voice.snapshot().status, uptime: process.uptime() });
+    res.json({
+      ok: true,
+      rigs: rigs.count,
+      voice: rigs.all.map((rig) => ({
+        guildId: rig.guildId,
+        status: rig.voice.snapshot().status,
+        hosted: rig.host.hosted,
+      })),
+      uptime: process.uptime(),
+    });
   });
 
   // ------------------------------------------------------------- auth ---
@@ -117,19 +134,25 @@ export function createApp(): express.Express {
     }
 
     try {
-      const profile = await exchangeCode(code);
+      const { profile } = await exchangeCode(code);
       const fallbackName = profile.global_name || profile.username;
-      const access = await checkAccess(profile.id, fallbackName);
-      if (!access.allowed) {
-        return res.redirect('/login?error=' + encodeURIComponent(access.reason ?? 'Access denied.'));
+
+      // The allowlist is the whole of the gate at this point. Which rigs they
+      // can reach is a question for each rig, asked when they open one.
+      if (!maySignIn(profile.id)) {
+        return res.redirect(
+          '/login?error=' +
+            encodeURIComponent('That Discord account has not been given access to Deck yet.'),
+        );
       }
+
       const user: SessionUser = {
         id: profile.id,
         username: profile.username,
-        displayName: access.displayName || fallbackName,
+        displayName: fallbackName,
         avatarUrl: avatarUrl(profile),
-        isAdmin: access.isAdmin,
-        isOwner: access.isOwner,
+        isAdmin: false,
+        isPlatformAdmin: isPlatformAdmin(profile.id),
       };
       issueSession(res, user);
       log.info(`${user.displayName} signed in`);
@@ -148,6 +171,29 @@ export function createApp(): express.Express {
   app.get('/api/me', (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
     res.json({ user: req.user, publicUrl: config.http.publicUrl });
+  });
+
+  /** Which rigs this person can actually open, for the picker after sign-in. */
+  app.get('/api/rigs', requireUser, async (req, res) => {
+    const user = req.user as SessionUser;
+    const found = await Promise.all(
+      platform.listGuilds().map(async (guild) => {
+        if (guild.status !== 'active') return null;
+        const access = await checkAccess(guild.id, user.id, user.displayName);
+        if (!access.allowed) return null;
+        const rig = rigs.get(guild.id);
+        return {
+          id: guild.id,
+          slug: guild.slug,
+          name: guild.name,
+          isAdmin: access.isAdmin,
+          running: rig !== null,
+          hosted: rig?.host.hosted ?? false,
+          live: rig?.voice.snapshot().status === 'ready',
+        };
+      }),
+    );
+    res.json({ rigs: found.filter(Boolean) });
   });
 
   // --------------------------------------------------------- waitlist ---
@@ -188,122 +234,243 @@ export function createApp(): express.Express {
     }
     if (!entry.community) return res.status(400).json({ error: 'Tell us where it is for.' });
 
-    const list = store.db.waitlist;
-    const already = list.some(
-      (item) =>
-        item.email.toLowerCase() === entry.email.toLowerCase() ||
-        item.discord.toLowerCase() === entry.discord.toLowerCase(),
-    );
-    if (!already && list.length < WAITLIST_LIMIT) {
-      list.push({ id: crypto.randomUUID(), ...entry, at: Date.now() });
-      store.save();
-      log.info(`waitlist: ${entry.discord} (${entry.community}) — ${list.length} waiting`);
+    if (!platform.waitlistHas(entry.discord, entry.email) && platform.waitlistCount() < WAITLIST_LIMIT) {
+      platform.addWaitlist({ id: crypto.randomUUID(), ...entry, at: Date.now() });
+      log.info(`waitlist: ${entry.discord} (${entry.community})`);
     }
     res.json({ ok: true });
   });
 
-  /** The list itself, for whoever is handing out access. */
-  app.get('/api/waitlist', requireOwner, (_req, res) => {
-    res.json({ waitlist: [...store.db.waitlist].sort((a, b) => b.at - a.at) });
+  // ----------------------------------------------------------- portal ---
+
+  const json = express.json({ limit: '8kb' });
+
+  app.get('/api/portal/overview', requirePlatformAdmin, (_req, res) => {
+    res.json({
+      guilds: platform.listGuilds().map((guild) => {
+        const rig = rigs.get(guild.id);
+        const voice = rig?.voice.snapshot();
+        return {
+          ...guild,
+          running: rig !== null,
+          host: rig?.host.snapshot() ?? null,
+          voice: voice ? { status: voice.status, channelName: voice.channelName } : null,
+          bot: rig?.bots.active() ?? null,
+          tracks: rig ? rig.store.listMedia().length : 0,
+        };
+      }),
+      allowlist: platform.listAllowed(),
+      waitlist: platform.listWaitlist(),
+      bots: platform.listBots().map((bot) => ({
+        id: bot.id,
+        name: bot.name,
+        applicationId: bot.applicationId,
+        tag: bot.tag,
+        fingerprint: bot.fingerprint,
+        addedBy: bot.addedBy,
+        addedAt: bot.addedAt,
+      })),
+      health: {
+        rigs: rigs.count,
+        memoryMb: Math.round(process.memoryUsage().rss / 1048576),
+        uptime: Math.round(process.uptime()),
+      },
+    });
   });
 
-  app.delete('/api/waitlist/:id', requireOwner, (req, res) => {
-    store.db.waitlist = store.db.waitlist.filter((entry) => entry.id !== req.params.id);
-    store.save();
-    res.json({ waitlist: [...store.db.waitlist].sort((a, b) => b.at - a.at) });
+  app.post('/api/portal/allow', requirePlatformAdmin, json, (req, res) => {
+    const discordId = String(req.body?.discordId ?? '').trim();
+    if (!/^\d{15,25}$/.test(discordId)) {
+      return res.status(400).json({ error: 'That does not look like a Discord user id.' });
+    }
+    platform.allow({
+      discordId,
+      note: String(req.body?.note ?? '').slice(0, 200),
+      canOnboard: req.body?.canOnboard !== false,
+      addedBy: (req.user as SessionUser).id,
+    });
+    res.json({ allowlist: platform.listAllowed() });
   });
 
-  // ------------------------------------------------------------- bots ---
+  app.delete('/api/portal/allow/:id', requirePlatformAdmin, (req, res) => {
+    platform.disallow(req.params.id);
+    res.json({ allowlist: platform.listAllowed() });
+  });
+
+  app.delete('/api/portal/waitlist/:id', requirePlatformAdmin, (req, res) => {
+    platform.removeWaitlist(req.params.id);
+    res.json({ waitlist: platform.listWaitlist() });
+  });
+
+  app.post('/api/portal/rigs/:id/stop', requirePlatformAdmin, async (req, res) => {
+    await rigs.stop(req.params.id);
+    res.json({ ok: true });
+  });
+
+  app.post('/api/portal/rigs/:id/start', requirePlatformAdmin, async (req, res) => {
+    const rig = await rigs.ensure(req.params.id);
+    res.json({ ok: rig !== null });
+  });
+
+  app.delete('/api/portal/rigs/:id', requirePlatformAdmin, async (req, res) => {
+    await rigs.stop(req.params.id);
+    platform.deleteGuild(req.params.id);
+    res.json({ ok: true });
+  });
+
+  // ------------------------------------------------------ guild scope ---
 
   /**
-   * Which Discord account the rig plays through.
+   * Everything below here belongs to one rig.
    *
-   * These live on HTTP rather than on the socket deliberately: the socket
-   * broadcasts state to every signed-in DJ, and this is owner-only territory —
-   * adding a bot means handing the server a token. Tokens are never returned by
-   * any of these, only fingerprints.
+   * The guild is resolved and the caller's access to it re-checked on every
+   * request rather than trusted from the session — losing a DJ role has to take
+   * effect on the next request, not whenever the token happens to expire.
    */
-  const botRoutes = express.json({ limit: '4kb' });
-
-  app.get('/api/bots', requireOwner, (_req, res) => {
-    res.json({ bots: bots.list(), active: bots.activeBot() });
-  });
-
-  app.post('/api/bots', requireOwner, botRoutes, async (req, res) => {
-    const token = typeof req.body?.token === 'string' ? req.body.token : '';
-    const name = typeof req.body?.name === 'string' ? req.body.name : undefined;
-    try {
-      const added = await bots.add(req.user as SessionUser, { name, token });
-      res.json({ bot: added, bots: bots.list(), active: bots.activeBot() });
-    } catch (err) {
-      sendBotError(res, err);
+  async function withRig(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ error: 'Not signed in.' });
+      return;
     }
-  });
 
-  app.post('/api/bots/:id/activate', requireOwner, async (req, res) => {
-    try {
-      await bots.activate(req.user as SessionUser, req.params.id);
-      res.json({ bots: bots.list(), active: bots.activeBot() });
-    } catch (err) {
-      sendBotError(res, err);
+    const rig = await rigs.ensure(req.params.guildId);
+    if (!rig) {
+      res.status(404).json({ error: 'No such rig, or it is not running.' });
+      return;
     }
-  });
 
-  app.delete('/api/bots/:id', requireOwner, async (req, res) => {
-    try {
-      await bots.remove(req.user as SessionUser, req.params.id);
-      res.json({ bots: bots.list(), active: bots.activeBot() });
-    } catch (err) {
-      sendBotError(res, err);
+    const access = await checkAccess(rig.guildId, user.id, user.displayName);
+    if (!access.allowed) {
+      res.status(403).json({ error: access.reason ?? 'You do not have access to that rig.' });
+      return;
     }
+
+    req.rig = rig;
+    req.user = { ...user, displayName: access.displayName, isAdmin: access.isAdmin };
+    next();
+  }
+
+  const guild = express.Router({ mergeParams: true });
+  guild.use((req, res, next) => void withRig(req, res, next));
+
+  guild.get('/media', (req, res) => {
+    res.json({ media: (req.rig as Rig).store.listMedia() });
   });
 
-  // ------------------------------------------------------------ media ---
+  guild.post('/media', upload.array('files', 8), async (req: Request, res: Response) => {
+    const rig = req.rig as Rig;
+    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    if (files.length === 0) return res.status(400).json({ error: 'No files were uploaded.' });
 
-  app.get('/api/media', requireUser, (_req, res) => {
-    res.json({ media: store.listMedia() });
-  });
-
-  app.post(
-    '/api/media',
-    requireUser,
-    upload.array('files', 8),
-    async (req: Request, res: Response) => {
-      const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-      if (files.length === 0) return res.status(400).json({ error: 'No files were uploaded.' });
-
-      const created: MediaItem[] = [];
-      for (const file of files) {
-        try {
-          created.push(
-            await engine.ingest({
-              tempPath: file.path,
-              originalName: file.originalname,
-              sizeBytes: file.size,
-              user: req.user as SessionUser,
-            }),
-          );
-        } catch (err) {
-          log.error('ingest failed:', (err as Error).message);
-          await fs.promises.unlink(file.path).catch(() => undefined);
-        }
+    const created: MediaItem[] = [];
+    for (const file of files) {
+      try {
+        created.push(
+          await rig.ingest({
+            tempPath: file.path,
+            originalName: file.originalname,
+            sizeBytes: file.size,
+            user: req.user as SessionUser,
+          }),
+        );
+      } catch (err) {
+        log.error('ingest failed:', (err as Error).message);
+        await fs.promises.unlink(file.path).catch(() => undefined);
       }
-      res.json({ media: created });
-    },
-  );
+    }
+    res.json({ media: created });
+  });
 
   /**
-   * Serves the original upload so a DJ can pre-listen in their own browser
-   * without touching the live mix — the closest thing to a headphone cue when
-   * the output bus lives on Discord.
+   * Serves a decoded upload so a DJ can pre-listen without touching the mix.
+   *
+   * Only ever finds anything for a track that came in through an upload; one
+   * played off somebody's folder is already on their machine, and the console
+   * cues it locally without asking the server for it at all.
    */
-  app.get('/api/media/:id/audio', requireUser, (req, res) => {
-    const item = store.getMedia(req.params.id);
+  guild.get('/media/:id/audio', (req, res) => {
+    const item = (req.rig as Rig).store.getMedia(req.params.id);
     if (!item) return res.status(404).json({ error: 'Not found.' });
     const filePath = mediaFilePath(item);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File is missing.' });
     res.sendFile(filePath, { headers: { 'cache-control': 'private, max-age=3600' } });
   });
+
+  guild.post('/media/import', express.json({ limit: '4kb' }), async (req, res) => {
+    const rig = req.rig as Rig;
+    if (!rig.store.db.tools.urlImport) {
+      return res.status(403).json({ error: 'URL import is switched off for this rig.' });
+    }
+    const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+    if (!url) return res.status(400).json({ error: 'Give it a link to fetch.' });
+
+    let fetched: Awaited<ReturnType<typeof fetchAudio>> | null = null;
+    try {
+      fetched = await fetchAudio(url);
+      const item = await rig.ingest({
+        tempPath: fetched.tempPath,
+        originalName: fetched.originalName,
+        sizeBytes: fetched.sizeBytes,
+        user: req.user as SessionUser,
+      });
+      res.json({ media: item });
+    } catch (err) {
+      if (fetched) await fs.promises.unlink(fetched.tempPath).catch(() => undefined);
+      const message =
+        err instanceof ImportError ? err.message : 'That import failed — check the logs.';
+      if (!(err instanceof ImportError)) log.error('import failed:', err);
+      res.status(400).json({ error: message });
+    }
+  });
+
+  /**
+   * Which Discord account this rig plays through.
+   *
+   * On HTTP rather than the socket deliberately: the socket broadcasts state to
+   * every signed-in DJ, and this is platform-admin territory — adding a bot
+   * means handing the server a token. Tokens are never returned, only
+   * fingerprints.
+   */
+  guild.get('/bots', requirePlatformAdmin, (req, res) => {
+    const rig = req.rig as Rig;
+    res.json({ bots: rig.bots.list(), active: rig.bots.active() });
+  });
+
+  guild.post('/bots', requirePlatformAdmin, json, async (req, res) => {
+    const rig = req.rig as Rig;
+    try {
+      const added = await rig.bots.add(req.user as SessionUser, {
+        name: typeof req.body?.name === 'string' ? req.body.name : undefined,
+        token: typeof req.body?.token === 'string' ? req.body.token : '',
+      });
+      res.json({ bot: added, bots: rig.bots.list(), active: rig.bots.active() });
+    } catch (err) {
+      sendBotError(res, err);
+    }
+  });
+
+  guild.post('/bots/:id/activate', requirePlatformAdmin, async (req, res) => {
+    const rig = req.rig as Rig;
+    try {
+      await rig.bots.activate(req.user as SessionUser, req.params.id);
+      res.json({ bots: rig.bots.list(), active: rig.bots.active() });
+    } catch (err) {
+      sendBotError(res, err);
+    }
+  });
+
+  guild.delete('/bots/:id', requirePlatformAdmin, async (req, res) => {
+    const rig = req.rig as Rig;
+    try {
+      await rig.bots.remove(req.user as SessionUser, req.params.id);
+      res.json({ bots: rig.bots.list(), active: rig.bots.active() });
+    } catch (err) {
+      sendBotError(res, err);
+    }
+  });
+
+  app.use('/api/g/:guildId', guild);
 
   // ------------------------------------------------------------ tools ---
 
@@ -314,8 +481,11 @@ export function createApp(): express.Express {
    * string is the credential. It is rotated every time the tool is switched on,
    * and the endpoint disappears entirely when it is off.
    */
-  app.get('/api/timecode', (req, res) => {
-    const tools = store.db.tools;
+  app.get('/api/g/:guildId/timecode', (req, res) => {
+    const rig = rigs.get(req.params.guildId);
+    if (!rig) return res.status(404).json({ error: 'No such rig.' });
+
+    const tools = rig.store.db.tools;
     if (!tools.timecode) return res.status(404).json({ error: 'The timecode feed is off.' });
 
     const supplied = String(req.query.key ?? '');
@@ -330,7 +500,7 @@ export function createApp(): express.Express {
       );
     if (!ok) return res.status(403).json({ error: 'Bad or missing key.' });
 
-    const state = engine.state();
+    const state = rig.state();
     res.setHeader('cache-control', 'no-store');
     res.setHeader('access-control-allow-origin', '*');
     res.json({
@@ -352,33 +522,6 @@ export function createApp(): express.Express {
       mixer: { crossfader: state.mixer.crossfader, master: state.mixer.master },
       voice: { status: state.voice.status, channelName: state.voice.channelName },
     });
-  });
-
-  /** Pulls a direct audio link into the pool through the normal ingest path. */
-  app.post('/api/media/import', requireUser, express.json({ limit: '4kb' }), async (req, res) => {
-    if (!store.db.tools.urlImport) {
-      return res.status(403).json({ error: 'URL import is switched off for this rig.' });
-    }
-    const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
-    if (!url) return res.status(400).json({ error: 'Give it a link to fetch.' });
-
-    let fetched: Awaited<ReturnType<typeof fetchAudio>> | null = null;
-    try {
-      fetched = await fetchAudio(url);
-      const item = await engine.ingest({
-        tempPath: fetched.tempPath,
-        originalName: fetched.originalName,
-        sizeBytes: fetched.sizeBytes,
-        user: req.user as SessionUser,
-      });
-      res.json({ media: item });
-    } catch (err) {
-      if (fetched) await fs.promises.unlink(fetched.tempPath).catch(() => undefined);
-      const message =
-        err instanceof ImportError ? err.message : 'That import failed — check the logs.';
-      if (!(err instanceof ImportError)) log.error('import failed:', err);
-      res.status(400).json({ error: message });
-    }
   });
 
   // ----------------------------------------------------------- static ---

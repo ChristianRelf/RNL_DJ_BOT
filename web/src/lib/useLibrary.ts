@@ -35,7 +35,7 @@ export interface LibraryClient {
  * socket: hosting only means anything while connected, and a reconnect has to
  * re-offer, because the server tracks the host by socket and has forgotten.
  */
-export function useLibrary(socket: Socket | null): LibraryClient {
+export function useLibrary(socket: Socket | null, guildId: string | null): LibraryClient {
   const [status, setStatus] = useState<FolderStatus>('none');
   const [folderName, setFolderName] = useState<string | null>(null);
   const [tracks, setTracks] = useState<ScannedTrack[]>([]);
@@ -54,8 +54,11 @@ export function useLibrary(socket: Socket | null): LibraryClient {
 
   const supported = useMemo(() => folderPickerSupported(), []);
 
-  if (!libraryRef.current && typeof Worker !== 'undefined') {
-    libraryRef.current = new Library('default', {
+  // The decoded cache is namespaced per rig, so two guilds on one machine do
+  // not evict each other's tracks or collide on a track id that means different
+  // audio in each.
+  if (guildId && !libraryRef.current && typeof Worker !== 'undefined') {
+    libraryRef.current = new Library(guildId, {
       onScanProgress: (found, current) => setProgress({ found, current }),
       onDecodeStart: (id) => setDecoding((prev) => (prev.includes(id) ? prev : [...prev, id])),
       onDecodeDone: (id) => setDecoding((prev) => prev.filter((t) => t !== id)),

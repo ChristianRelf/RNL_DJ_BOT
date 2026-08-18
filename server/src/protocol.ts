@@ -23,13 +23,19 @@ export interface SessionUser {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  /**
+   * May force-take the decks and delete anyone's media — in *this* guild.
+   *
+   * Resolved per connection rather than carried in the session, because one
+   * person is not the same thing in two servers, and a token cannot say "admin"
+   * without saying where.
+   */
   isAdmin: boolean;
   /**
-   * May add playback bots and choose which one the rig speaks through. A step
-   * above admin: an admin can force-take the decks, an owner decides which
-   * Discord account the room is listening to.
+   * Runs the platform: the portal, the allowlist, the bot pool, every rig. A
+   * step above a guild admin, and global rather than per-server.
    */
-  isOwner: boolean;
+  isPlatformAdmin: boolean;
 }
 
 /**

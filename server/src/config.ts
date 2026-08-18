@@ -41,21 +41,26 @@ function reqEither(name: string, fallback: string): string {
 }
 
 /**
- * Whoever may add and switch playback bots. This is a step above admin: an
- * admin can force-take the decks, an owner can change which Discord account the
- * rig speaks through and hold its token. Defaults to the account this rig was
- * set up under; set OWNER_USER_IDS to change or widen it.
+ * Whoever runs the platform: the portal, the allowlist, the bot pool, every
+ * rig. A step above a guild admin, who can force-take the decks in one server
+ * and nothing else.
+ *
+ * OWNER_USER_IDS is still read, because that is what this used to be called and
+ * an install that sets it should not silently lose its administrator.
  */
-const DEFAULT_OWNER_IDS = ['541551772288811009'];
-
-const ownerUserIds = (() => {
-  const configured = list('OWNER_USER_IDS');
-  return configured.length > 0 ? configured : DEFAULT_OWNER_IDS;
+const platformAdminIds = (() => {
+  const configured = list('PLATFORM_ADMIN_IDS');
+  return configured.length > 0 ? configured : list('OWNER_USER_IDS');
 })();
 
 export const config = {
   discord: {
-    guildId: req('DISCORD_GUILD_ID'),
+    /**
+     * The guild to import a legacy `db.json` into, and nothing else. Rigs live
+     * in the database now; this exists so an install that predates that keeps
+     * its library on the first start after upgrading, and can be unset after.
+     */
+    guildId: (process.env.DISCORD_GUILD_ID ?? '').trim(),
     /**
      * The default playback bot — "deck". Its token is what the rig speaks
      * through until an owner points it at another one from the console.
@@ -82,14 +87,24 @@ export const config = {
     },
   },
   access: {
+    /** Seeds the imported guild's roles. Per-rig roles live in the database. */
     djRoleIds: list('DJ_ROLE_IDS'),
     adminRoleIds: list('ADMIN_ROLE_IDS'),
     adminUserIds: list('ADMIN_USER_IDS'),
-    ownerUserIds,
+    platformAdminIds,
   },
   http: {
     port: num('PORT', 7403),
     publicUrl: (process.env.PUBLIC_URL ?? 'http://localhost:7403').replace(/\/+$/, ''),
+    /** Where the owner portal answers. Matched against the Host header. */
+    portalHost: (process.env.PORTAL_HOST ?? '').trim().toLowerCase(),
+    /**
+     * Domain to scope the session cookie to. Set it to the parent of both the
+     * console and the portal — `deck.ronation.live` covers
+     * `portal.deck.ronation.live` — so one sign-in serves both. Left empty the
+     * cookie is host-only, which is right for localhost.
+     */
+    cookieDomain: (process.env.COOKIE_DOMAIN ?? '').trim(),
     sessionSecret: req('SESSION_SECRET'),
     maxUploadBytes: Math.round(num('MAX_UPLOAD_MB', 100) * 1024 * 1024),
   },

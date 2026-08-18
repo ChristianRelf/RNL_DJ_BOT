@@ -44,6 +44,8 @@ export class Bot {
   private handlers: ClientHandler[] = [];
   private ready = false;
 
+  constructor(readonly guildId: string) {}
+
   /**
    * The live client. Callers hold onto the wrapper, never this — a swap
    * replaces it, and a reference kept across one would point at a dead
@@ -127,13 +129,13 @@ export class Bot {
   }
 
   async guild(): Promise<Guild> {
-    const cached = this.client.guilds.cache.get(config.discord.guildId);
+    const cached = this.client.guilds.cache.get(this.guildId);
     if (cached) return cached;
     try {
-      return await this.client.guilds.fetch(config.discord.guildId);
+      return await this.client.guilds.fetch(this.guildId);
     } catch {
       throw new Error(
-        `${this.credentials?.name ?? 'The bot'} is not in guild ${config.discord.guildId}. ` +
+        `${this.credentials?.name ?? 'The bot'} is not in guild ${this.guildId}. ` +
           'Invite it to the server first.',
       );
     }
@@ -179,4 +181,10 @@ export class Bot {
   }
 }
 
-export const bot = new Bot();
+/**
+ * One `Bot` per rig, owned by that rig.
+ *
+ * There is no module-level instance any more: several guilds run in this
+ * process, each with its own gateway session, and a shared one would mean a
+ * swap in one server dropping another server's bot out of voice.
+ */

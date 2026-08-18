@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # base — toolchain needed to compile @discordjs/opus
 # ---------------------------------------------------------------------------
-FROM node:22-bookworm AS base
+FROM node:24-bookworm AS base
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
@@ -41,10 +41,14 @@ RUN npm ci --omit=dev --workspaces --include-workspace-root \
 # ---------------------------------------------------------------------------
 # runtime
 # ---------------------------------------------------------------------------
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg ca-certificates tini \
+# aubio is referenced by config.ts and reached by a live code path, and has
+# never been in this image - so beat detection has been silently doing nothing
+# in production. It is optional by design (a missing one costs a feature, never
+# the mix), which is exactly why its absence went unnoticed.
+    && apt-get install -y --no-install-recommends ffmpeg ca-certificates tini aubio-tools \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \
@@ -59,7 +63,7 @@ COPY --from=build /app/web/dist ./web/dist
 COPY server/package.json ./server/package.json
 COPY package.json ./package.json
 
-RUN mkdir -p /app/data/media /app/data/pcm && chown -R node:node /app/data
+RUN mkdir -p /app/data/media /app/data/pcm /app/data/tmp && chown -R node:node /app/data
 USER node
 VOLUME ["/app/data"]
 EXPOSE 7403

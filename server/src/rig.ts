@@ -8,9 +8,9 @@ import { HostSession, type HostTrack } from './audio/hostSession';
 import { FileWindowReader, type WindowReader } from './audio/windowReader';
 import { VoiceManager } from './discord/voice';
 import { ControlLock } from './control';
-import { bot } from './discord/bot';
-import { activeBot, onBotChange } from './discord/bots';
-import { store } from './store';
+import { Bot, type BotCredentials } from './discord/bot';
+import { BotRegistry } from './discord/bots';
+import type { GuildStore } from './store';
 import { config } from './config';
 import { createLogger } from './logger';
 import { decodeQueue, decodeToPcm, probeTitle } from './audio/transcode';
@@ -32,8 +32,8 @@ import {
   type VoiceChannelInfo,
 } from './protocol';
 import { analyseBeats } from './audio/beatgrid';
-import { oscSender } from './tools/osc';
-import { nowPlaying } from './tools/nowPlaying';
+import { OscSender } from './tools/osc';
+import { NowPlaying } from './tools/nowPlaying';
 
 const log = createLogger('engine');
 
@@ -61,11 +61,15 @@ interface Presence {
  */
 const HOST_GRACE_MS = 6000;
 
-export class Engine extends EventEmitter {
+export class Rig extends EventEmitter {
   readonly mixer = new Mixer();
-  readonly voice = new VoiceManager(this.mixer);
   readonly control = new ControlLock();
   readonly host = new HostSession();
+  readonly bot: Bot;
+  readonly voice: VoiceManager;
+  readonly bots: BotRegistry;
+  private readonly osc = new OscSender();
+  private readonly nowPlaying: NowPlaying;
 
   private presence = new Map<string, Presence>();
   private channels: VoiceChannelInfo[] = [];
@@ -73,8 +77,25 @@ export class Engine extends EventEmitter {
   private channelTimer: NodeJS.Timeout | null = null;
   private hostGrace: NodeJS.Timeout | null = null;
 
-  constructor() {
+  constructor(
+    readonly guildId: string,
+    readonly store: GuildStore,
+  ) {
     super();
+    this.bot = new Bot(guildId);
+    this.voice = new VoiceManager(this.mixer, this.bot, () => this.store.db.tools);
+    this.nowPlaying = new NowPlaying(this.bot);
+    this.bots = new BotRegistry(guildId, this.bot, store, {
+      resumeChannelId: () => this.voice.snapshot().channelId,
+      leaveVoice: () => this.voice.leave(),
+      joinVoice: (channelId) => this.voice.join(channelId),
+      registerCommands: () => registerCommandsFor(this),
+      clearCommands: (identity) => clearCommandsFor({ ...identity, guildId }),
+      onChange: () => {
+        void this.refreshChannels();
+        this.bumpState();
+      },
+    });
     this.mixer.on('trackEnded', (deck) => {
       // The queue gets first refusal on a deck that has just run out. Only
       // then is it worth telling anyone the track ended, because with
@@ -114,15 +135,11 @@ export class Engine extends EventEmitter {
       this.hostGrace = null;
     });
     this.host.on('change', () => this.bumpState());
-    // Swapping the playback bot changes what the console should be showing —
-    // which account is on air, and which channels that account can see.
-    onBotChange(() => {
-      void this.refreshChannels();
-      this.bumpState();
-    });
   }
 
   async start(): Promise<void> {
+    this.store.load();
+    await this.bots.start();
     this.restorePersisted();
     // Tools are persisted, so one left on survives a restart.
     this.syncOsc();
@@ -132,7 +149,7 @@ export class Engine extends EventEmitter {
       void this.refreshChannels();
     }, 15_000);
     this.channelTimer.unref?.();
-    bot.onClient((client) => {
+    this.bot.onClient((client) => {
       client.on('voiceStateUpdate', () => {
         void this.refreshChannels();
       });
@@ -145,10 +162,10 @@ export class Engine extends EventEmitter {
     return {
       decks: { A: this.mixer.decks.A.snapshot(), B: this.mixer.decks.B.snapshot() },
       pads: this.mixer.pads.map((p) => p.snapshot()),
-      queue: { items: [...store.db.queue.items], auto: store.db.queue.auto },
+      queue: { items: [...this.store.db.queue.items], auto: this.store.db.queue.auto },
       mixer: this.mixer.mixerSnapshot(),
-      tools: { ...store.db.tools },
-      bot: activeBot(),
+      tools: { ...this.store.db.tools },
+      bot: this.bots.active(),
       voice: this.voice.snapshot(),
       control: this.control.snapshot(),
       host: this.host.snapshot(),
@@ -182,7 +199,7 @@ export class Engine extends EventEmitter {
 
   private async refreshChannels(): Promise<void> {
     try {
-      const next = await bot.voiceChannels();
+      const next = await this.bot.voiceChannels();
       if (JSON.stringify(next) !== JSON.stringify(this.channels)) {
         this.channels = next;
         this.bumpState();
@@ -248,7 +265,7 @@ export class Engine extends EventEmitter {
    * access is just a matter of turning it off and on again.
    */
   private applyTools(patch: Partial<ToolsState>, user: SessionUser): void {
-    const before = { ...store.db.tools };
+    const before = { ...this.store.db.tools };
     const next: ToolsState = { ...before, ...patch };
 
     if (next.timecode && !before.timecode) {
@@ -257,8 +274,8 @@ export class Engine extends EventEmitter {
     }
     if (!next.timecode && before.timecode) next.timecodeKey = '';
 
-    store.db.tools = next;
-    store.save();
+    this.store.db.tools = next;
+    this.store.save();
     this.syncOsc();
     this.syncNowPlaying();
     // The caption is written once at join, so a change to the wording while
@@ -273,15 +290,15 @@ export class Engine extends EventEmitter {
 
   /** Starts, stops or repoints the OSC sender to match the stored settings. */
   syncOsc(): void {
-    const tools = store.db.tools;
-    if (tools.osc) oscSender.start(() => this.state(), tools.oscHost, tools.oscPort);
-    else oscSender.stop();
+    const tools = this.store.db.tools;
+    if (tools.osc) this.osc.start(() => this.state(), tools.oscHost, tools.oscPort);
+    else this.osc.stop();
   }
 
   /** Points the now-playing watcher at whichever of its two tools are on. */
   syncNowPlaying(): void {
-    const tools = store.db.tools;
-    nowPlaying.configure({
+    const tools = this.store.db.tools;
+    this.nowPlaying.configure({
       presence: tools.presence,
       webhook: tools.announce && tools.announceWebhook ? tools.announceWebhook : null,
       snapshot: () => this.state(),
@@ -298,10 +315,10 @@ export class Engine extends EventEmitter {
    * that will never play.
    */
   private loadNext(deck: DeckId, play: boolean): MediaItem | null {
-    const queue = store.db.queue;
+    const queue = this.store.db.queue;
     while (queue.items.length > 0) {
       const [entry] = queue.items.splice(0, 1);
-      const item = store.getMedia(entry.mediaId);
+      const item = this.store.getMedia(entry.mediaId);
       if (!item || item.status !== 'ready') continue;
       this.mixer.decks[deck].load({
         mediaId: item.id,
@@ -310,16 +327,16 @@ export class Engine extends EventEmitter {
         bpm: item.bpm,
       });
       if (play) this.mixer.decks[deck].play();
-      store.save();
+      this.store.save();
       return item;
     }
-    store.save();
+    this.store.save();
     return null;
   }
 
   /** Auto-advance. Returns true if the queue filled the deck. */
   private advanceQueue(deck: DeckId): boolean {
-    if (!store.db.queue.auto || store.db.queue.items.length === 0) return false;
+    if (!this.store.db.queue.auto || this.store.db.queue.items.length === 0) return false;
     const item = this.loadNext(deck, true);
     if (!item) return false;
     this.toast('info', `Deck ${deck}: "${item.title}" from the queue.`);
@@ -334,11 +351,11 @@ export class Engine extends EventEmitter {
    * variable-bitrate, and the difference is audible at the end of a track.
    */
   registerPeaks(trackId: string, peaks: number[], frames: number): void {
-    const item = store.getMedia(trackId);
+    const item = this.store.getMedia(trackId);
     if (!item) return;
     item.peaks = peaks;
     if (frames > 0) item.durationMs = Math.round((frames / SAMPLE_RATE) * 1000);
-    store.putMedia(item);
+    this.store.putMedia(item);
     this.syncTitles(item);
     this.emitMedia();
   }
@@ -358,7 +375,7 @@ export class Engine extends EventEmitter {
 
     for (const track of tracks) {
       seen.add(track.trackId);
-      const existing = store.getMedia(track.trackId);
+      const existing = this.store.getMedia(track.trackId);
       const durationMs = Math.round((track.frames / SAMPLE_RATE) * 1000);
 
       if (existing) {
@@ -369,11 +386,11 @@ export class Engine extends EventEmitter {
         delete existing.error;
         // The title is left alone: a rename on the console is a decision, and
         // the file name is only ever where the first guess came from.
-        store.putMedia(existing);
+        this.store.putMedia(existing);
         continue;
       }
 
-      store.putMedia({
+      this.store.putMedia({
         id: track.trackId,
         title: track.title,
         originalName: track.path,
@@ -393,11 +410,11 @@ export class Engine extends EventEmitter {
     // Anything the scan did not mention is out of reach for now. Legacy tracks
     // that still have a decoded file on disk are exempt — they play without a
     // host at all, and calling them missing would be plainly wrong.
-    for (const item of store.listMedia()) {
+    for (const item of this.store.listMedia()) {
       if (seen.has(item.id) || item.status === 'missing') continue;
       if (fs.existsSync(pcmPath(item.id))) continue;
       item.status = 'missing';
-      store.putMedia(item);
+      this.store.putMedia(item);
     }
 
     this.emitMedia();
@@ -487,7 +504,7 @@ export class Engine extends EventEmitter {
       // ---- queue -------------------------------------------------------
       case 'queue:add': {
         const item = this.readyMedia(payload.mediaId);
-        const queue = store.db.queue;
+        const queue = this.store.db.queue;
         if (queue.items.length >= QUEUE_LIMIT) {
           throw new CommandError(`The queue is full (${QUEUE_LIMIT} tracks).`);
         }
@@ -500,7 +517,7 @@ export class Engine extends EventEmitter {
         // "Play next" jumps the whole queue, so it is worth saying out loud.
         if (payload.next) queue.items.unshift(entry);
         else queue.items.push(entry);
-        store.save();
+        this.store.save();
         this.toast(
           'success',
           payload.next
@@ -510,7 +527,7 @@ export class Engine extends EventEmitter {
         return;
       }
       case 'queue:remove': {
-        const queue = store.db.queue;
+        const queue = this.store.db.queue;
         const index = queue.items.findIndex((entry) => entry.id === payload.id);
         if (index < 0) return;
         const entry = queue.items[index];
@@ -521,35 +538,35 @@ export class Engine extends EventEmitter {
           throw new CommandError('Take control to remove somebody else\'s track.');
         }
         queue.items.splice(index, 1);
-        store.save();
+        this.store.save();
         return;
       }
       case 'queue:move': {
-        const queue = store.db.queue;
+        const queue = this.store.db.queue;
         const from = queue.items.findIndex((entry) => entry.id === payload.id);
         if (from < 0) return;
         const to = Math.max(0, Math.min(queue.items.length - 1, payload.to));
         if (to === from) return;
         const [entry] = queue.items.splice(from, 1);
         queue.items.splice(to, 0, entry);
-        store.save();
+        this.store.save();
         return;
       }
       case 'queue:clear':
-        store.db.queue.items = [];
-        store.save();
+        this.store.db.queue.items = [];
+        this.store.save();
         this.toast('info', `${user.displayName} cleared the queue.`);
         return;
       case 'queue:load': {
-        if (store.db.queue.items.length === 0) throw new CommandError('The queue is empty.');
+        if (this.store.db.queue.items.length === 0) throw new CommandError('The queue is empty.');
         const item = this.loadNext(payload.deck, payload.play ?? false);
         if (!item) throw new CommandError('Nothing in the queue could be loaded.');
         this.toast('success', `Loaded "${item.title}" onto deck ${payload.deck}.`);
         return;
       }
       case 'queue:set':
-        store.db.queue.auto = payload.auto;
-        store.save();
+        this.store.db.queue.auto = payload.auto;
+        this.store.save();
         return;
 
       // ---- pads --------------------------------------------------------
@@ -579,8 +596,8 @@ export class Engine extends EventEmitter {
       // ---- mixer -------------------------------------------------------
       case 'mixer:set':
         this.mixer.applyMixer(payload);
-        store.db.mixer = this.mixer.mixerSnapshot();
-        store.save();
+        this.store.db.mixer = this.mixer.mixerSnapshot();
+        this.store.save();
         return;
 
       // ---- tools -------------------------------------------------------
@@ -591,8 +608,8 @@ export class Engine extends EventEmitter {
       // ---- voice -------------------------------------------------------
       case 'voice:join':
         await this.voice.join(payload.channelId);
-        store.db.lastVoiceChannelId = payload.channelId;
-        store.save();
+        this.store.db.lastVoiceChannelId = payload.channelId;
+        this.store.save();
         return;
       case 'voice:leave':
         this.voice.leave();
@@ -600,7 +617,7 @@ export class Engine extends EventEmitter {
 
       // ---- media -------------------------------------------------------
       case 'media:analyse': {
-        const item = store.getMedia(payload.id);
+        const item = this.store.getMedia(payload.id);
         if (!item) throw new CommandError('That track is no longer in the pool.');
         if (!user.isAdmin && item.uploadedBy.id !== user.id) {
           throw new CommandError('Only the uploader or an admin can re-analyse that track.');
@@ -619,7 +636,7 @@ export class Engine extends EventEmitter {
       }
 
       case 'media:update': {
-        const item = store.getMedia(payload.id);
+        const item = this.store.getMedia(payload.id);
         if (!item) throw new CommandError('That track is no longer in the pool.');
         if (!user.isAdmin && item.uploadedBy.id !== user.id) {
           throw new CommandError('Only the uploader or an admin can edit that track.');
@@ -627,13 +644,13 @@ export class Engine extends EventEmitter {
         if (payload.title !== undefined) item.title = payload.title;
         if (payload.bpm !== undefined) item.bpm = payload.bpm;
         if (payload.tags !== undefined) item.tags = payload.tags;
-        store.putMedia(item);
+        this.store.putMedia(item);
         this.syncTitles(item);
         this.emitMedia();
         return;
       }
       case 'media:delete': {
-        const item = store.getMedia(payload.id);
+        const item = this.store.getMedia(payload.id);
         if (!item) return;
         if (!user.isAdmin && item.uploadedBy.id !== user.id) {
           throw new CommandError('Only the uploader or an admin can delete that track.');
@@ -686,7 +703,7 @@ export class Engine extends EventEmitter {
   }
 
   private readyMedia(id: string): MediaItem {
-    const item = store.getMedia(id);
+    const item = this.store.getMedia(id);
     if (!item) throw new CommandError('That track is not in the pool.');
     if (item.status === 'missing') {
       throw new CommandError(`"${item.title}" is not in the hosted folder right now.`);
@@ -698,7 +715,7 @@ export class Engine extends EventEmitter {
   // ---------------------------------------------------------------- media ---
 
   emitMedia(): void {
-    this.emit('media', store.listMedia());
+    this.emit('media', this.store.listMedia());
   }
 
   /**
@@ -735,7 +752,7 @@ export class Engine extends EventEmitter {
       tags: [],
       status: 'processing',
     };
-    store.putMedia(item);
+    this.store.putMedia(item);
     this.emitMedia();
 
     void decodeQueue.add(async () => {
@@ -753,7 +770,7 @@ export class Engine extends EventEmitter {
         item.error = (err as Error).message.slice(0, 200);
         log.warn(`failed to ingest ${params.originalName}: ${item.error}`);
       }
-      store.putMedia(item);
+      this.store.putMedia(item);
       this.emitMedia();
 
       // The track is playable from here. Beat analysis adds seconds on top of
@@ -779,7 +796,7 @@ export class Engine extends EventEmitter {
     // Detected tempo fills a blank, but never overrules a number somebody
     // typed or tapped: they were listening to it and the detector was not.
     if (item.bpm === null) item.bpm = grid.bpm;
-    store.putMedia(item);
+    this.store.putMedia(item);
     this.syncTitles(item);
     this.emitMedia();
     log.info(
@@ -797,8 +814,8 @@ export class Engine extends EventEmitter {
     }
     this.persistPads();
     // A deleted track must not sit in the queue waiting to fail to load.
-    store.db.queue.items = store.db.queue.items.filter((entry) => entry.mediaId !== item.id);
-    store.removeMedia(item.id);
+    this.store.db.queue.items = this.store.db.queue.items.filter((entry) => entry.mediaId !== item.id);
+    this.store.removeMedia(item.id);
 
     await fsp.unlink(pcmPath(item.id)).catch(() => undefined);
     const ext = path.extname(item.originalName).slice(0, 12) || '.bin';
@@ -821,23 +838,23 @@ export class Engine extends EventEmitter {
   }
 
   private persistPads(): void {
-    store.db.pads = this.mixer.pads.map((p) => ({
+    this.store.db.pads = this.mixer.pads.map((p) => ({
       mediaId: p.mediaId,
       gain: p.gain,
       mode: p.mode,
     }));
-    store.save();
+    this.store.save();
   }
 
   private restorePersisted(): void {
-    this.mixer.applyMixer(store.db.mixer);
+    this.mixer.applyMixer(this.store.db.mixer);
     for (let i = 0; i < PAD_COUNT; i++) {
-      const saved = store.db.pads[i];
+      const saved = this.store.db.pads[i];
       if (!saved) continue;
       const pad = this.mixer.pads[i];
       pad.set({ gain: saved.gain, mode: saved.mode });
       if (!saved.mediaId) continue;
-      const item = store.getMedia(saved.mediaId);
+      const item = this.store.getMedia(saved.mediaId);
       if (item?.status !== 'ready') continue;
       try {
         pad.assign(item.id, item.title, this.makeReader(item.id, `pad:${i}`));
@@ -853,10 +870,13 @@ export class Engine extends EventEmitter {
     if (this.channelTimer) clearInterval(this.channelTimer);
     if (this.hostGrace) clearTimeout(this.hostGrace);
     this.host.dispose();
+    this.osc.stop();
+    this.nowPlaying.configure({ presence: false, webhook: null, snapshot: () => this.state() });
     this.voice.leave();
     this.mixer.destroy();
     this.control.dispose();
-    await store.flush();
+    await this.store.flush();
+    await this.bot.destroy();
   }
 }
 
@@ -864,4 +884,15 @@ export function pcmPath(id: string): string {
   return path.join(config.paths.pcmDir, `${id}.pcm`);
 }
 
-export const engine = new Engine();
+/** Slash-command wiring, imported late: commands.ts needs a Rig to talk to. */
+async function registerCommandsFor(rig: Rig): Promise<void> {
+  const { registerCommands } = await import('./discord/commands');
+  await registerCommands(rig);
+}
+
+async function clearCommandsFor(
+  identity: BotCredentials & { guildId?: string },
+): Promise<void> {
+  const { clearCommands } = await import('./discord/commands');
+  await clearCommands(identity);
+}

@@ -14,9 +14,9 @@ import {
 } from '@discordjs/voice';
 import { ChannelType, Events, PermissionsBitField, Routes } from 'discord.js';
 import type { GuildMember, VoiceBasedChannel, VoiceState as DiscordVoiceState } from 'discord.js';
-import { bot } from './bot';
+import type { Bot } from './bot';
 import { createLogger } from '../logger';
-import { store } from '../store';
+import type { ToolsState } from '../protocol';
 import type { Mixer } from '../audio/mixer';
 import type { VoiceState } from '../protocol';
 
@@ -34,8 +34,7 @@ const log = createLogger('voice');
 const CHANNEL_STATUS = 'deck is in command';
 
 /** The caption as configured, or null when the tool is switched off. */
-function captionText(): string | null {
-  const tools = store.db.tools;
+function captionText(tools: ToolsState): string | null {
   if (!tools.channelStatus) return null;
   return tools.channelStatusText.trim() || CHANNEL_STATUS;
 }
@@ -59,7 +58,12 @@ export class VoiceManager extends EventEmitter {
   /** The stage situation already acted on: `channelId:requestToSpeakTimestamp`. */
   private stageAttempt: string | null = null;
 
-  constructor(private readonly mixer: Mixer) {
+  constructor(
+    private readonly mixer: Mixer,
+    private readonly bot: Bot,
+    /** This rig's tool settings. A getter, because they change under us. */
+    private readonly tools: () => ToolsState,
+  ) {
     super();
 
     // Decisive diagnostic for a connection stuck at "signalling": this fires
@@ -71,7 +75,7 @@ export class VoiceManager extends EventEmitter {
     //
     // Registered through `onClient` so it follows the rig onto whichever bot is
     // playing rather than staying bound to the one running at startup.
-    bot.onClient((client) => {
+    this.bot.onClient((client) => {
       client.on(Events.VoiceStateUpdate, (previous, next) => {
         if (next.id !== client.user?.id) return;
         const line =
@@ -189,7 +193,7 @@ export class VoiceManager extends EventEmitter {
   }
 
   private async doJoin(channelId: string): Promise<void> {
-    const channel = await bot.voiceChannel(channelId);
+    const channel = await this.bot.voiceChannel(channelId);
     if (!channel) throw new Error('That voice channel no longer exists.');
 
     // Discord refuses these joins silently — the connection just sits in
@@ -214,7 +218,7 @@ export class VoiceManager extends EventEmitter {
 
     // Not one of the three above: the booth plays perfectly well without being
     // able to caption the channel, so this is a note rather than a refusal.
-    if (captionText() && !permissions?.has(PermissionsBitField.Flags.SetVoiceChannelStatus)) {
+    if (captionText(this.tools()) && !permissions?.has(PermissionsBitField.Flags.SetVoiceChannelStatus)) {
       log.info(
         `no Set Voice Channel Status permission in #${channel.name}; ` +
           'the channel status will stay blank',
@@ -326,7 +330,7 @@ export class VoiceManager extends EventEmitter {
 
     // Deliberately not awaited: the booth is already live and a caption is not
     // worth holding the join open for a REST round trip.
-    void this.writeChannelStatus(channel.id, captionText() ?? '');
+    void this.writeChannelStatus(channel.id, captionText(this.tools()) ?? '');
   }
 
   /**
@@ -336,7 +340,7 @@ export class VoiceManager extends EventEmitter {
    */
   refreshChannelStatus(): void {
     if (!this.channelId || this.status !== 'ready') return;
-    void this.writeChannelStatus(this.channelId, captionText() ?? '');
+    void this.writeChannelStatus(this.channelId, captionText(this.tools()) ?? '');
   }
 
   /**
@@ -348,7 +352,7 @@ export class VoiceManager extends EventEmitter {
    */
   private async writeChannelStatus(channelId: string, status: string): Promise<void> {
     try {
-      await bot.client.rest.put(Routes.channelVoiceStatus(channelId), { body: { status } });
+      await this.bot.client.rest.put(Routes.channelVoiceStatus(channelId), { body: { status } });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Failing to clear on the way out is usually just the bot having already

@@ -1,13 +1,10 @@
 import http from 'node:http';
 import { config, ensureDirs } from './config';
 import { createLogger, setLogLevel } from './logger';
-import { store } from './store';
-import { bot } from './discord/bot';
-import { startActive } from './discord/bots';
-import { verifyAuthAccess } from './discord/gate';
-import { attachCommandHandlers, registerCommands } from './discord/commands';
+import { closeDb, db } from './db';
+import { importLegacyDb } from './db/migrate';
 import { checkVoiceDependencies } from './discord/deps';
-import { engine } from './engine';
+import { rigs } from './rigManager';
 import { createApp } from './http';
 import { createRealtime } from './realtime';
 
@@ -16,16 +13,15 @@ const log = createLogger('boot');
 export async function start(): Promise<void> {
   setLogLevel(config.logLevel);
   ensureDirs();
-  store.load();
 
-  // Handlers first: they are registered against every client the bot connects,
-  // including the one `startActive` is about to bring up.
-  attachCommandHandlers();
-  await startActive();
+  // Opened and migrated before anything asks it a question. A rig that started
+  // against a half-built schema would fail in a way that reads like a Discord
+  // problem rather than a database one.
+  db();
+  importLegacyDb();
+
   checkVoiceDependencies();
-  await registerCommands();
-  await verifyAuthAccess();
-  await engine.start();
+  await rigs.startAll();
 
   const app = createApp();
   const server = http.createServer(app);
@@ -33,6 +29,7 @@ export async function start(): Promise<void> {
 
   await new Promise<void>((resolve) => server.listen(config.http.port, resolve));
   log.info(`control surface on ${config.http.publicUrl} (listening on :${config.http.port})`);
+  if (config.http.portalHost) log.info(`portal on https://${config.http.portalHost}`);
   log.info(`OAuth2 redirect URI must be ${config.http.publicUrl}/api/auth/callback`);
 
   let shuttingDown = false;
@@ -45,8 +42,8 @@ export async function start(): Promise<void> {
     try {
       io.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
-      await engine.shutdown();
-      await bot.destroy();
+      await rigs.stopAll();
+      closeDb();
     } catch (err) {
       log.warn('shutdown error:', (err as Error).message);
     }

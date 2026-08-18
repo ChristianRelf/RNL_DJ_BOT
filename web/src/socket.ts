@@ -38,7 +38,15 @@ export interface DjClient {
 
 let toastSeq = 0;
 
-export function useDj(): DjClient {
+/**
+ * The socket for one rig.
+ *
+ * Nothing connects until a guild is known: the server resolves the rig during
+ * the handshake and refuses a socket that does not name one, because a console
+ * that connected first and picked a guild afterwards would have a window where
+ * it was subscribed to nothing and looked simply broken.
+ */
+export function useDj(guildId: string | null): DjClient {
   const socketRef = useRef<Socket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [error, setError] = useState<string | null>(null);
@@ -56,12 +64,14 @@ export function useDj(): DjClient {
   }, []);
 
   useEffect(() => {
+    if (!guildId) return;
     const socket = io({
       path: '/socket.io',
       withCredentials: true,
       transports: ['websocket', 'polling'],
       reconnectionDelay: 500,
       reconnectionDelayMax: 4000,
+      auth: { guildId },
     });
     socketRef.current = socket;
     setSocketInstance(socket);
@@ -105,7 +115,7 @@ export function useDj(): DjClient {
       socketRef.current = null;
       setSocketInstance(null);
     };
-  }, [pushToast]);
+  }, [pushToast, guildId]);
 
   const send = useCallback(
     <K extends CommandName>(command: K, payload: ClientCommands[K]): Promise<Ack> =>

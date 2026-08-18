@@ -45,3 +45,25 @@ deck.ronation.live {
 #   	output file /var/log/caddy/deck.ronation.live.log
 #   	format json
 #   }
+
+# ---------------------------------------------------------------------------
+# The owner portal.
+#
+# A separate site block on the same backend rather than a wildcard: two named
+# hosts each get an ordinary certificate over HTTP-01, where *.deck.ronation.live
+# would need DNS-01 and a provider API token sitting on this box.
+#
+# The session cookie is issued with Domain=deck.ronation.live (COOKIE_DOMAIN in
+# .env), which is why one sign-in covers both hosts.
+# ---------------------------------------------------------------------------
+portal.deck.ronation.live {
+	encode zstd gzip
+
+	reverse_proxy 127.0.0.1:7403 {
+		flush_interval -1
+		transport http {
+			read_timeout 10m
+			write_timeout 10m
+		}
+	}
+}

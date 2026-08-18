@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useDj, useThrottledSend } from './socket';
 import { useLibrary } from './lib/useLibrary';
+import { apiBase, fetchRigs, type RigSummary } from './lib/rigs';
 import { TopBar } from './components/TopBar';
 import { MediaPool } from './components/MediaPool';
 import { QueuePanel } from './components/QueuePanel';
@@ -45,11 +46,41 @@ import type { SessionUser } from './protocol';
 const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
 
 /** Both views share the socket and the session gate, so they share a component. */
-export default function App({ view = 'console' }: { view?: 'console' | 'tools' }) {
-  const dj = useDj();
-  const library = useLibrary(dj.socket);
+export default function App({
+  slug,
+  view = 'console',
+}: {
+  slug: string;
+  view?: 'console' | 'tools';
+}) {
+  // The URL names a rig by slug; the socket and every API path want its guild
+  // id. Resolved once here, and until it lands there is nothing to connect to.
+  const [rig, setRig] = useState<RigSummary | null>(null);
+  const [rigError, setRigError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchRigs()
+      .then((found) => {
+        if (cancelled) return;
+        const match = found.find((entry) => entry.slug === slug);
+        if (!match) {
+          setRigError('That rig does not exist, or you do not have access to it.');
+          return;
+        }
+        setRig(match);
+      })
+      .catch((err: Error) => !cancelled && setRigError(err.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const dj = useDj(rig?.id ?? null);
+  const library = useLibrary(dj.socket, rig?.id ?? null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const throttled = useThrottledSend(dj.send);
+  const api = rig ? apiBase(rig.id) : '';
 
   // ------------------------------------------------------------- layout ---
 
@@ -216,18 +247,29 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
     return <SignIn error={dj.error} />;
   }
 
+  if (rigError) {
+    return (
+      <div className="boot">
+        <p>{rigError}</p>
+        <a className="btn" href="/rigs">
+          Your rigs
+        </a>
+      </div>
+    );
+  }
+
   if (!state || !me) {
     return (
       <div className="boot">
         <div className="boot-spinner" />
-        <p>{dj.error ?? 'connecting'}</p>
+        <p>{dj.error ?? (rig ? 'connecting' : 'finding your rig')}</p>
       </div>
     );
   }
 
   /** Every widget the console can show, built once and placed by the layout. */
   const widgets: Record<WidgetId, ReactNode> = {
-    pool: <MediaPool media={dj.media} user={me} locked={locked} send={dj.send} />,
+    pool: <MediaPool media={dj.media} user={me} locked={locked} send={dj.send} api={api} />,
     queue: (
       <QueuePanel
         queue={state.queue}
@@ -333,7 +375,7 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
       ) : null}
 
       {view === 'tools' ? (
-        <ToolsPage state={state} user={me} locked={locked} send={dj.send} />
+        <ToolsPage state={state} user={me} locked={locked} send={dj.send} api={api} />
       ) : (
       <>
         {arranging ? (

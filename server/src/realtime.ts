@@ -1,9 +1,8 @@
 import type { Server as HttpServer } from 'node:http';
 import { Server as IOServer, type Socket } from 'socket.io';
 import { checkAccess, readSessionToken, verifySession } from './auth';
-import { engine, CommandError } from './engine';
-import { store } from './store';
-import { createLogger } from './logger';
+import { CommandError, type Rig } from './rig';
+import { rigs } from './rigManager';
 import {
   audioChunkSchema,
   audioGoneSchema,
@@ -11,6 +10,7 @@ import {
   hostTracksSchema,
   mediaPeaksSchema,
 } from './schemas';
+import { createLogger } from './logger';
 import type { Ack, SessionUser, Toast } from './protocol';
 
 const log = createLogger('realtime');
@@ -43,7 +43,13 @@ const METER_INTERVAL_MS = 66;
 
 interface SocketData {
   user: SessionUser;
+  rig: Rig;
 }
+
+/** Everyone connected to one rig. State never crosses between them. */
+const room = (guildId: string) => `guild:${guildId}`;
+/** One person, in one rig — a toast meant for them and nobody else. */
+const userRoom = (guildId: string, userId: string) => `guild:${guildId}:user:${userId}`;
 
 export function createRealtime(httpServer: HttpServer): IOServer {
   const io = new IOServer(httpServer, {
@@ -57,22 +63,35 @@ export function createRealtime(httpServer: HttpServer): IOServer {
     maxHttpBufferSize: 8e6,
   });
 
-  // Authenticate on the handshake and re-check guild membership every time, so
-  // losing the DJ role takes effect on the next connection instead of whenever
-  // the JWT happens to expire.
+  /**
+   * Authenticate the handshake, and resolve which rig this socket is for.
+   *
+   * Membership is re-checked on every connection rather than trusted from the
+   * session, so losing a DJ role takes effect on the next connect instead of
+   * whenever the JWT happens to expire. The guild comes from the client because
+   * one browser can have two rigs open in two tabs.
+   */
   io.use(async (socket, next) => {
     try {
       const token = readSessionToken(socket.handshake.headers.cookie);
       const session = verifySession(token);
       if (!session) return next(new Error('Not signed in.'));
-      const access = await checkAccess(session.id, session.displayName);
+
+      const guildId = String(socket.handshake.auth?.guildId ?? '');
+      if (!guildId) return next(new Error('No rig was named.'));
+
+      const rig = await rigs.ensure(guildId);
+      if (!rig) return next(new Error('That rig is not running.'));
+
+      const access = await checkAccess(guildId, session.id, session.displayName);
       if (!access.allowed) return next(new Error(access.reason ?? 'Access denied.'));
+
       (socket.data as SocketData).user = {
         ...session,
         displayName: access.displayName,
         isAdmin: access.isAdmin,
-        isOwner: access.isOwner,
       };
+      (socket.data as SocketData).rig = rig;
       next();
     } catch (err) {
       log.warn('handshake rejected:', (err as Error).message);
@@ -81,20 +100,21 @@ export function createRealtime(httpServer: HttpServer): IOServer {
   });
 
   io.on('connection', (socket: Socket) => {
-    const user = (socket.data as SocketData).user;
-    socket.join(`user:${user.id}`);
-    engine.attach(user);
-    log.info(`${user.displayName} connected`);
+    const { user, rig } = socket.data as SocketData;
+    socket.join(room(rig.guildId));
+    socket.join(userRoom(rig.guildId, user.id));
+    rig.attach(user);
+    log.info(`${user.displayName} connected to ${rig.guildId}`);
 
-    socket.emit('hello', { user, state: engine.state(), media: store.listMedia() });
+    socket.emit('hello', { user, state: rig.state(), media: rig.store.listMedia() });
 
-    wireHost(socket, user);
+    wireHost(socket, rig, user);
 
     socket.onAny(async (event: string, payload: unknown, ack?: (res: Ack) => void) => {
       if (TRANSPORT_EVENTS.has(event)) return;
       const respond = typeof ack === 'function' ? ack : () => undefined;
       try {
-        await engine.execute(user, event, payload);
+        await rig.execute(user, event, payload);
         respond({ ok: true });
       } catch (err) {
         const message =
@@ -106,9 +126,9 @@ export function createRealtime(httpServer: HttpServer): IOServer {
     });
 
     socket.on('disconnect', () => {
-      engine.host.release(socket.id);
-      engine.detach(user.id);
-      log.info(`${user.displayName} disconnected`);
+      rig.host.release(socket.id);
+      rig.detach(user.id);
+      log.info(`${user.displayName} disconnected from ${rig.guildId}`);
     });
   });
 
@@ -124,7 +144,7 @@ export function createRealtime(httpServer: HttpServer): IOServer {
  * through the control lock: hosting is not a thing you do to the mix, it is
  * where the mix comes from.
  */
-function wireHost(socket: Socket, user: SessionUser): void {
+function wireHost(socket: Socket, rig: Rig, user: SessionUser): void {
   socket.on('host:claim', (payload: unknown, ack?: (res: Ack) => void) => {
     const respond = typeof ack === 'function' ? ack : () => undefined;
     const parsed = hostTracksSchema.safeParse(payload ?? {});
@@ -133,7 +153,7 @@ function wireHost(socket: Socket, user: SessionUser): void {
       return;
     }
 
-    const result = engine.host.claim({
+    const result = rig.host.claim({
       socketId: socket.id,
       userId: user.id,
       userName: user.displayName,
@@ -142,7 +162,7 @@ function wireHost(socket: Socket, user: SessionUser): void {
       // has since been replaced as host.
       send: (need) => socket.emit('audio:need', need),
     });
-    if (result.ok) engine.syncLibrary(parsed.data.tracks);
+    if (result.ok) rig.syncLibrary(parsed.data.tracks);
     respond(result.ok ? { ok: true } : { ok: false, error: result.reason ?? 'Already hosted.' });
   });
 
@@ -153,13 +173,13 @@ function wireHost(socket: Socket, user: SessionUser): void {
       respond({ ok: false, error: 'Bad track list.' });
       return;
     }
-    const ok = engine.host.update(socket.id, parsed.data.tracks);
-    if (ok) engine.syncLibrary(parsed.data.tracks);
+    const ok = rig.host.update(socket.id, parsed.data.tracks);
+    if (ok) rig.syncLibrary(parsed.data.tracks);
     respond(ok ? { ok: true } : { ok: false, error: 'You are not hosting this rig.' });
   });
 
   socket.on('host:release', () => {
-    engine.host.release(socket.id);
+    rig.host.release(socket.id);
   });
 
   // The hot one: a few of these a second per playing deck. No ack — the ring
@@ -169,68 +189,84 @@ function wireHost(socket: Socket, user: SessionUser): void {
   socket.on('audio:chunk', (payload: unknown, pcm: unknown) => {
     const parsed = audioChunkSchema.safeParse(payload ?? {});
     if (!parsed.success || !Buffer.isBuffer(pcm)) return;
-    engine.host.chunk(
-      socket.id,
-      parsed.data.sourceKey,
-      parsed.data.seq,
-      parsed.data.fromFrame,
-      pcm,
-    );
+    rig.host.chunk(socket.id, parsed.data.sourceKey, parsed.data.seq, parsed.data.fromFrame, pcm);
   });
 
   // Not ready yet, usually because the track is still being decoded. Answering
-  // matters as much as sending audio does — see RemoteWindowReader.decline.
+  // matters as much as sending audio — see RemoteWindowReader.decline.
   socket.on('audio:none', (payload: unknown) => {
     const parsed = audioNoneSchema.safeParse(payload ?? {});
     if (!parsed.success) return;
-    engine.host.decline(socket.id, parsed.data.sourceKey, parsed.data.seq, parsed.data.fromFrame);
+    rig.host.decline(socket.id, parsed.data.sourceKey, parsed.data.seq, parsed.data.fromFrame);
   });
 
   socket.on('media:peaks', (payload: unknown) => {
     const parsed = mediaPeaksSchema.safeParse(payload ?? {});
     if (!parsed.success) return;
-    engine.registerPeaks(parsed.data.trackId, parsed.data.peaks, parsed.data.frames);
+    rig.registerPeaks(parsed.data.trackId, parsed.data.peaks, parsed.data.frames);
   });
 
   socket.on('audio:gone', (payload: unknown) => {
     const parsed = audioGoneSchema.safeParse(payload ?? {});
     if (!parsed.success) return;
-    engine.host.gone(socket.id, parsed.data.trackId);
+    rig.host.gone(socket.id, parsed.data.trackId);
   });
 }
 
+/**
+ * Broadcasts, per rig.
+ *
+ * Rigs are subscribed to as they are seen rather than once at boot, because one
+ * can be started from the portal at any time. The timers walk every running rig
+ * and skip the ones nobody is watching, so twenty idle guilds cost twenty cheap
+ * checks rather than twenty broadcasts.
+ */
 function wireBroadcasts(io: IOServer): void {
-  let pending: NodeJS.Timeout | null = null;
+  const pending = new Map<string, NodeJS.Timeout>();
+  const wired = new WeakSet<Rig>();
 
-  const flush = () => {
-    pending = null;
-    io.emit('state', engine.state());
+  const subscribe = (rig: Rig) => {
+    if (wired.has(rig)) return;
+    wired.add(rig);
+
+    rig.on('state', () => {
+      if (pending.has(rig.guildId)) return;
+      const timer = setTimeout(() => {
+        pending.delete(rig.guildId);
+        io.to(room(rig.guildId)).emit('state', rig.state());
+      }, STATE_COALESCE_MS);
+      timer.unref?.();
+      pending.set(rig.guildId, timer);
+    });
+
+    rig.on('media', (media) => io.to(room(rig.guildId)).emit('media', media));
+
+    rig.on('toast', (toast: Toast, userId?: string) => {
+      if (userId) io.to(userRoom(rig.guildId, userId)).emit('toast', toast);
+      else io.to(room(rig.guildId)).emit('toast', toast);
+    });
   };
 
-  engine.on('state', () => {
-    if (pending) return;
-    pending = setTimeout(flush, STATE_COALESCE_MS);
-    pending.unref?.();
-  });
-
-  engine.on('media', (media) => io.emit('media', media));
-
-  engine.on('toast', (toast: Toast, userId?: string) => {
-    if (userId) io.to(`user:${userId}`).emit('toast', toast);
-    else io.emit('toast', toast);
-  });
+  const watching = (guildId: string) =>
+    (io.sockets.adapter.rooms.get(room(guildId))?.size ?? 0) > 0;
 
   const playhead = setInterval(() => {
-    const state = engine.state();
-    const moving =
-      state.decks.A.playing || state.decks.B.playing || state.pads.some((p) => p.playing);
-    if (moving && !pending) io.emit('state', state);
+    for (const rig of rigs.all) {
+      subscribe(rig);
+      if (!watching(rig.guildId) || pending.has(rig.guildId)) continue;
+      const state = rig.state();
+      const moving =
+        state.decks.A.playing || state.decks.B.playing || state.pads.some((p) => p.playing);
+      if (moving) io.to(room(rig.guildId)).emit('state', state);
+    }
   }, PLAYHEAD_INTERVAL_MS);
   playhead.unref?.();
 
   const meters = setInterval(() => {
-    if (io.engine.clientsCount === 0) return;
-    io.emit('meters', engine.mixer.meters());
+    for (const rig of rigs.all) {
+      if (!watching(rig.guildId)) continue;
+      io.to(room(rig.guildId)).emit('meters', rig.mixer.meters());
+    }
   }, METER_INTERVAL_MS);
   meters.unref?.();
 }
