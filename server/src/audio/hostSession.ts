@@ -115,8 +115,18 @@ export class HostSession extends EventEmitter {
   /** A rescan, or a track list that changed under the same host. */
   update(socketId: string, tracks: HostTrack[]): boolean {
     if (this.socketId !== socketId) return false;
+
     this.tracks.clear();
     for (const track of tracks) this.tracks.set(track.trackId, track);
+
+    // A track already on a deck may have had its length corrected by a decode
+    // that finished after the scan reported an estimate. Loaded sources take
+    // the new number rather than waiting to be reloaded.
+    for (const reader of this.readers.values()) {
+      const track = this.tracks.get(reader.trackId);
+      if (track) reader.setTotalFrames(track.frames);
+    }
+
     this.emit('change');
     return true;
   }
@@ -196,6 +206,12 @@ export class HostSession extends EventEmitter {
     );
 
     reader.push(seq, fromFrame, pcm);
+  }
+
+  /** The host cannot answer a request yet. See `RemoteWindowReader.decline`. */
+  decline(socketId: string, sourceKey: string, seq: number, fromFrame: number): void {
+    if (this.socketId !== socketId) return;
+    this.readers.get(sourceKey)?.decline(seq, fromFrame);
   }
 
   /** The host can no longer serve a track: file moved, permission revoked. */

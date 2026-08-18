@@ -38,6 +38,16 @@ export const CHUNK_FRAMES = Math.round(SAMPLE_RATE / 4);
  */
 const MAX_OUTSTANDING = 8;
 
+/**
+ * How long to wait before asking again after the host says it is not ready.
+ *
+ * The first request for a track arrives while the device is still decoding it,
+ * which takes seconds. Demand is evaluated every 20 ms block, so without a
+ * pause here a decoding track would be asked for several hundred times a
+ * second, all of them refused.
+ */
+const DECLINE_BACKOFF_MS = 250;
+
 /** Buffer health for one source. Enough to tell a slow link from a demand bug. */
 export interface ReaderStats {
   buffered: number;
@@ -89,16 +99,40 @@ export class RemoteWindowReader implements WindowReader {
    *  demand is being sized off the wrong reference, not that the link is slow. */
   private restarts = 0;
   private requested = 0;
+  private declinedUntil = 0;
 
   /** Set once the host has said it cannot serve this track at all. */
   private gone = false;
 
+  private total: number;
+
+  get totalFrames(): number {
+    return this.total;
+  }
+
+  /**
+   * Corrects the length once the host has actually decoded the track.
+   *
+   * A folder scan reads duration off file metadata, which is approximate for
+   * anything variable-bitrate. That is fine for a listing and not fine for the
+   * end of a track: too long and the deck fades into a second of nothing, too
+   * short and it cuts the outro. The decoder's count is exact, and `PcmSource`
+   * reads the length through a getter, so a correction lands mid-play without
+   * the deck having to be reloaded.
+   */
+  setTotalFrames(frames: number): void {
+    if (!Number.isFinite(frames) || frames <= 0 || frames === this.total) return;
+    this.total = frames;
+    if (this.nextRequest > frames) this.nextRequest = frames;
+  }
+
   constructor(
-    readonly totalFrames: number,
+    totalFrames: number,
     private readonly sourceKey: string,
     readonly trackId: string,
     private readonly onNeed: (need: AudioNeed) => void,
   ) {
+    this.total = totalFrames;
     this.restart(0);
   }
 
@@ -200,6 +234,7 @@ export class RemoteWindowReader implements WindowReader {
 
     const ahead = this.count - offset;
     if (ahead >= LOW_WATER_FRAMES) return;
+    if (Date.now() < this.declinedUntil) return;
 
     while (this.outstanding < MAX_OUTSTANDING && this.nextRequest < this.totalFrames) {
       this.request();
@@ -227,6 +262,7 @@ export class RemoteWindowReader implements WindowReader {
     // Anything in flight belongs to the old position and will be dropped on
     // arrival by the sequence check, so it must not hold the new fill back.
     this.outstanding = 0;
+    this.declinedUntil = 0;
 
     if (this.gone || from >= this.totalFrames) return;
     // Filled in one burst rather than one chunk at a time: after a seek the
@@ -253,6 +289,26 @@ export class RemoteWindowReader implements WindowReader {
     this.outstanding++;
     this.requested += frames;
     this.onNeed(need);
+  }
+
+  /**
+   * The host has the track but cannot serve it yet — it is still decoding.
+   *
+   * This has to be said out loud rather than left unanswered. Requests are
+   * capped in flight, so eight silent refusals would leave the reader believing
+   * it had eight answers coming and never ask again: the deck would go quiet
+   * the moment a track was loaded and stay quiet for good, however quickly the
+   * decode finished behind it.
+   *
+   * The request pointer rewinds rather than skipping past the gap, because the
+   * ring only ever accepts contiguous audio and would refuse to write across a
+   * hole left behind here.
+   */
+  decline(seq: number, fromFrame: number): void {
+    if (this.closed || seq !== this.seq) return;
+    this.outstanding = Math.max(0, this.outstanding - 1);
+    if (fromFrame < this.nextRequest) this.nextRequest = fromFrame;
+    this.declinedUntil = Date.now() + DECLINE_BACKOFF_MS;
   }
 
   /**

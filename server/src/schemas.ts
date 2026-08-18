@@ -211,4 +211,7 @@ export const audioChunkSchema = z
   })
   .strict();
 
+/** "I have this track but cannot serve it yet." Same shape as a chunk header. */
+export const audioNoneSchema = audioChunkSchema;
+
 export const audioGoneSchema = z.object({ trackId }).strict();

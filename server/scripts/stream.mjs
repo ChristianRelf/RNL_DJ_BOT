@@ -217,6 +217,65 @@ check(
   `${afterStaleChecked} frames checked`,
 );
 
+/* ------------------------------------------- a host that is still decoding */
+
+// The first request for a track always arrives while the device is still
+// decoding it. The host says so rather than staying quiet, because requests are
+// capped in flight: eight silent refusals would leave the reader believing it
+// had eight answers coming, and the deck would go quiet the moment a track was
+// loaded and stay quiet for good. This is that, end to end.
+{
+  const slowHost = new FakeHost();
+  const slowReader = new RemoteWindowReader(
+    TOTAL_FRAMES,
+    'deck:B',
+    'track-2',
+    (n) => slowHost.need(n),
+  );
+  const slowSource = new PcmSource(slowReader, 1);
+
+  let declined = 0;
+  let p = 0;
+  const until = Date.now() + 900;
+  while (Date.now() < until) {
+    for (const req of slowHost.queue.splice(0)) {
+      slowReader.decline(req.seq, req.fromFrame);
+      declined++;
+    }
+    slowSource.prefetch(p, true);
+    p = slowSource.readBlock(p, 1, 1, outL, outR, 0, BLOCK);
+    await new Promise((r) => setTimeout(r, 20));
+  }
+
+  check(
+    'a host that is not ready yet keeps being asked',
+    declined > 8,
+    `${declined} requests refused and retried`,
+  );
+  check('and the deck stays silent meanwhile', slowSource.starving);
+
+  // The decode finishes. Nothing tells the reader; it simply gets an answer.
+  p = 0;
+  let recovered = false;
+  let wrong = 0;
+  for (let b = 0; b < 400; b++) {
+    slowSource.prefetch(p, true);
+    slowHost.flush(slowReader);
+    const startFrame = p;
+    p = slowSource.readBlock(p, 1, 1, outL, outR, 0, BLOCK);
+    if (!slowSource.starving) {
+      if (!recovered) recovered = true;
+      else for (let i = 0; i < BLOCK; i++) {
+        if (outL[i] !== expected(startFrame + i, 0)) wrong++;
+      }
+    }
+  }
+
+  check('it recovers once the decode lands', recovered);
+  check('and plays the track from the top, correctly', wrong === 0, `${wrong} bad frames`);
+  slowSource.close();
+}
+
 /* ------------------------------------------------------------ bandwidth */
 
 // Steady-state only. A seek refills from nothing, so folding those into the

@@ -4,7 +4,7 @@ import { checkAccess, readSessionToken, verifySession } from './auth';
 import { engine, CommandError } from './engine';
 import { store } from './store';
 import { createLogger } from './logger';
-import { audioChunkSchema, audioGoneSchema, hostTracksSchema } from './schemas';
+import { audioChunkSchema, audioGoneSchema, audioNoneSchema, hostTracksSchema } from './schemas';
 import type { Ack, SessionUser, Toast } from './protocol';
 
 const log = createLogger('realtime');
@@ -24,6 +24,7 @@ const TRANSPORT_EVENTS = new Set([
   'host:release',
   'host:tracks',
   'audio:chunk',
+  'audio:none',
   'audio:gone',
 ]);
 
@@ -166,6 +167,14 @@ function wireHost(socket: Socket, user: SessionUser): void {
       parsed.data.fromFrame,
       pcm,
     );
+  });
+
+  // Not ready yet, usually because the track is still being decoded. Answering
+  // matters as much as sending audio does — see RemoteWindowReader.decline.
+  socket.on('audio:none', (payload: unknown) => {
+    const parsed = audioNoneSchema.safeParse(payload ?? {});
+    if (!parsed.success) return;
+    engine.host.decline(socket.id, parsed.data.sourceKey, parsed.data.seq, parsed.data.fromFrame);
   });
 
   socket.on('audio:gone', (payload: unknown) => {
