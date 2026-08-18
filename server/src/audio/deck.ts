@@ -8,6 +8,20 @@ const GAIN_SMOOTHING = smoothingCoefficient(12);
 const TRANSPORT_FADE = smoothingCoefficient(6);
 /** Pan follows slowly enough that a swept knob never zippers. */
 const PAN_SMOOTHING = smoothingCoefficient(20);
+/**
+ * The head follows the pitch fader over about 25 ms rather than jumping to it.
+ * A rate set instantly is a step in read-head velocity, and a fader drag is a
+ * stream of them — which is what a stepped, zippered pitch actually is.
+ */
+const RATE_SMOOTHING = smoothingCoefficient(25);
+/**
+ * How fast an outstanding phase debt is worked off, as a fraction of rate.
+ * 0.2% is far below anything anyone can hear, which is the point: a correction
+ * should move the head without being audible as a pitch move.
+ */
+const PHASE_BIAS = 0.002;
+/** A nudge is meant to be felt, so it is worked off at something like platter speed. */
+const BEND_BIAS = 0.25;
 
 export interface DeckLoadRequest {
   mediaId: string;
@@ -44,11 +58,34 @@ export class Deck {
 
   private source: PcmSource | null = null;
   private position = 0;
+  /** What the head is moving at. `rate` is where it is heading. */
+  private currentRate = 1;
+  /**
+   * Frames the head owes, positive when it is behind where it ought to be.
+   *
+   * Two things feed this. Smoothing the rate means a fader move advances the
+   * head slightly less than an instant jump would have, and that shortfall is
+   * booked here and paid back — so smoothing costs nothing in position, which
+   * is what stops it fighting anything that cares where the head actually is.
+   * And a deliberate shove — a nudge now, a phase correction later — is the
+   * same thing at a larger size: ask for frames, get them worked off smoothly
+   * instead of jumped.
+   */
+  private phaseDebt = 0;
+  /**
+   * How hard the debt may be repaid. Raised by a nudge, back down when settled.
+   *
+   * The default is deliberately slow, so note what that means for a big move:
+   * hauling the fader from double speed back to unity books about 1200 frames
+   * and takes some seconds to work off. That is the right trade — the head ends
+   * up exactly where it should be and nobody can hear 0.2% — but it is why a
+   * caller that wants its frames sooner has to say so.
+   */
+  private bendLimit = PHASE_BIAS;
   private smoothedGain = 0;
   private envelope = 0;
   private smoothedPanL = 1;
   private smoothedPanR = 1;
-  private readonly scratch = new Float32Array(2);
 
   private readonly isolator = new Isolator();
   private readonly filters = [new Biquad(), new Biquad()];
@@ -71,7 +108,7 @@ export class Deck {
   }
 
   load(req: DeckLoadRequest): void {
-    const next = new PcmSource(req.pcmPath);
+    const next = new PcmSource(req.pcmPath, this.id === 'A' ? 0 : 3);
     this.source?.close();
     this.source = next;
     this.mediaId = req.mediaId;
@@ -81,6 +118,8 @@ export class Deck {
     this.cueMs = 0;
     this.playing = false;
     this.envelope = 0;
+    this.currentRate = this.rate;
+    this.clearDebt();
     this.loop = { active: false, startMs: 0, endMs: Math.min(8000, next.durationMs) };
     this.resetFilters();
   }
@@ -95,6 +134,7 @@ export class Deck {
     this.bpm = null;
     this.position = 0;
     this.cueMs = 0;
+    this.clearDebt();
     this.loop = { active: false, startMs: 0, endMs: 0 };
     this.resetFilters();
   }
@@ -121,14 +161,39 @@ export class Deck {
 
   seekMs(ms: number): void {
     const target = clamp(ms, 0, this.durationMs);
-    this.position = (target / 1000) * SAMPLE_RATE;
+    // Whole frames: a fractional head serves no purpose and it is what lets a
+    // deck at zero pitch take the source's straight-copy path.
+    this.position = Math.round((target / 1000) * SAMPLE_RATE);
+    this.clearDebt();
     if (this.source && this.position > this.source.frames - 1) {
       this.position = Math.max(0, this.source.frames - 1);
     }
   }
 
+  /**
+   * A nudge on a moving deck is a bend, not a jump: the head runs fast or slow
+   * for a moment and settles back where the nudge asked for, which is what a
+   * hand on a platter does. Jumping the head mid-flight clicks. Stopped, there
+   * is nothing to bend, so it stays a seek.
+   */
   nudgeMs(deltaMs: number): void {
-    this.seekMs(this.positionMs + deltaMs);
+    if (this.playing) this.bend((deltaMs / 1000) * SAMPLE_RATE, BEND_BIAS);
+    else this.seekMs(this.positionMs + deltaMs);
+  }
+
+  /**
+   * Asks for the head to be `frames` further on than it is heading, worked off
+   * at no more than `limit` extra rate. This is the one way anything moves the
+   * head without cutting the audio.
+   */
+  bend(frames: number, limit = PHASE_BIAS): void {
+    this.phaseDebt += frames;
+    this.bendLimit = Math.max(this.bendLimit, limit);
+  }
+
+  private clearDebt(): void {
+    this.phaseDebt = 0;
+    this.bendLimit = PHASE_BIAS;
   }
 
   setLoop(active: boolean, startMs?: number, endMs?: number): void {
@@ -179,26 +244,37 @@ export class Deck {
    * How many frames can be rendered before the position hits something that
    * needs handling — the end of a loop, or the end of the track.
    *
-   * The read head only ever moves forward (`rate` is clamped above zero), so
-   * the distance to a boundary divided by the rate is the number of frames
-   * until it fires. If the envelope closes mid-run the head advances *less*
-   * than that, which only ever makes the estimate conservative.
+   * The read head only ever moves forward, so the distance to a boundary
+   * divided by the rate is the number of frames until it fires. `fastest` is
+   * the quickest the head could possibly go over this run — the ramp is heading
+   * there and any repayment is on top — because an estimate that undershoots
+   * the real rate would sail past a loop point before anything noticed. If the
+   * envelope closes mid-run the head advances less than predicted, which only
+   * ever makes the estimate conservative, which is the safe direction.
    */
   private runLength(
     remaining: number,
     src: PcmSource,
     looping: boolean,
     loopEnd: number,
+    fastest: number,
   ): number {
     if (!this.advancing) return remaining;
     let run = remaining;
+    // Paused, but the transport fade is still running and the head still
+    // moving. It stops the frame the envelope closes, and the source is read a
+    // run at a time, so that has to be a boundary rather than a per-frame test.
+    if (!this.playing) {
+      const closes = Math.ceil(Math.log(0.0005 / this.envelope) / Math.log(1 - TRANSPORT_FADE));
+      run = Math.min(run, Math.max(1, closes - 1));
+    }
     // At least one frame, always: a head already sitting past a boundary — a
     // seek beyond the loop end, say — has to render a frame and then wrap,
     // exactly as the per-sample form did, or this would not terminate.
     if (looping) {
-      run = Math.min(run, Math.max(1, Math.ceil((loopEnd - this.position) / this.rate)));
+      run = Math.min(run, Math.max(1, Math.ceil((loopEnd - this.position) / fastest)));
     }
-    return Math.min(run, Math.max(1, Math.ceil((src.frames - 1 - this.position) / this.rate)));
+    return Math.min(run, Math.max(1, Math.ceil((src.frames - 1 - this.position) / fastest)));
   }
 
   /**
@@ -228,26 +304,52 @@ export class Deck {
     let peakL = 0;
     let peakR = 0;
 
+    const target = this.rate;
     let i = 0;
     while (i < n) {
-      const run = src ? this.runLength(n - i, src, looping, loopEnd) : n - i;
+      const remaining = n - i;
+      const advancing = this.advancing;
+
+      // Work off whatever the head owes, at whatever rate this debt is allowed
+      // to be repaid at. Spread over the frames left in the block so a debt
+      // small enough to clear inside one block does exactly that.
+      const bias = this.phaseDebt === 0
+        ? 0
+        : clamp(this.phaseDebt / remaining, -this.bendLimit, this.bendLimit);
+      const fastest = Math.max(this.currentRate, target) + Math.max(bias, 0);
+      const run = src ? this.runLength(remaining, src, looping, loopEnd, fastest) : remaining;
       const end = i + run;
+
+      // The source fills the output buffers for the whole run in one call and
+      // the rest of the chain works over them in place. A head that is not
+      // advancing reads at rate zero, which holds the frame it stopped on for
+      // as long as the fade takes — the same sample the per-frame form repeated.
+      if (!src) {
+        outL.fill(0, i, end);
+        outR.fill(0, i, end);
+      } else if (!advancing) {
+        src.readBlock(this.position, 0, 0, outL, outR, i, run);
+      } else {
+        const from = this.position;
+        const rateStart = this.currentRate + bias;
+        // Closed form for the run, so a block split into several runs smooths
+        // by exactly as much as one run of the same total length would.
+        this.currentRate = target + (this.currentRate - target) * (1 - RATE_SMOOTHING) ** run;
+        this.position = src.readBlock(this.position, rateStart, this.currentRate + bias, outL, outR, i, run);
+
+        // Book the difference between where the head went and where an instant,
+        // unsmoothed rate would have taken it. Repaid above on later runs, so
+        // none of this smoothing ever costs the deck its position.
+        this.phaseDebt += run * target - (this.position - from);
+        if (Math.abs(this.phaseDebt) < 1e-4) this.clearDebt();
+      }
 
       for (; i < end; i++) {
         this.envelope += ((this.playing ? 1 : 0) - this.envelope) * TRANSPORT_FADE;
         this.smoothedGain += (targetGain - this.smoothedGain) * GAIN_SMOOTHING;
 
-        let l = 0;
-        let r = 0;
-        if (src) {
-          src.sample(this.position, this.scratch);
-          l = this.scratch[0];
-          r = this.scratch[1];
-          if (this.advancing) this.position += this.rate;
-        }
-
-        l = this.isolator.process(0, l);
-        r = this.isolator.process(1, r);
+        let l = this.isolator.process(0, outL[i]);
+        let r = this.isolator.process(1, outR[i]);
 
         l = this.filters[0].process(l);
         r = this.filters[1].process(r);
@@ -285,6 +387,11 @@ export class Deck {
         }
       }
     }
+
+    // Pull the window forward for the next block rather than waiting for a read
+    // to miss, so the refill never lands in the same frame as the audio that
+    // wanted it. Costs nothing while there is still read-ahead in hand.
+    if (src) src.prefetch(this.position, true);
 
     this.meter[0] = peakL;
     this.meter[1] = peakR;

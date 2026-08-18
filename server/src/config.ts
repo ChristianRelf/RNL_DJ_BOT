@@ -114,6 +114,7 @@ export const config = {
     ffmpeg: process.env.FFMPEG_PATH ?? 'ffmpeg',
     ffprobe: process.env.FFPROBE_PATH ?? 'ffprobe',
     ytdlp: process.env.YTDLP_PATH ?? 'yt-dlp',
+    aubio: process.env.AUBIO_PATH ?? 'aubio',
   },
   logLevel: (process.env.LOG_LEVEL ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
 } as const;

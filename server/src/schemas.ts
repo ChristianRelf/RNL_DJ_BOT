@@ -127,6 +127,7 @@ export const commandSchemas = {
       tags: z.array(z.string().trim().min(1).max(24)).max(12).optional(),
     })
     .strict(),
+  'media:analyse': z.object({ id: mediaId }).strict(),
   'media:delete': z.object({ id: mediaId }).strict(),
   'control:request': z.object({}).strict(),
   'control:release': z.object({}).strict(),

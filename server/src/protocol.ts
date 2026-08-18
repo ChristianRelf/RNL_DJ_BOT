@@ -59,10 +59,44 @@ export interface MediaItem {
   uploadedAt: number;
   /** Mono peak envelope, PEAK_BUCKETS values in 0..1. Empty while processing. */
   peaks: number[];
+  /**
+   * Authoritative tempo. A hand-set value wins over anything detected, which is
+   * why this stays separate from the grid below rather than being read off it.
+   */
   bpm: number | null;
+  /** Where the beats are, or null when nothing trustworthy was found. */
+  beatGrid: BeatGrid | null;
+  /** Camelot notation, e.g. "8A". Set by hand for now. */
+  key: string | null;
   tags: string[];
   status: MediaStatus;
   error?: string;
+}
+
+/**
+ * Where the beats of a track are.
+ *
+ * Deliberately a tempo and an offset rather than a list of beat times. A list
+ * would be the honest shape for a track that genuinely drifts, but it is ~800
+ * numbers per track in a store that rewrites itself whole on every change and
+ * ships the full library on connect — and it turns every consumer, from a
+ * quantised cue to a tempo-locked delay, into a binary search instead of one
+ * multiply. Tracks that really do drift are the ones a single tempo cannot
+ * describe at all, and `confidence` is how those are refused rather than
+ * mis-described.
+ *
+ *   the nth beat, in source ms = beatOffsetMs + n * 60000 / bpm
+ */
+export interface BeatGrid {
+  bpm: number;
+  /** Where the first beat sits, 0 <= x < one beat. */
+  beatOffsetMs: number;
+  beatsPerBar: number;
+  /** Which beat of the bar lands on `beatOffsetMs`. Zero until somebody says. */
+  downbeat: number;
+  /** How well the detected beats agreed on one grid, 0..1. */
+  confidence: number;
+  source: 'auto' | 'manual';
 }
 
 export interface DeckEq {
@@ -352,6 +386,11 @@ export interface ClientCommands {
   'voice:join': { channelId: string };
   'voice:leave': Record<string, never>;
   'media:update': { id: string; title?: string; bpm?: number | null; tags?: string[] };
+  /**
+   * Re-reads the beat grid off an already-decoded track. Exists because aubio
+   * tends to get installed *after* a library has been imported, not before.
+   */
+  'media:analyse': { id: string };
   'media:delete': { id: string };
   'control:request': Record<string, never>;
   'control:release': Record<string, never>;

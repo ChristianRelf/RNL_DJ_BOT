@@ -145,6 +145,57 @@ try {
   check('double rate advances twice as fast', Math.abs(advanced - 2000) < 60, `${advanced.toFixed(0)}ms`);
   B.rate = 1;
 
+  // --- rate smoothing may not cost the deck its position ------------------
+  // The head follows the pitch fader over ~25 ms instead of stepping to it, so
+  // it advances slightly less than an instant jump would have. That shortfall
+  // is booked and repaid, and this is the assertion that it really is: after a
+  // pitch move the head must sit exactly where an unsmoothed one would have.
+  // Everything that cares where the head is — sync, loops, the grid — rests on
+  // this, so it is checked to well under a millisecond.
+  // Settle the head at unity first, then seek — which clears the debt the
+  // previous 2x pass booked. Measuring through someone else's outstanding debt
+  // measures the wrong thing.
+  B.rate = 1;
+  renderPeak(mixer, 60);
+  B.seekMs(60_000);
+  {
+    const start = B.positionMs;
+    B.rate = 1.06;
+    const blocks = 300;
+    renderPeak(mixer, blocks);
+    const moved = B.positionMs - start;
+    const ideal = ((blocks * FRAME_SAMPLES) / SAMPLE_RATE) * 1000 * 1.06;
+    check(
+      'a pitch move leaves no position error behind it',
+      Math.abs(moved - ideal) < 0.5,
+      `${moved.toFixed(3)}ms vs ${ideal.toFixed(3)}ms`,
+    );
+  }
+
+  // --- a nudge bends the head rather than jumping it ----------------------
+  {
+    B.rate = 1;
+    renderPeak(mixer, 60);
+    B.seekMs(80_000);
+    const start = B.positionMs;
+    B.nudgeMs(250);
+    const oneBlock = B.positionMs - start;
+    check(
+      'a nudge on a moving deck does not jump the head',
+      oneBlock < 1,
+      `moved ${oneBlock.toFixed(3)}ms immediately`,
+    );
+    const blocks = 120;
+    renderPeak(mixer, blocks);
+    const moved = B.positionMs - start;
+    const ideal = ((blocks * FRAME_SAMPLES) / SAMPLE_RATE) * 1000 + 250;
+    check(
+      'a nudge arrives in full once it has been worked off',
+      Math.abs(moved - ideal) < 0.5,
+      `${moved.toFixed(3)}ms vs ${ideal.toFixed(3)}ms`,
+    );
+  }
+
   // --- pads ---------------------------------------------------------------
   const pad = mixer.pads[0];
   pad.assign('short', 'sine', shortFile);

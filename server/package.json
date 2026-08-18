@@ -9,6 +9,8 @@
     "start": "node dist/index.js",
     "smoke": "node scripts/smoke.mjs",
     "bench": "node scripts/bench.mjs",
+    "quality": "node scripts/quality.mjs",
+    "beats": "node scripts/beats.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

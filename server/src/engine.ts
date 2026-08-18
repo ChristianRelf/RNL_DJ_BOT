@@ -27,6 +27,7 @@ import {
   type ToolsState,
   type VoiceChannelInfo,
 } from './protocol';
+import { analyseBeats } from './audio/beatgrid';
 import { oscSender } from './tools/osc';
 import { nowPlaying } from './tools/nowPlaying';
 
@@ -450,6 +451,25 @@ export class Engine extends EventEmitter {
         return;
 
       // ---- media -------------------------------------------------------
+      case 'media:analyse': {
+        const item = store.getMedia(payload.id);
+        if (!item) throw new CommandError('That track is no longer in the pool.');
+        if (!user.isAdmin && item.uploadedBy.id !== user.id) {
+          throw new CommandError('Only the uploader or an admin can re-analyse that track.');
+        }
+        if (item.status !== 'ready') throw new CommandError('That track is still being decoded.');
+        // Not awaited: analysis takes seconds and the command should not hold
+        // the socket open for it. The pool is told again when it lands.
+        void decodeQueue.add(async () => {
+          await this.analyse(item);
+          if (!item.beatGrid) {
+            this.toast('warn', `No beat grid found for "${item.title}".`, user.id);
+          }
+        });
+        this.toast('info', `Analysing "${item.title}"...`, user.id);
+        return;
+      }
+
       case 'media:update': {
         const item = store.getMedia(payload.id);
         if (!item) throw new CommandError('That track is no longer in the pool.');
@@ -559,6 +579,8 @@ export class Engine extends EventEmitter {
       uploadedAt: Date.now(),
       peaks: [],
       bpm: null,
+      beatGrid: null,
+      key: null,
       tags: [],
       status: 'processing',
     };
@@ -582,9 +604,37 @@ export class Engine extends EventEmitter {
       }
       store.putMedia(item);
       this.emitMedia();
+
+      // The track is playable from here. Beat analysis adds seconds on top of
+      // the decode for something optional, so it runs after the pool has
+      // already been told, and a crashed or missing aubio cannot take the
+      // upload down with it. Still inside the decode job, so a burst of
+      // uploads cannot pin every core between them.
+      if (item.status === 'ready') await this.analyse(item);
     });
 
     return item;
+  }
+
+  /**
+   * Reads the beat grid off a decoded track and stores it. Safe to call again
+   * later — which is the point of the command that does, because operators
+   * install aubio *after* importing a library, not before.
+   */
+  private async analyse(item: MediaItem): Promise<void> {
+    const grid = await analyseBeats(pcmPath(item.id), item.durationMs);
+    if (!grid) return;
+    item.beatGrid = grid;
+    // Detected tempo fills a blank, but never overrules a number somebody
+    // typed or tapped: they were listening to it and the detector was not.
+    if (item.bpm === null) item.bpm = grid.bpm;
+    store.putMedia(item);
+    this.syncTitles(item);
+    this.emitMedia();
+    log.info(
+      `beat grid for "${item.title}": ${grid.bpm} bpm, offset ${grid.beatOffsetMs}ms, ` +
+        `confidence ${(grid.confidence * 100).toFixed(0)}%`,
+    );
   }
 
   private async deleteMedia(item: MediaItem): Promise<void> {

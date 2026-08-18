@@ -135,6 +135,13 @@ class Store {
       // Merged over the defaults so a database written before a tool existed
       // gains it switched off rather than undefined.
       this.data.tools = { ...DEFAULT_TOOLS, ...(parsed.tools ?? {}) };
+      // Media written before the grid existed has neither field, and
+      // `JSON.stringify` drops `undefined` — so without this the web side sees
+      // a property that is not there rather than one that is null.
+      for (const item of Object.values(this.data.media)) {
+        if (item.beatGrid === undefined) item.beatGrid = null;
+        if (item.key === undefined) item.key = null;
+      }
       if (!Array.isArray(this.data.pads) || this.data.pads.length !== 8) {
         this.data.pads = defaults().pads;
       }

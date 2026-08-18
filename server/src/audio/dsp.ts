@@ -34,6 +34,17 @@ export class Biquad {
     this.x1 = this.x2 = this.y1 = this.y2 = 0;
   }
 
+  /**
+   * Starts the filter as if it had been fed `x` since the beginning of time,
+   * rather than silence. A filter picked up mid-signal — after a seek, or when
+   * one is switched into a running path — otherwise has to climb out of zero,
+   * and that climb is a click. Only meaningful for filters with unity gain at
+   * DC, which is every one this file makes.
+   */
+  prime(x: number): void {
+    this.x1 = this.x2 = this.y1 = this.y2 = x;
+  }
+
   process(x: number): number {
     if (this.bypass) return x;
     const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2 - this.a1 * this.y1 - this.a2 * this.y2;
