@@ -6282,3 +6282,96 @@ kbd {
     transition: none;
   }
 }
+
+/* --- music folder ---------------------------------------------------------
+   The panel that answers "where is the audio coming from". A rig plays off a
+   folder on somebody's machine, so the hosting state is worth showing loudly:
+   closing that tab is the one action on this console the room can hear.
+   ------------------------------------------------------------------------ */
+
+.library {
+  gap: 8px;
+}
+
+.library.is-hosting {
+  box-shadow: var(--raise), inset 0 0 0 1px var(--accent-dim);
+}
+
+.library-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.library-folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.library-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-stats {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.library-progress,
+.library-decoding {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.library-note {
+  margin: 0;
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.library-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0;
+  color: var(--danger);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* A track the hosting device's last scan could not find. Dimmed rather than
+   struck through: the file is almost certainly fine, it is the folder that is
+   not there — an unplugged drive, or nobody hosting yet. */
+.track.missing {
+  opacity: 0.45;
+}
+
+.track.missing .track-meta {
+  color: var(--dim);
+}

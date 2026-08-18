@@ -4,7 +4,13 @@ import { checkAccess, readSessionToken, verifySession } from './auth';
 import { engine, CommandError } from './engine';
 import { store } from './store';
 import { createLogger } from './logger';
-import { audioChunkSchema, audioGoneSchema, audioNoneSchema, hostTracksSchema } from './schemas';
+import {
+  audioChunkSchema,
+  audioGoneSchema,
+  audioNoneSchema,
+  hostTracksSchema,
+  mediaPeaksSchema,
+} from './schemas';
 import type { Ack, SessionUser, Toast } from './protocol';
 
 const log = createLogger('realtime');
@@ -26,6 +32,7 @@ const TRANSPORT_EVENTS = new Set([
   'audio:chunk',
   'audio:none',
   'audio:gone',
+  'media:peaks',
 ]);
 
 /** Coalescing window for state broadcasts. */
@@ -135,6 +142,7 @@ function wireHost(socket: Socket, user: SessionUser): void {
       // has since been replaced as host.
       send: (need) => socket.emit('audio:need', need),
     });
+    if (result.ok) engine.syncLibrary(parsed.data.tracks);
     respond(result.ok ? { ok: true } : { ok: false, error: result.reason ?? 'Already hosted.' });
   });
 
@@ -146,6 +154,7 @@ function wireHost(socket: Socket, user: SessionUser): void {
       return;
     }
     const ok = engine.host.update(socket.id, parsed.data.tracks);
+    if (ok) engine.syncLibrary(parsed.data.tracks);
     respond(ok ? { ok: true } : { ok: false, error: 'You are not hosting this rig.' });
   });
 
@@ -175,6 +184,12 @@ function wireHost(socket: Socket, user: SessionUser): void {
     const parsed = audioNoneSchema.safeParse(payload ?? {});
     if (!parsed.success) return;
     engine.host.decline(socket.id, parsed.data.sourceKey, parsed.data.seq, parsed.data.fromFrame);
+  });
+
+  socket.on('media:peaks', (payload: unknown) => {
+    const parsed = mediaPeaksSchema.safeParse(payload ?? {});
+    if (!parsed.success) return;
+    engine.registerPeaks(parsed.data.trackId, parsed.data.peaks, parsed.data.frames);
   });
 
   socket.on('audio:gone', (payload: unknown) => {

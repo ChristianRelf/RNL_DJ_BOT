@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useDj, useThrottledSend } from './socket';
+import { useLibrary } from './lib/useLibrary';
 import { TopBar } from './components/TopBar';
 import { MediaPool } from './components/MediaPool';
 import { QueuePanel } from './components/QueuePanel';
@@ -23,6 +24,7 @@ import { ConsoleGrid } from './components/ConsoleGrid';
 import { MixerAdvanced } from './components/MixerAdvanced';
 import { FxRack } from './components/FxRack';
 import { MidiPanel } from './components/MidiPanel';
+import { LibraryPanel } from './components/LibraryPanel';
 import {
   compact,
   defaultLayout,
@@ -45,6 +47,7 @@ const DECK_ACCENT = { A: '#5b9dd9', B: '#d98b4a' } as const;
 /** Both views share the socket and the session gate, so they share a component. */
 export default function App({ view = 'console' }: { view?: 'console' | 'tools' }) {
   const dj = useDj();
+  const library = useLibrary(dj.socket);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const throttled = useThrottledSend(dj.send);
 
@@ -301,6 +304,7 @@ export default function App({ view = 'console' }: { view?: 'console' | 'tools' }
       />
     ),
     midi: <MidiPanel midi={midi} />,
+    library: <LibraryPanel library={library} host={state.host} meId={me.id} />,
   };
 
   return (

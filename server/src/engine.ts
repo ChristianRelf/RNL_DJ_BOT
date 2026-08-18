@@ -4,7 +4,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { Mixer } from './audio/mixer';
-import { HostSession } from './audio/hostSession';
+import { HostSession, type HostTrack } from './audio/hostSession';
 import { FileWindowReader, type WindowReader } from './audio/windowReader';
 import { VoiceManager } from './discord/voice';
 import { ControlLock } from './control';
@@ -21,6 +21,7 @@ import {
   DECK_IDS,
   PAD_COUNT,
   QUEUE_LIMIT,
+  SAMPLE_RATE,
   type DeckId,
   type EngineState,
   type MediaItem,
@@ -326,6 +327,84 @@ export class Engine extends EventEmitter {
   }
 
   /**
+   * The waveform envelope for a track, computed on the device as it decoded.
+   *
+   * The frame count that comes with it is the decoder's, which supersedes the
+   * estimate the scan read off file metadata — approximate for anything
+   * variable-bitrate, and the difference is audible at the end of a track.
+   */
+  registerPeaks(trackId: string, peaks: number[], frames: number): void {
+    const item = store.getMedia(trackId);
+    if (!item) return;
+    item.peaks = peaks;
+    if (frames > 0) item.durationMs = Math.round((frames / SAMPLE_RATE) * 1000);
+    store.putMedia(item);
+    this.syncTitles(item);
+    this.emitMedia();
+  }
+
+  /**
+   * Brings the pool in line with what the hosting device can actually serve.
+   *
+   * The device is authoritative about which files exist; the server is
+   * authoritative about everything anybody has decided about them — the tempo
+   * somebody tapped, the beat grid, the tags. So a scan updates the first and
+   * never touches the second, and a track that has dropped out of the folder is
+   * marked missing rather than removed. Unplugging a drive should not throw away
+   * a set's worth of cue points.
+   */
+  syncLibrary(tracks: HostTrack[]): void {
+    const seen = new Set<string>();
+
+    for (const track of tracks) {
+      seen.add(track.trackId);
+      const existing = store.getMedia(track.trackId);
+      const durationMs = Math.round((track.frames / SAMPLE_RATE) * 1000);
+
+      if (existing) {
+        existing.status = 'ready';
+        existing.durationMs = durationMs;
+        existing.sizeBytes = track.sizeBytes;
+        existing.originalName = track.path;
+        delete existing.error;
+        // The title is left alone: a rename on the console is a decision, and
+        // the file name is only ever where the first guess came from.
+        store.putMedia(existing);
+        continue;
+      }
+
+      store.putMedia({
+        id: track.trackId,
+        title: track.title,
+        originalName: track.path,
+        durationMs,
+        sizeBytes: track.sizeBytes,
+        uploadedBy: { id: this.host.snapshot().userId ?? '', name: this.host.snapshot().userName ?? 'library' },
+        uploadedAt: Date.now(),
+        peaks: [],
+        bpm: null,
+        beatGrid: null,
+        key: null,
+        tags: [],
+        status: 'ready',
+      });
+    }
+
+    // Anything the scan did not mention is out of reach for now. Legacy tracks
+    // that still have a decoded file on disk are exempt — they play without a
+    // host at all, and calling them missing would be plainly wrong.
+    for (const item of store.listMedia()) {
+      if (seen.has(item.id) || item.status === 'missing') continue;
+      if (fs.existsSync(pcmPath(item.id))) continue;
+      item.status = 'missing';
+      store.putMedia(item);
+    }
+
+    this.emitMedia();
+    this.bumpState();
+  }
+
+  /**
    * Where a track's audio comes from.
    *
    * A file decoded to disk by an older version of the rig still plays from
@@ -609,6 +688,9 @@ export class Engine extends EventEmitter {
   private readyMedia(id: string): MediaItem {
     const item = store.getMedia(id);
     if (!item) throw new CommandError('That track is not in the pool.');
+    if (item.status === 'missing') {
+      throw new CommandError(`"${item.title}" is not in the hosted folder right now.`);
+    }
     if (item.status !== 'ready') throw new CommandError(`"${item.title}" is still processing.`);
     return item;
   }

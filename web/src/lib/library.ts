@@ -4,7 +4,7 @@ import {
   type ScannedTrack,
 } from './folder';
 import type { WorkerReply, WorkerRequest } from './libraryWorker';
-import type { AudioNeedMessage } from '../protocol';
+import { PEAK_BUCKETS, type AudioNeedMessage } from '../protocol';
 
 const CHANNELS = 2;
 const SAMPLE_RATE = 48000;
@@ -36,6 +36,8 @@ export interface LibraryEvents {
   onScanProgress?: (found: number, current: string) => void;
   onDecodeStart?: (trackId: string) => void;
   onDecodeDone?: (trackId: string, frames: number) => void;
+  /** The waveform envelope, once there is one. Sent on to the server. */
+  onPeaks?: (trackId: string, peaks: number[], frames: number) => void;
   onError?: (message: string) => void;
 }
 
@@ -186,6 +188,12 @@ export class Library {
     const left = audio.getChannelData(0);
     const right = audio.numberOfChannels > 1 ? audio.getChannelData(1) : left;
 
+    // The waveform envelope is built in the same pass as the conversion. It is
+    // the only pass over the samples there will be, and walking a decoded track
+    // twice to draw a picture of it would be the expensive kind of tidy.
+    const peaks = new Float32Array(PEAK_BUCKETS);
+    const perBucket = audio.length / PEAK_BUCKETS;
+
     await this.ask({ kind: 'begin', trackId });
     try {
       for (let start = 0; start < audio.length; start += WRITE_CHUNK_FRAMES) {
@@ -200,6 +208,10 @@ export class Library {
           const r = Math.max(-1, Math.min(1, right[start + i]));
           view[i * 2] = l < 0 ? l * 32768 : l * 32767;
           view[i * 2 + 1] = r < 0 ? r * 32768 : r * 32767;
+
+          const bucket = Math.min(PEAK_BUCKETS - 1, ((start + i) / perBucket) | 0);
+          const magnitude = Math.max(l < 0 ? -l : l, r < 0 ? -r : r);
+          if (magnitude > peaks[bucket]) peaks[bucket] = magnitude;
         }
         await this.ask({ kind: 'append', trackId, pcm: buffer }, [buffer]);
       }
@@ -220,6 +232,7 @@ export class Library {
       this.events.onTracks?.(this.trackList);
     }
 
+    this.events.onPeaks?.(trackId, Array.from(peaks, (v) => Math.round(v * 1000) / 1000), frames);
     this.events.onDecodeDone?.(trackId, frames);
     return frames;
   }

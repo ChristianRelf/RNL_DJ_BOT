@@ -324,7 +324,9 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                       ? `${formatTime(item.durationMs)}  ${formatBytes(item.sizeBytes)}`
                       : item.status === 'processing'
                         ? 'decoding...'
-                        : item.error ?? 'failed'}
+                        : item.status === 'missing'
+                          ? 'not in the hosted folder'
+                          : item.error ?? 'failed'}
                     {'   '}
                     {item.uploadedBy.name} {relativeTime(item.uploadedAt)}
                   </span>

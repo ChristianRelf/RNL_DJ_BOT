@@ -19,6 +19,14 @@ export interface ToastEntry extends Toast {
 
 export interface DjClient {
   status: ConnectionStatus;
+  /**
+   * The live socket, for the audio channel.
+   *
+   * Exposed because hosting is not a command — it does not go through `send`,
+   * it answers requests the server makes — so the library hook needs the socket
+   * itself rather than the command surface built on top of it.
+   */
+  socket: Socket | null;
   error: string | null;
   user: SessionUser | null;
   state: EngineState | null;
@@ -38,6 +46,7 @@ export function useDj(): DjClient {
   const [state, setState] = useState<EngineState | null>(null);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
+  const [socketInstance, setSocketInstance] = useState<Socket | null>(null);
 
   const pushToast = useCallback((toast: Toast) => {
     const entry = { ...toast, id: ++toastSeq };
@@ -55,6 +64,7 @@ export function useDj(): DjClient {
       reconnectionDelayMax: 4000,
     });
     socketRef.current = socket;
+    setSocketInstance(socket);
 
     socket.on('connect', () => {
       setStatus('online');
@@ -93,6 +103,7 @@ export function useDj(): DjClient {
       socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;
+      setSocketInstance(null);
     };
   }, [pushToast]);
 
@@ -125,8 +136,8 @@ export function useDj(): DjClient {
   }, []);
 
   return useMemo(
-    () => ({ status, error, user, state, media, toasts, dismiss, send }),
-    [status, error, user, state, media, toasts, dismiss, send],
+    () => ({ status, error, user, state, media, toasts, dismiss, send, socket: socketInstance }),
+    [status, error, user, state, media, toasts, dismiss, send, socketInstance],
   );
 }
 

@@ -47,7 +47,13 @@ export interface ActiveBot {
   error: string | null;
 }
 
-export type MediaStatus = 'processing' | 'ready' | 'error';
+/**
+ * `missing` is a track the pool knows about that the hosting device's last scan
+ * could not find — a file moved, a drive unplugged, nobody hosting. It is kept
+ * rather than deleted so a queue entry, a pad assignment or a beat grid pointing
+ * at it survives until the folder comes back.
+ */
+export type MediaStatus = 'processing' | 'ready' | 'error' | 'missing';
 
 export interface MediaItem {
   id: string;

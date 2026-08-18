@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PAD_COUNT } from './protocol';
+import { PAD_COUNT, PEAK_BUCKETS } from './protocol';
 import { WEBHOOK_PATTERN } from './tools/nowPlaying';
 
 const deckId = z.enum(['A', 'B']);
@@ -215,3 +215,12 @@ export const audioChunkSchema = z
 export const audioNoneSchema = audioChunkSchema;
 
 export const audioGoneSchema = z.object({ trackId }).strict();
+
+/** The waveform envelope, computed on the device while it decodes. */
+export const mediaPeaksSchema = z
+  .object({
+    trackId,
+    peaks: z.array(z.number().min(0).max(1)).length(PEAK_BUCKETS),
+    frames: z.number().int().min(0),
+  })
+  .strict();

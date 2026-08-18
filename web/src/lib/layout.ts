@@ -30,7 +30,8 @@ export type WidgetId =
   | 'shortcuts'
   | 'mixerAdvanced'
   | 'fx'
-  | 'midi';
+  | 'midi'
+  | 'library';
 
 /** Groups the palette sorts tools into. */
 export type WidgetGroup = 'decks' | 'mix' | 'library' | 'info';
@@ -98,6 +99,16 @@ export function rowsForPx(px: number): number {
  * and "fit" measures the panel and sizes the tile to its content exactly.
  */
 export const WIDGETS: WidgetSpec[] = [
+  {
+    id: 'library',
+    name: 'Music folder',
+    hint: 'Where the audio comes from - a folder on your machine',
+    group: 'library',
+    w: 3,
+    h: 12,
+    minW: 2,
+    minH: 8,
+  },
   {
     id: 'pool',
     name: 'Media pool',
