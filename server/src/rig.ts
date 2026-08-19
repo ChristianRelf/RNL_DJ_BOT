@@ -21,11 +21,13 @@ import {
   DECK_IDS,
   PAD_COUNT,
   QUEUE_LIMIT,
+  REQUEST_LIMIT,
   SAMPLE_RATE,
   type DeckId,
   type EngineState,
   type MediaItem,
   type PresenceUser,
+  type RequestItem,
   type SessionUser,
   type Toast,
   type ToolsState,
@@ -163,6 +165,7 @@ export class Rig extends EventEmitter {
       decks: { A: this.mixer.decks.A.snapshot(), B: this.mixer.decks.B.snapshot() },
       pads: this.mixer.pads.map((p) => p.snapshot()),
       queue: { items: [...this.store.db.queue.items], auto: this.store.db.queue.auto },
+      requests: [...this.store.db.requests],
       mixer: this.mixer.mixerSnapshot(),
       tools: { ...this.store.db.tools },
       bot: this.bots.active(),
@@ -341,6 +344,99 @@ export class Rig extends EventEmitter {
     if (!item) return false;
     this.toast('info', `Deck ${deck}: "${item.title}" from the queue.`);
     return true;
+  }
+
+  // -------------------------------------------------------------- requests ---
+
+  /**
+   * Files an ask from somebody in the Discord server.
+   *
+   * Called from the HTTP side rather than through `execute`, because the person
+   * asking is not on the console socket — they are a guild member with no DJ
+   * role, which is exactly who the request page is for. Everything that decides
+   * whether they may ask at all (the tool being on, membership, the rate limit)
+   * is settled before this is reached; what is left here is the rig's own rules
+   * about the list.
+   */
+  addRequest(
+    by: { id: string; name: string; avatarUrl: string | null },
+    ask: { mediaId: string | null; text: string; note: string },
+  ): RequestItem {
+    if (!this.store.db.tools.requests) {
+      throw new CommandError('This rig is not taking requests right now.');
+    }
+
+    const requests = this.store.db.requests;
+    // A track already waiting is not worth asking for twice, whoever asks. The
+    // booth would only see the same title on two rows and have to decline one.
+    const duplicate = requests.find(
+      (entry) =>
+        entry.status === 'pending' &&
+        (ask.mediaId
+          ? entry.mediaId === ask.mediaId
+          : entry.text.toLowerCase() === ask.text.toLowerCase()),
+    );
+    if (duplicate) {
+      throw new CommandError(
+        duplicate.by.id === by.id
+          ? 'You have already asked for that one.'
+          : 'Somebody has already asked for that — it is on the list.',
+      );
+    }
+
+    const item = ask.mediaId ? this.readyMedia(ask.mediaId) : null;
+    const entry: RequestItem = {
+      id: crypto.randomUUID(),
+      mediaId: item?.id ?? null,
+      // A library pick is stored under the title as it stands now, so the row
+      // still reads sensibly if the track is later renamed or removed.
+      text: item ? item.title : ask.text,
+      note: ask.note,
+      by,
+      at: Date.now(),
+      status: 'pending',
+      handledBy: null,
+      handledAt: null,
+    };
+
+    requests.unshift(entry);
+    this.trimRequests();
+    this.store.save();
+    this.toast('info', `${by.name} asked for "${entry.text}".`);
+    this.bumpState();
+    return entry;
+  }
+
+  /** Everything this person has asked for, newest first. */
+  requestsBy(userId: string): RequestItem[] {
+    return this.store.db.requests.filter((entry) => entry.by.id === userId);
+  }
+
+  /**
+   * Keeps the list at its ceiling by dropping what has already been dealt with,
+   * oldest first. A pending ask is only ever dropped when there is nothing else
+   * left to drop — somebody waiting to hear their track should not fall off the
+   * end because the booth declined forty others.
+   */
+  private trimRequests(): void {
+    const requests = this.store.db.requests;
+    while (requests.length > REQUEST_LIMIT) {
+      let index = -1;
+      for (let i = requests.length - 1; i >= 0; i--) {
+        if (requests[i].status !== 'pending') {
+          index = i;
+          break;
+        }
+      }
+      requests.splice(index >= 0 ? index : requests.length - 1, 1);
+    }
+  }
+
+  private requestOf(id: string): RequestItem {
+    const entry = this.store.db.requests.find((request) => request.id === id);
+    if (!entry) throw new CommandError('That request is no longer on the list.');
+    if (entry.status !== 'pending') throw new CommandError('That request has already been dealt with.');
+    return entry;
   }
 
   /**
@@ -568,6 +664,61 @@ export class Rig extends EventEmitter {
         this.store.db.queue.auto = payload.auto;
         this.store.save();
         return;
+
+      // ---- requests ----------------------------------------------------
+      case 'requests:accept': {
+        const request = this.requestOf(payload.id);
+        if (!request.mediaId) {
+          throw new CommandError(
+            'That one is somebody describing a track, not picking one — find it in the pool and queue it yourself.',
+          );
+        }
+        const item = this.readyMedia(request.mediaId);
+        const queue = this.store.db.queue;
+        if (queue.items.length >= QUEUE_LIMIT) {
+          throw new CommandError(`The queue is full (${QUEUE_LIMIT} tracks).`);
+        }
+        // Credited to whoever asked, not to whoever accepted: the queue already
+        // answers "who wanted this", and the booth taking the credit for it
+        // would lose the only place that is recorded.
+        const entry = {
+          id: crypto.randomUUID(),
+          mediaId: item.id,
+          addedBy: { id: request.by.id, name: request.by.name },
+          addedAt: Date.now(),
+        };
+        if (payload.next) queue.items.unshift(entry);
+        else queue.items.push(entry);
+
+        request.status = 'accepted';
+        request.handledBy = user.displayName;
+        request.handledAt = Date.now();
+        this.store.save();
+        this.toast(
+          'success',
+          `"${item.title}" for ${request.by.name} — ${payload.next ? 'up next' : `${queue.items.length} in the queue`}.`,
+        );
+        return;
+      }
+      case 'requests:decline': {
+        const request = this.requestOf(payload.id);
+        request.status = 'declined';
+        request.handledBy = user.displayName;
+        request.handledAt = Date.now();
+        this.store.save();
+        return;
+      }
+      case 'requests:clear': {
+        const requests = this.store.db.requests;
+        // Only what has been dealt with. Clearing a pending ask without either
+        // accepting or declining it would be a way to make it vanish from the
+        // list without anybody having answered it.
+        const kept = requests.filter((entry) => entry.status === 'pending');
+        if (kept.length === requests.length) return;
+        this.store.db.requests = kept;
+        this.store.save();
+        return;
+      }
 
       // ---- pads --------------------------------------------------------
       case 'pad:assign': {

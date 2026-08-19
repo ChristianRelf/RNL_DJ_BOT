@@ -5,6 +5,7 @@ import { apiBase, fetchRigs, type RigSummary } from './lib/rigs';
 import { TopBar } from './components/TopBar';
 import { MediaPool } from './components/MediaPool';
 import { QueuePanel } from './components/QueuePanel';
+import { RequestsPanel } from './components/RequestsPanel';
 import { DeckPanel } from './components/DeckPanel';
 import { MixerPanel } from './components/MixerPanel';
 import { Pads } from './components/Pads';
@@ -279,6 +280,7 @@ export default function App({
         send={dj.send}
       />
     ),
+    requests: <RequestsPanel requests={state.requests} locked={locked} send={dj.send} />,
     deckA: (
       <DeckPanel
         deck={state.decks.A}

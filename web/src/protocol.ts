@@ -219,6 +219,39 @@ export interface QueueState {
 /** The most tracks that can be lined up at once. */
 export const QUEUE_LIMIT = 200;
 
+/**
+ * A track somebody in the server has asked for.
+ *
+ * Requests are not the queue. Anyone with a DJ role can put a track in the
+ * queue themselves; a request comes from the rest of the room, who have no
+ * console and no library, and it is an ask rather than an instruction — it
+ * only becomes a queue entry when whoever is on the decks accepts it.
+ *
+ * `mediaId` is set when they picked a track out of the rig's library, which is
+ * what makes accepting it one click. It is null for a free-text ask, where all
+ * the booth has is what they typed and finding the record is the DJ's job.
+ */
+export interface RequestItem {
+  id: string;
+  mediaId: string | null;
+  /** What they asked for: the track's title, or free text they typed. */
+  text: string;
+  /** Anything they wanted to say with it — a dedication, a time to play it. */
+  note: string;
+  by: { id: string; name: string; avatarUrl: string | null };
+  at: number;
+  status: 'pending' | 'accepted' | 'declined';
+  /** Who dealt with it, and when. Null while it is still pending. */
+  handledBy: string | null;
+  handledAt: number | null;
+}
+
+/**
+ * The most requests kept at once. Older *handled* ones are dropped first, so a
+ * busy night never pushes a pending ask off the end of the list.
+ */
+export const REQUEST_LIMIT = 120;
+
 export interface MixerState {
   /** -1 = deck A only, +1 = deck B only */
   crossfader: number;
@@ -276,6 +309,12 @@ export interface ToolsState {
   presence: boolean;
   /** Posts each track to a Discord channel as it takes over the mix. */
   announce: boolean;
+  /**
+   * Opens the request page at /g/<slug>/request to everyone in the Discord
+   * server — members without a DJ role included, who cannot reach anything
+   * else. Off until somebody opens it, like every other tool here.
+   */
+  requests: boolean;
   /** Discord webhook URL the announcements go to. Blank means nowhere. */
   announceWebhook: string;
 }
@@ -373,6 +412,7 @@ export interface EngineState {
   decks: Record<DeckId, DeckState>;
   pads: PadState[];
   queue: QueueState;
+  requests: RequestItem[];
   mixer: MixerState;
   tools: ToolsState;
   bot: ActiveBot;
@@ -441,6 +481,11 @@ export interface ClientCommands {
   /** Takes the next track off the queue and loads it onto a deck. */
   'queue:load': { deck: DeckId; play?: boolean };
   'queue:set': { auto: boolean };
+  /** Takes a request and lines the track up. Free-text asks cannot be accepted. */
+  'requests:accept': { id: string; next?: boolean };
+  'requests:decline': { id: string };
+  /** Drops everything already dealt with, leaving what is still pending. */
+  'requests:clear': Record<string, never>;
   'pad:assign': { index: number; mediaId: string | null };
   'pad:trigger': { index: number };
   'pad:stop': { index: number };
@@ -507,3 +552,42 @@ export interface BotSummary {
   error: string | null;
 }
 
+/* --------------------------------------------------------- request page */
+
+/**
+ * Shapes for the request page, which is HTTP rather than socket.
+ *
+ * Everything here is answered to any *member* of the guild, not just its DJs —
+ * that is the whole point of the page — so it carries the least it can: no
+ * media ids the caller did not search for, no library listing, nothing about
+ * who else has asked for what.
+ */
+export interface RequestRigSummary {
+  id: string;
+  slug: string;
+  name: string;
+  /** Whether the rig is taking requests at all. */
+  open: boolean;
+  /** In a voice channel right now. */
+  live: boolean;
+}
+
+/** One search hit on the rig's library, as a requester is allowed to see it. */
+export interface RequestTrack {
+  mediaId: string;
+  title: string;
+  durationMs: number;
+  bpm: number | null;
+}
+
+export interface RequestPageInfo {
+  rig: RequestRigSummary;
+  /** Who the server thinks is asking. Their name rides along with the ask. */
+  user: { id: string; displayName: string; avatarUrl: string | null };
+  /** What the room is hearing, or null when the decks are quiet. */
+  nowPlaying: string | null;
+  /** This person's own asks, newest first — including ones already dealt with. */
+  mine: RequestItem[];
+  /** How many more they may send before the rate limit stops them. */
+  remaining: number;
+}

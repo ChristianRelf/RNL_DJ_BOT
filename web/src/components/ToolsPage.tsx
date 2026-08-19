@@ -403,6 +403,48 @@ function Osc({
   );
 }
 
+/* -------------------------------------------------------------- requests */
+
+/**
+ * The link that goes in the voice channel.
+ *
+ * Both forms are shown because they are both real: the short one is what gets
+ * read out, the long one is what survives being pasted somewhere that another
+ * rig might also be linked.
+ */
+function Requests({ slug }: { slug: string }) {
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+  const short = `${origin}/${slug}/request`;
+
+  return (
+    <>
+      <label className="tool-field">
+        <span>Request page</span>
+        <div className="tool-row">
+          <input
+            className="tool-input mono"
+            readOnly
+            value={short}
+            onFocus={(event) => event.target.select()}
+          />
+          <CopyButton value={short} />
+        </div>
+      </label>
+
+      <p className="tool-note">
+        Anyone in the Discord server can open this and ask for a track — they do not need a DJ
+        role, and members who have never seen the console sign in with Discord the same way you
+        did. They can search what is in the library and pick a record, or just type what they are
+        after; nothing they send touches the decks until somebody accepts it.
+      </p>
+      <p className="tool-note">
+        What comes in shows up on the <strong>Requests</strong> panel. If it is not on your
+        console, it is in the tray — hit ARRANGE and drag it out.
+      </p>
+    </>
+  );
+}
+
 /* ------------------------------------------------------------------ page */
 
 export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPageProps) {
@@ -492,6 +534,16 @@ export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPagePro
           onToggle={(announce) => set({ announce })}
         >
           <Announce tools={tools} locked={locked} send={send} />
+        </Tool>
+
+        <Tool
+          name="Requests"
+          summary="Opens a page where the room can ask for a track, without giving anyone the decks."
+          on={tools.requests}
+          locked={locked}
+          onToggle={(requests) => set({ requests })}
+        >
+          <Requests slug={slug} />
         </Tool>
 
         <Tool

@@ -16,6 +16,7 @@
 export type WidgetId =
   | 'pool'
   | 'queue'
+  | 'requests'
   | 'deckA'
   | 'mixer'
   | 'deckB'
@@ -123,6 +124,16 @@ export const WIDGETS: WidgetSpec[] = [
     id: 'queue',
     name: 'Queue',
     hint: 'What is lined up next, and who asked for it',
+    group: 'library',
+    w: 3,
+    h: 18,
+    minW: 2,
+    minH: 8,
+  },
+  {
+    id: 'requests',
+    name: 'Requests',
+    hint: 'What the room has asked for, from the request page',
     group: 'library',
     w: 3,
     h: 18,

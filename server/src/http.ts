@@ -16,6 +16,7 @@ import {
   isPlatformAdmin,
   maySignIn,
   newState,
+  readStateCookie,
   requirePlatformAdmin,
   requireUser,
   setStateCookie,
@@ -27,6 +28,7 @@ import type { Rig } from './rig';
 import * as platform from './db/platform';
 import { createLogger } from './logger';
 import { mountOnboarding } from './onboard';
+import { mountRequests } from './requests';
 import { fetchAudio, ImportError } from './tools/importUrl';
 import { DECK_IDS, type MediaItem, type SessionUser } from './protocol';
 
@@ -36,6 +38,13 @@ const upload = multer({
   dest: config.paths.tmpDir,
   limits: { fileSize: config.http.maxUploadBytes, files: 8 },
 });
+
+/**
+ * The pages somebody who is not on the allowlist is allowed to be sent to after
+ * signing in. Kept as one pattern rather than checked in two places, because it
+ * is the line between a listener session and a DJ one.
+ */
+const REQUEST_PATH = /^\/(?:g\/)?[a-z0-9-]+\/request$|^\/request$/;
 
 /** The most people who can be waiting at once, as a backstop against a flood. */
 const WAITLIST_LIMIT = 5000;
@@ -131,15 +140,22 @@ export function createApp(): express.Express {
 
   // ------------------------------------------------------------- auth ---
 
+  /**
+   * `next` is where to land afterwards — the request page uses it, because
+   * somebody who followed a link to ask for a track should end up back at that
+   * rig's page and not at a console they cannot open. Only same-site paths are
+   * kept; anything else is dropped and they go to the front door.
+   */
   app.get('/api/auth/login', (req, res) => {
     const state = newState();
-    setStateCookie(res, state);
+    const wanted = String(req.query.next ?? '');
+    setStateCookie(res, state, /^\/(?!\/)[\w\-/]*$/.test(wanted) ? wanted : undefined);
     res.redirect(authorizeUrl(state));
   });
 
   app.get('/api/auth/callback', async (req, res) => {
     const { code, state, error } = req.query as Record<string, string | undefined>;
-    const expected = req.cookies?.[cookieNames.state];
+    const { state: expected, next } = readStateCookie(req.cookies?.[cookieNames.state]);
     res.clearCookie(cookieNames.state, { path: '/' });
 
     // Failures go back to /login rather than /, so the reason lands beside the
@@ -153,15 +169,6 @@ export function createApp(): express.Express {
       const { profile } = await exchangeCode(code);
       const fallbackName = profile.global_name || profile.username;
 
-      // The allowlist is the whole of the gate at this point. Which rigs they
-      // can reach is a question for each rig, asked when they open one.
-      if (!maySignIn(profile.id)) {
-        return res.redirect(
-          '/login?error=' +
-            encodeURIComponent('That Discord account has not been given access to Deck yet.'),
-        );
-      }
-
       const user: SessionUser = {
         id: profile.id,
         username: profile.username,
@@ -170,9 +177,28 @@ export function createApp(): express.Express {
         isAdmin: false,
         isPlatformAdmin: isPlatformAdmin(profile.id),
       };
+
+      // The allowlist is the whole of the gate at this point. Which rigs they
+      // can reach is a question for each rig, asked when they open one.
+      if (!maySignIn(profile.id)) {
+        // Except for the request page, which is for the room rather than for
+        // the booth: anybody in the Discord server may ask for a track. They
+        // get a listener session, which every other route in the server refuses
+        // — the rig then checks they are actually in that guild.
+        if (next && REQUEST_PATH.test(next)) {
+          issueSession(res, user, 'listener');
+          log.info(`${user.displayName} signed in to ask for a track`);
+          return res.redirect(next);
+        }
+        return res.redirect(
+          '/login?error=' +
+            encodeURIComponent('That Discord account has not been given access to Deck yet.'),
+        );
+      }
+
       issueSession(res, user);
       log.info(`${user.displayName} signed in`);
-      res.redirect('/');
+      res.redirect(next ?? '/');
     } catch (err) {
       log.warn('login failed:', (err as Error).message);
       res.redirect('/login?error=' + encodeURIComponent((err as Error).message));
@@ -213,6 +239,7 @@ export function createApp(): express.Express {
   });
 
   mountOnboarding(app);
+  mountRequests(app);
 
   // --------------------------------------------------------- waitlist ---
 

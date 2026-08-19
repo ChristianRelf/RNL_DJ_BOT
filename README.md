@@ -57,6 +57,14 @@ ffmpeg can read is accepted and decoded once at upload time. Drag a track straig
 onto a deck or a pad. The headphone button pre-listens **in your own browser only**,
 so you can audition a track without it going to air.
 
+**Requests** — a page at `deck.example/<rig>/request` for the room rather than the
+booth. Anyone in the Discord server can open it — no DJ role, and they sign in with
+Discord the same way you did — search what is in the rig's library and pick a
+record, or just type what they are after. Nothing they send touches the decks:
+requests land on a Requests panel on the console, and accepting one queues it,
+credited to whoever asked. Off until somebody switches it on from the tools page,
+five asks per person per fifteen minutes.
+
 **Multi-DJ control lock** — one controller at a time. Others watch the live state
 and queue up. Control hands over when the holder releases, hands it to someone
 directly, disconnects (after a grace period), or goes idle while somebody is waiting.

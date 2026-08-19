@@ -1,6 +1,14 @@
 import { db } from './db';
 import { createLogger } from './logger';
-import type { MediaItem, MixerState, PadMode, QueueItem, QueueState, ToolsState } from './protocol';
+import type {
+  MediaItem,
+  MixerState,
+  PadMode,
+  QueueItem,
+  QueueState,
+  RequestItem,
+  ToolsState,
+} from './protocol';
 
 const log = createLogger('store');
 
@@ -91,6 +99,7 @@ export const DEFAULT_TOOLS: ToolsState = {
   presence: false,
   announce: false,
   announceWebhook: '',
+  requests: false,
 };
 
 export function defaultPads(): PersistedPad[] {
@@ -109,6 +118,8 @@ interface GuildData {
   pads: PersistedPad[];
   lastVoiceChannelId: string | null;
   queue: QueueState;
+  /** Newest first, which is the order the booth reads them in. */
+  requests: RequestItem[];
   activeBotId: string | null;
 }
 
@@ -129,6 +140,7 @@ export class GuildStore {
     pads: defaultPads(),
     lastVoiceChannelId: null,
     queue: { items: [], auto: false },
+    requests: [],
     activeBotId: null,
   };
 
@@ -136,6 +148,7 @@ export class GuildStore {
   private dirtyMedia = new Set<string>();
   private removedMedia = new Set<string>();
   private queueDirty = false;
+  private requestsDirty = false;
   private padsDirty = false;
   private guildDirty = false;
 
@@ -207,6 +220,13 @@ export class GuildStore {
       .map((q) => safeParse<QueueItem | null>(q.data, null))
       .filter((entry): entry is QueueItem => Boolean(entry?.mediaId));
 
+    const requestRows = database
+      .prepare('SELECT data FROM requests WHERE guild_id = ? ORDER BY at DESC')
+      .all(this.guildId) as Array<{ data: string }>;
+    this.data.requests = requestRows
+      .map((r) => safeParse<RequestItem | null>(r.data, null))
+      .filter((entry): entry is RequestItem => Boolean(entry?.id));
+
     const padRows = database
       .prepare('SELECT idx, media_id, gain, mode FROM pads WHERE guild_id = ? ORDER BY idx')
       .all(this.guildId) as Array<{
@@ -276,6 +296,7 @@ export class GuildStore {
     // back wrong after a restart — in exchange for saving a few hundred bytes.
     this.guildDirty = true;
     this.queueDirty = true;
+    this.requestsDirty = true;
     this.padsDirty = true;
     if (this.writeQueued) return;
     this.writeQueued = true;
@@ -293,6 +314,7 @@ export class GuildStore {
       tools,
       pads,
       queue,
+      requests,
       lastVoiceChannelId,
       activeBotId,
     } = this.data;
@@ -300,11 +322,13 @@ export class GuildStore {
     const dirty = [...this.dirtyMedia];
     const removed = [...this.removedMedia];
     const writeQueue = this.queueDirty;
+    const writeRequests = this.requestsDirty;
     const writePads = this.padsDirty;
     const writeGuild = this.guildDirty;
     this.dirtyMedia.clear();
     this.removedMedia.clear();
     this.queueDirty = false;
+    this.requestsDirty = false;
     this.padsDirty = false;
     this.guildDirty = false;
 
@@ -354,6 +378,16 @@ export class GuildStore {
         queue.items.forEach((entry, index) => {
           insert.run(entry.id, this.guildId, index, JSON.stringify(entry));
         });
+      }
+
+      if (writeRequests) {
+        database.prepare('DELETE FROM requests WHERE guild_id = ?').run(this.guildId);
+        const insert = database.prepare(
+          'INSERT INTO requests (id, guild_id, at, data) VALUES (?, ?, ?, ?)',
+        );
+        for (const entry of requests) {
+          insert.run(entry.id, this.guildId, entry.at, JSON.stringify(entry));
+        }
       }
 
       if (writePads) {

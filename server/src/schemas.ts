@@ -56,6 +56,11 @@ export const commandSchemas = {
   'queue:clear': z.object({}).strict(),
   'queue:load': z.object({ deck: deckId, play: z.boolean().optional() }).strict(),
   'queue:set': z.object({ auto: z.boolean() }).strict(),
+  'requests:accept': z
+    .object({ id: z.string().min(1).max(64), next: z.boolean().optional() })
+    .strict(),
+  'requests:decline': z.object({ id: z.string().min(1).max(64) }).strict(),
+  'requests:clear': z.object({}).strict(),
   'pad:assign': z.object({ index: padIndex, mediaId: mediaId.nullable() }).strict(),
   'pad:trigger': z.object({ index: padIndex }).strict(),
   'pad:stop': z.object({ index: padIndex }).strict(),
@@ -161,6 +166,11 @@ export const NEEDS_CONTROL = new Set<CommandKey>([
   // else is about to play does, so the rest of these need the lock.
   'queue:move',
   'queue:clear',
+  // A request is the room asking rather than telling, so what happens to one is
+  // the booth's call — not any signed-in tab's, the way adding to the queue is.
+  'requests:accept',
+  'requests:decline',
+  'requests:clear',
   'queue:load',
   'queue:set',
   'pad:assign',

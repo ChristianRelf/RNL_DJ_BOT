@@ -35,3 +35,16 @@ export function parseRigPath(pathname: string): { slug: string; view: 'console' 
   if (!match) return null;
   return { slug: match[1].toLowerCase(), view: match[2] === 'tools' ? 'tools' : 'console' };
 }
+
+/**
+ * `/g/<slug>/request`, or the short `/<slug>/request` — the form that gets read
+ * out in a voice channel. Null for anything else.
+ *
+ * The short form is safe to take literally because of the `/request` on the
+ * end: no front-of-house page is two segments deep ending in that word, so
+ * there is nothing for a slug to shadow.
+ */
+export function parseRequestPath(pathname: string): string | null {
+  const match = /^\/(?:g\/)?([a-z0-9-]+)\/request$/i.exec(pathname.replace(/\/+$/, ''));
+  return match ? match[1].toLowerCase() : null;
+}

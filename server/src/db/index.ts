@@ -59,6 +59,18 @@ CREATE TABLE IF NOT EXISTS queue (
 );
 CREATE INDEX IF NOT EXISTS queue_by_guild ON queue (guild_id, position);
 
+-- What the room has asked for. Kept out of the queue table on purpose: a
+-- request is not a queue entry until somebody in the booth says it is, and one
+-- that was declined is still worth being able to see.
+CREATE TABLE IF NOT EXISTS requests (
+  id       TEXT NOT NULL,
+  guild_id TEXT NOT NULL,
+  at       INTEGER NOT NULL,
+  data     TEXT NOT NULL,
+  PRIMARY KEY (guild_id, id)
+);
+CREATE INDEX IF NOT EXISTS requests_by_guild ON requests (guild_id, at DESC);
+
 CREATE TABLE IF NOT EXISTS pads (
   guild_id TEXT NOT NULL,
   idx      INTEGER NOT NULL,

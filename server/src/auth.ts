@@ -15,6 +15,31 @@ const SESSION_TTL_S = 7 * 24 * 60 * 60;
 /** Membership/role checks are cached briefly so every socket connect is not a REST call. */
 const ACCESS_CACHE_TTL_MS = 60_000;
 
+/**
+ * What a session is for.
+ *
+ * `dj` is the ordinary session: the allowlist let them in, and every rig they
+ * open decides for itself whether they may drive it. `listener` is issued to
+ * somebody who is *not* on the allowlist and arrived at a rig's request page —
+ * a member of the Discord server with no DJ role, who can ask for a track and
+ * do nothing else. The two are told apart in the token rather than by what is
+ * asked of them, so a listener cookie cannot be pointed at the console by
+ * changing the URL.
+ */
+export type SessionScope = 'dj' | 'listener';
+
+export interface SessionRecord {
+  user: SessionUser;
+  scope: SessionScope;
+}
+
+/** Membership in one guild, with no opinion about roles. */
+export interface MemberResult {
+  member: boolean;
+  displayName: string;
+  reason?: string;
+}
+
 export interface AccessResult {
   allowed: boolean;
   /** Per guild: may force-take control and delete anyone's media. */
@@ -45,6 +70,8 @@ export function maySignIn(userId: string): boolean {
 
 /** Keyed by guild as well as user: the same person is not the same thing in two servers. */
 const accessCache = new Map<string, { at: number; result: AccessResult }>();
+/** The same, for plain membership — a different question with a different answer. */
+const memberCache = new Map<string, { at: number; result: MemberResult }>();
 
 export function authorizeUrl(state: string): string {
   const params = new URLSearchParams({
@@ -193,17 +220,63 @@ export async function checkAccess(
   return result;
 }
 
+/**
+ * In the guild at all, whatever their roles.
+ *
+ * The request page's gate. Deliberately not `checkAccess` with a flag: that
+ * function answers "may this person drive this rig", and quietly widening it to
+ * mean two things is how a DJ-role check stops being one. Suspended rigs are
+ * refused here as well — a rig somebody has turned off should not still be
+ * taking requests.
+ */
+export async function checkMember(
+  guildId: string,
+  userId: string,
+  fallbackName: string,
+): Promise<MemberResult> {
+  const key = `${guildId}:${userId}`;
+  const cached = memberCache.get(key);
+  if (cached && Date.now() - cached.at < ACCESS_CACHE_TTL_MS) return cached.result;
+
+  const guild = getGuild(guildId);
+  if (!guild || guild.status !== 'active') {
+    return { member: false, displayName: fallbackName, reason: 'No such rig.' };
+  }
+
+  const lookup = await member(guildId, userId);
+  // Same as above: an outage must not be cached as a refusal.
+  if (lookup.kind === 'unavailable') {
+    return { member: false, displayName: fallbackName, reason: lookup.reason };
+  }
+
+  const result: MemberResult =
+    lookup.kind === 'absent'
+      ? {
+          member: isPlatformAdmin(userId),
+          displayName: fallbackName,
+          reason: 'You are not a member of that Discord server.',
+        }
+      : { member: true, displayName: lookup.member.displayName || fallbackName };
+
+  memberCache.set(key, { at: Date.now(), result });
+  return result;
+}
+
 export function invalidateAccess(guildId?: string, userId?: string): void {
   if (!guildId) {
     accessCache.clear();
+    memberCache.clear();
     return;
   }
   if (userId) {
     accessCache.delete(`${guildId}:${userId}`);
+    memberCache.delete(`${guildId}:${userId}`);
     return;
   }
-  for (const key of accessCache.keys()) {
-    if (key.startsWith(`${guildId}:`)) accessCache.delete(key);
+  for (const cache of [accessCache, memberCache]) {
+    for (const key of cache.keys()) {
+      if (key.startsWith(`${guildId}:`)) cache.delete(key);
+    }
   }
 }
 
@@ -213,8 +286,10 @@ export function avatarUrl(user: DiscordUserResponse): string | null {
   return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}?size=64`;
 }
 
-export function issueSession(res: Response, user: SessionUser): void {
-  const token = jwt.sign(user, config.http.sessionSecret, { expiresIn: SESSION_TTL_S });
+export function issueSession(res: Response, user: SessionUser, scope: SessionScope = 'dj'): void {
+  const token = jwt.sign({ ...user, scope }, config.http.sessionSecret, {
+    expiresIn: SESSION_TTL_S,
+  });
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
@@ -233,8 +308,16 @@ export function clearSession(res: Response): void {
   });
 }
 
-export function setStateCookie(res: Response, state: string): void {
-  res.cookie(STATE_COOKIE, state, {
+/**
+ * The OAuth state, and where to land afterwards.
+ *
+ * Both in the one cookie because they have the same lifetime and the same
+ * one reader. The return path never crosses Discord — it is not in the state
+ * parameter — so it cannot be set by whoever sends somebody the login link.
+ */
+export function setStateCookie(res: Response, state: string, next?: string): void {
+  const value = next ? `${state}:${Buffer.from(next).toString('base64url')}` : state;
+  res.cookie(STATE_COOKIE, value, {
     httpOnly: true,
     sameSite: 'lax',
     secure: config.http.publicUrl.startsWith('https://'),
@@ -242,6 +325,28 @@ export function setStateCookie(res: Response, state: string): void {
     path: '/',
     ...(config.http.cookieDomain ? { domain: config.http.cookieDomain } : {}),
   });
+}
+
+/**
+ * Splits the state cookie back up. The path is only ever handed back as a
+ * same-site path — anything that is not one is dropped rather than corrected,
+ * so a mangled cookie sends somebody to the front door instead of somewhere
+ * off the site.
+ */
+export function readStateCookie(value: string | undefined): { state: string; next: string | null } {
+  if (!value) return { state: '', next: null };
+  const cut = value.indexOf(':');
+  if (cut < 0) return { state: value, next: null };
+  let next: string | null = null;
+  try {
+    const decoded = Buffer.from(value.slice(cut + 1), 'base64url').toString('utf8');
+    // A single leading slash, and no second one: `//elsewhere` is a URL with
+    // the scheme left off, and handing that to a redirect leaves the site.
+    if (/^\/(?!\/)[\w\-/]*$/.test(decoded)) next = decoded;
+  } catch {
+    next = null;
+  }
+  return { state: value.slice(0, cut), next };
 }
 
 export function readSessionToken(
@@ -266,22 +371,38 @@ export function readSessionToken(
  * It is resolved per connection instead, against the guild being connected to.
  */
 export function verifySession(token: string | null | undefined): SessionUser | null {
+  const session = readSession(token);
+  // Only a DJ session is a session as far as the rest of the server is
+  // concerned. Every console path — the socket handshake, every rig route —
+  // asks this one question, so a listener token is refused by all of them
+  // without any of them having to know that listeners exist.
+  return session && session.scope === 'dj' ? session.user : null;
+}
+
+/** The session as it actually is, scope and all. Only the request page wants this. */
+export function readSession(token: string | null | undefined): SessionRecord | null {
   if (!token) return null;
   try {
     const payload = jwt.verify(token, config.http.sessionSecret) as SessionUser & {
+      scope?: SessionScope;
       iat: number;
       exp: number;
     };
     return {
-      id: payload.id,
-      username: payload.username,
-      displayName: payload.displayName,
-      avatarUrl: payload.avatarUrl ?? null,
-      isAdmin: false,
-      // Read from configuration rather than trusted from the token, so adding
-      // or removing a platform admin takes effect without waiting for sessions
-      // to expire — in both directions.
-      isPlatformAdmin: isPlatformAdmin(payload.id),
+      // Cookies issued before scopes existed carry none, and every one of them
+      // was a DJ session.
+      scope: payload.scope === 'listener' ? 'listener' : 'dj',
+      user: {
+        id: payload.id,
+        username: payload.username,
+        displayName: payload.displayName,
+        avatarUrl: payload.avatarUrl ?? null,
+        isAdmin: false,
+        // Read from configuration rather than trusted from the token, so adding
+        // or removing a platform admin takes effect without waiting for sessions
+        // to expire — in both directions.
+        isPlatformAdmin: isPlatformAdmin(payload.id),
+      },
     };
   } catch {
     return null;
@@ -291,11 +412,15 @@ export function verifySession(token: string | null | undefined): SessionUser | n
 declare module 'express-serve-static-core' {
   interface Request {
     user?: SessionUser;
+    /** Whoever is signed in, listeners included. Only the request routes read it. */
+    session?: SessionRecord;
   }
 }
 
 export function attachUser(req: Request, _res: Response, next: NextFunction): void {
-  req.user = verifySession(req.cookies?.[SESSION_COOKIE]) ?? undefined;
+  const session = readSession(req.cookies?.[SESSION_COOKIE]) ?? undefined;
+  req.session = session;
+  req.user = session?.scope === 'dj' ? session.user : undefined;
   next();
 }
 

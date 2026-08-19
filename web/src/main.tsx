@@ -8,7 +8,8 @@ import { SignIn } from './components/SignIn';
 import { RigPicker } from './components/RigPicker';
 import { Portal } from './components/Portal';
 import { Onboard } from './components/Onboard';
-import { parseRigPath } from './lib/rigs';
+import { RequestPage, RequestRigPicker } from './components/RequestPage';
+import { parseRigPath, parseRequestPath } from './lib/rigs';
 import { Legal } from './components/Legal';
 import './styles.css';
 
@@ -26,8 +27,13 @@ if (!container) throw new Error('Missing #root element');
  */
 const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
 const rig = parseRigPath(path);
+const requestSlug = parseRequestPath(path);
 
 function page() {
+  // Before the console: the request page is for people who are in the Discord
+  // server and have no DJ role, so it must never mount App — that opens a
+  // socket the server would refuse them.
+  if (requestSlug) return <RequestPage slug={requestSlug} />;
   if (rig) return <App slug={rig.slug} view={rig.view} />;
 
   switch (path) {
@@ -60,6 +66,9 @@ function page() {
       return <Help />;
     case '/rigs':
       return <RigPicker />;
+    // Requests with no rig named. Passes through when only one is taking them.
+    case '/request':
+      return <RequestRigPicker />;
     // Reached on its own hostname, which the server redirects here, and
     // directly on the main host so it works where there is no second name.
     case '/portal':
