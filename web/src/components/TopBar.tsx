@@ -12,6 +12,8 @@ interface TopBarProps {
   connection: ConnectionStatus;
   locked: boolean;
   send: DjClient['send'];
+  /** This rig's slug, for the link across to its tools page. */
+  slug: string;
   /** Omitted on the tools page, which has no layout to rearrange. */
   onArrange?: () => void;
   arranging?: boolean;
@@ -19,6 +21,7 @@ interface TopBarProps {
 
 export function TopBar({
   user,
+  slug,
   voice,
   bot,
   channels,
@@ -127,7 +130,7 @@ export function TopBar({
             ARRANGE
           </button>
         ) : null}
-        <a className="btn tiny topbar-tools" href="/deck/tools" title="Timecode, OSC and imports">
+        <a className="btn tiny topbar-tools" href={`/g/${slug}/tools`} title="Timecode, OSC and imports">
           <Wrench size={12} />
           TOOLS
         </a>

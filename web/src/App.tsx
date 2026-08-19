@@ -353,6 +353,7 @@ export default function App({
     <div className={`app ${locked ? 'is-locked' : 'is-live'}`}>
       <TopBar
         user={me}
+        slug={slug}
         voice={state.voice}
         bot={state.bot}
         channels={state.channels}
@@ -375,7 +376,7 @@ export default function App({
       ) : null}
 
       {view === 'tools' ? (
-        <ToolsPage state={state} user={me} locked={locked} send={dj.send} api={api} />
+        <ToolsPage state={state} user={me} locked={locked} send={dj.send} api={api} slug={slug} />
       ) : (
       <>
         {arranging ? (

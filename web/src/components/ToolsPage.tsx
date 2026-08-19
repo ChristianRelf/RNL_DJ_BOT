@@ -8,6 +8,8 @@ import type { DjClient } from '../socket';
 interface ToolsPageProps {
   /** This rig's API prefix. */
   api: string;
+  /** This rig's slug, for the link back to its console. */
+  slug: string;
   state: EngineState;
   user: SessionUser;
   locked: boolean;
@@ -403,14 +405,14 @@ function Osc({
 
 /* ------------------------------------------------------------------ page */
 
-export function ToolsPage({ state, user, locked, send, api }: ToolsPageProps) {
+export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPageProps) {
   const tools = state.tools;
   const set = (patch: ClientCommands['tools:set']) => void send('tools:set', patch);
 
   return (
     <main className="tools">
       <header className="tools-head">
-        <a className="btn tiny" href="/deck">
+        <a className="btn tiny" href={`/g/${slug}/deck`}>
           <ArrowLeft size={12} />
           BACK TO THE DECKS
         </a>

@@ -32,10 +32,11 @@ function page() {
 
   switch (path) {
     case '/deck':
-    case '/deck/tools':
       // One rig used to be the only rig. Send them to the picker, which passes
       // straight through when there is still only one.
       return <RigPicker />;
+    case '/deck/tools':
+      return <RigPicker view="tools" />;
     case '/terms':
       return <Legal page="terms" />;
     case '/privacy':

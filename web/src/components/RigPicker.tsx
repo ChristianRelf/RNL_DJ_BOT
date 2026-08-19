@@ -10,7 +10,7 @@ import { SitePage } from './SiteNav';
  * is a page nobody wants to read. It only earns its place once somebody DJs in
  * more than one server.
  */
-export function RigPicker() {
+export function RigPicker({ view = 'deck' }: { view?: 'deck' | 'tools' } = {}) {
   const [rigs, setRigs] = useState<RigSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,13 +18,13 @@ export function RigPicker() {
     fetchRigs()
       .then((found) => {
         if (found.length === 1) {
-          window.location.replace(`/g/${found[0].slug}/deck`);
+          window.location.replace(`/g/${found[0].slug}/${view}`);
           return;
         }
         setRigs(found);
       })
       .catch((err: Error) => setError(err.message));
-  }, []);
+  }, [view]);
 
   if (error) {
     return (
@@ -60,7 +60,7 @@ export function RigPicker() {
           <ul className="rigpicker-list">
             {rigs.map((rig) => (
               <li key={rig.id}>
-                <a className="rigpicker-card" href={`/g/${rig.slug}/deck`}>
+                <a className="rigpicker-card" href={`/g/${rig.slug}/${view}`}>
                   <span className="rigpicker-name">{rig.name}</span>
                   <span className="rigpicker-meta mono">
                     {rig.live ? (
