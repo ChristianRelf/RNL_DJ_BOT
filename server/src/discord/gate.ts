@@ -133,3 +133,71 @@ export async function verifyAuthAccess(guildId: string): Promise<boolean> {
   }
   return false;
 }
+
+export interface GuildInfo {
+  id: string;
+  name: string;
+  ownerId: string | null;
+  iconUrl: string | null;
+}
+
+/** What a guild is called, for naming a rig without asking anyone to type it. */
+export async function guildInfo(guildId: string): Promise<GuildInfo | null> {
+  try {
+    const res = await api(`/guilds/${guildId}`);
+    if (!res.ok) return null;
+    const guild = (await res.json()) as { id: string; name: string; owner_id?: string; icon?: string };
+    return {
+      id: guild.id,
+      name: guild.name,
+      ownerId: guild.owner_id ?? null,
+      iconUrl: guild.icon
+        ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
+        : null,
+    };
+  } catch (err) {
+    log.debug('could not read guild:', (err as Error).message);
+    return null;
+  }
+}
+
+export interface RoleInfo {
+  id: string;
+  name: string;
+  color: number;
+  /** Everyone has this one, so offering it as "the DJ role" would be a no-op. */
+  isEveryone: boolean;
+}
+
+/**
+ * The roles somebody can pick from when setting a rig up.
+ *
+ * Managed roles are left out: those belong to integrations and bots, nobody
+ * hands them to a person, and a list with fifteen of them in is harder to read
+ * than one without.
+ */
+export async function guildRoles(guildId: string): Promise<RoleInfo[]> {
+  try {
+    const res = await api(`/guilds/${guildId}/roles`);
+    if (!res.ok) return [];
+    const roles = (await res.json()) as Array<{
+      id: string;
+      name: string;
+      color: number;
+      managed?: boolean;
+      position: number;
+    }>;
+    return roles
+      .filter((role) => !role.managed)
+      .sort((a, b) => b.position - a.position)
+      .map((role) => ({
+        id: role.id,
+        name: role.name,
+        color: role.color,
+        isEveryone: role.id === guildId,
+      }));
+  } catch (err) {
+    log.debug('could not read roles:', (err as Error).message);
+    return [];
+  }
+}

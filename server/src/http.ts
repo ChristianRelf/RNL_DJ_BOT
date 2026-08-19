@@ -26,6 +26,7 @@ import { rigs } from './rigManager';
 import type { Rig } from './rig';
 import * as platform from './db/platform';
 import { createLogger } from './logger';
+import { mountOnboarding } from './onboard';
 import { fetchAudio, ImportError } from './tools/importUrl';
 import { DECK_IDS, type MediaItem, type SessionUser } from './protocol';
 
@@ -99,6 +100,21 @@ export function createApp(): express.Express {
   app.disable('x-powered-by');
   app.use(cookieParser());
   app.use(attachUser);
+
+  /**
+   * The portal answers on its own hostname, but it is the same bundle and the
+   * same session — so rather than a second build, the portal host simply lands
+   * on the portal route. It stays reachable at /portal on the main host too,
+   * which is what makes it work on localhost where there is no second name.
+   */
+  app.use((req, res, next) => {
+    const host = req.hostname?.toLowerCase();
+    if (!config.http.portalHost || host !== config.http.portalHost) return next();
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io')) return next();
+    if (req.path.startsWith('/portal')) return next();
+    if (req.path.includes('.')) return next(); // built assets
+    return res.redirect('/portal');
+  });
 
   app.get('/api/health', (_req, res) => {
     res.json({
@@ -195,6 +211,8 @@ export function createApp(): express.Express {
     );
     res.json({ rigs: found.filter(Boolean) });
   });
+
+  mountOnboarding(app);
 
   // --------------------------------------------------------- waitlist ---
 

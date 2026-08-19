@@ -6,6 +6,8 @@ import { Access } from './components/Access';
 import { Help } from './components/Help';
 import { SignIn } from './components/SignIn';
 import { RigPicker } from './components/RigPicker';
+import { Portal } from './components/Portal';
+import { Onboard } from './components/Onboard';
 import { parseRigPath } from './lib/rigs';
 import { Legal } from './components/Legal';
 import './styles.css';
@@ -57,6 +59,12 @@ function page() {
       return <Help />;
     case '/rigs':
       return <RigPicker />;
+    // Reached on its own hostname, which the server redirects here, and
+    // directly on the main host so it works where there is no second name.
+    case '/portal':
+      return <Portal />;
+    case '/onboard':
+      return <Onboard />;
     // `/` and /login are both the front door; a live session goes on to a rig.
     default:
       return <SignIn checkSession />;

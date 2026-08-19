@@ -51,9 +51,10 @@ export function authorizeUrl(state: string): string {
     client_id: config.discord.auth.clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
-    // `guilds` is what lets the onboarding wizard list the servers somebody
-    // actually administers, rather than asking them to paste an id.
-    scope: 'identify guilds',
+    // Just `identify`. Setting a rig up goes through Discord's own bot-invite
+    // flow, which hands back the guild it was added to — so there is never a
+    // need to list somebody's servers, or to hold a token that could.
+    scope: 'identify',
     state,
     prompt: 'none',
   });
@@ -79,7 +80,11 @@ interface DiscordUserResponse {
 
 export interface ExchangeResult {
   profile: DiscordUserResponse;
-  /** The OAuth token, kept only long enough for the wizard to list guilds. */
+  /**
+   * Discarded immediately by the only caller. It is returned rather than
+   * dropped here so that the one place a token could be kept is a decision
+   * somebody has to make on purpose, in the open.
+   */
   accessToken: string;
 }
 
