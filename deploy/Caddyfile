@@ -1,12 +1,21 @@
-# RNL DJ — Caddy site config for deck.ronation.live
+# RNL DJ — Caddy site blocks for deck.ronation.live and its portal.
 #
-# Install to /etc/caddy/Caddyfile (or import it from there), then:
-#   caddy validate --config /etc/caddy/Caddyfile
-#   systemctl reload caddy
+# These go into whichever Caddyfile is already serving this box. Caddy will not
+# present a certificate for a hostname it has no site block for, and a browser
+# meeting that reports ERR_SSL_PROTOCOL_ERROR rather than anything about the
+# name being unknown — so a missing block looks like a broken certificate.
 #
-# Caddy provisions and renews the TLS certificate itself; make sure an A/AAAA
-# record for deck.ronation.live points at this box and that ports 80 and 443
-# are open, or the ACME challenge will fail.
+# Caddy runs in a container here, alongside the app, both attached to the shared
+# `edge` network. That is why the upstream is the container name and not
+# 127.0.0.1: inside the Caddy container, loopback is Caddy itself.
+#
+#   append to the Caddyfile that container mounts, then:
+#   docker exec <caddy-container> caddy validate --config /etc/caddy/Caddyfile
+#   docker exec <caddy-container> caddy reload   --config /etc/caddy/Caddyfile
+#
+# Caddy provisions and renews the certificates itself; both names need an
+# A/AAAA record pointing at this box, and ports 80 and 443 open, or the ACME
+# challenge will fail.
 
 deck.ronation.live {
 	encode zstd gzip
@@ -18,11 +27,10 @@ deck.ronation.live {
 		max_size 200MB
 	}
 
-	# Caddy on the HOST reaches the app over loopback. If Caddy runs in its own
-	# container, 127.0.0.1 is that container — use the shared-network setup in
-	# deploy/compose.caddy-network.yml and change this line to:
-	#   reverse_proxy rnl-dj-bot:7403 {
-	reverse_proxy 127.0.0.1:7403 {
+	# The container name, resolved over the shared `edge` network. If you run
+	# Caddy on the host instead, this becomes 127.0.0.1:7403 and the app's
+	# published port is what serves it.
+	reverse_proxy rnl-dj-bot:7403 {
 		# Socket.IO's websocket upgrade is handled automatically. Disabling
 		# response buffering keeps state and meter frames flowing in realtime
 		# rather than being held back by the proxy.
@@ -53,13 +61,15 @@ deck.ronation.live {
 # hosts each get an ordinary certificate over HTTP-01, where *.deck.ronation.live
 # would need DNS-01 and a provider API token sitting on this box.
 #
+# Optional. Without it the portal is still reachable at deck.ronation.live/portal.
+#
 # The session cookie is issued with Domain=deck.ronation.live (COOKIE_DOMAIN in
 # .env), which is why one sign-in covers both hosts.
 # ---------------------------------------------------------------------------
 portal.deck.ronation.live {
 	encode zstd gzip
 
-	reverse_proxy 127.0.0.1:7403 {
+	reverse_proxy rnl-dj-bot:7403 {
 		flush_interval -1
 		transport http {
 			read_timeout 10m
