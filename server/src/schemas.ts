@@ -109,6 +109,7 @@ export const commandSchemas = {
       channelStatusText: z.string().trim().max(120).optional(),
       presence: z.boolean().optional(),
       announce: z.boolean().optional(),
+      requests: z.boolean().optional(),
       // Only a Discord webhook, and only https. That is what makes the tool
       // safe to point anywhere: there is no host here for anyone to aim back
       // at the machine the rig runs on. Empty clears it.
