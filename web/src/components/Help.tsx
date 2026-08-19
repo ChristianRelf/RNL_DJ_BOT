@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Search, X } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ArrowLeft, ArrowRight, BookOpen, Search, X } from 'lucide-react';
 import { SitePage } from './SiteNav';
 
 /**
@@ -23,6 +23,7 @@ const CATEGORIES = [
   { id: 'mixing', name: 'Mixing' },
   { id: 'library', name: 'Library and queue' },
   { id: 'console', name: 'Your console' },
+  { id: 'tools', name: 'Tools and integrations' },
   { id: 'reference', name: 'Reference' },
   { id: 'trouble', name: 'Troubleshooting' },
 ] as const;
@@ -33,6 +34,7 @@ interface Article {
   id: string;
   category: CategoryId;
   title: string;
+  summary?: string;
   /** Everything the search should match beyond the title. */
   keywords: string;
   body: ReactNode;
@@ -392,6 +394,101 @@ const ARTICLES: Article[] = [
     ),
   },
   {
+    id: 'hosting-library',
+    category: 'library',
+    title: 'Hosting a music folder',
+    summary: 'Make a folder on your computer available to the rig without uploading the audio library.',
+    keywords: 'host folder local files directory picker chrome edge library source offline missing tracks opfs cache',
+    body: (
+      <>
+        <p>
+          A rig can use a music folder from an operator&rsquo;s computer as its library. The browser
+          reads the folder with your permission, analyses the tracks locally and serves only the
+          short pieces of audio the playing decks request. The original files remain on that
+          computer.
+        </p>
+        <h4>Start hosting</h4>
+        <ol className="doc-steps">
+          <li>Open the <strong>Library</strong> panel and choose the folder option.</li>
+          <li>Select the folder that contains the music for this rig.</li>
+          <li>Leave the console tab open while the room is using that library.</li>
+          <li>Wait for the scan to finish before relying on search or tempo information.</li>
+        </ol>
+        <div className="doc-callout">
+          <strong>Important:</strong> the host is part of the audio path. If the host closes every
+          console tab or loses connectivity, the server can no longer request new audio. Buffered
+          audio plays briefly, then the decks pause rather than skipping through the track.
+        </div>
+        <h4>Browser support</h4>
+        <p>
+          Chrome and Edge can remember a folder handle after permission is granted. Other browsers
+          may require the folder to be selected again on a later visit. Folder access is read-only:
+          renaming metadata in deck does not rename the source file.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'requests',
+    category: 'library',
+    title: 'Opening and managing track requests',
+    summary: 'Give members a request page without giving them control of the booth.',
+    keywords: 'requests request page accept decline room member public link queue tools rate limit duplicate',
+    body: (
+      <>
+        <p>
+          Requests are separate from the operator queue. A member can ask for a track, but the
+          request cannot load a deck or change what the room hears. An operator must accept it
+          before it enters the queue.
+        </p>
+        <h4>Open requests</h4>
+        <ol className="doc-steps">
+          <li>Open the rig&rsquo;s <strong>Tools</strong> page while you hold control.</li>
+          <li>Switch on <strong>Requests</strong>.</li>
+          <li>Copy the request-page URL and share it with members of the Discord server.</li>
+          <li>Add the <strong>Requests</strong> panel from the arrange tray if it is not already visible.</li>
+        </ol>
+        <h4>Handle an incoming request</h4>
+        <ul className="doc-list">
+          <li><strong>Accept</strong> adds the track to the shared queue and credits the requester.</li>
+          <li><strong>Play next</strong> accepts it at the front of the queue.</li>
+          <li><strong>Decline</strong> marks it handled without changing the queue.</li>
+          <li><strong>Clear handled</strong> removes old accepted and declined entries; pending requests remain.</li>
+        </ul>
+        <p>
+          Requesters sign in with Discord and must belong to the rig&rsquo;s server, but they do not
+          need the DJ role. The service limits repeated submissions and refuses duplicates so the
+          panel remains usable during busy events.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'prepare-a-set',
+    category: 'library',
+    title: 'Preparing a set before going live',
+    summary: 'A practical pre-flight workflow for checking tracks, cue points and output levels.',
+    keywords: 'prepare set workflow soundcheck preflight cue bpm analyse levels gain staging queue',
+    body: (
+      <>
+        <p>Prepare the booth before the bot joins voice. Deck positions and library work remain available while off air.</p>
+        <ol className="doc-steps">
+          <li>Connect or upload the library and wait for the tracks you need to finish analysing.</li>
+          <li>Use pre-listen to verify each file and confirm its title, tempo and tags.</li>
+          <li>Load an opening track on deck A and set its first cue point.</li>
+          <li>Load a second track on deck B, check the beat grid and practise the transition.</li>
+          <li>Reset EQ, filters, effects sends and trims; controls away from default are highlighted.</li>
+          <li>Build the first part of the queue and confirm auto-advance is in the state you expect.</li>
+          <li>Join the voice channel, play a short soundcheck and watch the master meter for clipping.</li>
+        </ol>
+        <div className="doc-callout">
+          Keep the limiter enabled for ordinary operation, but do not use it to compensate for
+          consistently excessive trim or master gain. A limiter protects peaks; it is not a gain-staging strategy.
+        </div>
+      </>
+    ),
+  },
+  {
     id: 'arranging',
     category: 'console',
     title: 'Arranging the console',
@@ -426,6 +523,107 @@ const ARTICLES: Article[] = [
             up mid-set does not move anyone else's furniture.
           </li>
         </ul>
+      </>
+    ),
+  },
+  {
+    id: 'timecode',
+    category: 'tools',
+    title: 'Using the timecode feed',
+    summary: 'Read deck positions and mixer state from an authenticated HTTP endpoint.',
+    keywords: 'timecode http feed overlay lighting video key url security poll tools',
+    body: (
+      <>
+        <p>
+          The timecode tool publishes a small HTTP response for overlays, lighting controllers and
+          other systems that need to follow the booth. It includes deck position, title, tempo and
+          crossfader state.
+        </p>
+        <ol className="doc-steps">
+          <li>Take control and open the rig&rsquo;s <strong>Tools</strong> page.</li>
+          <li>Enable <strong>Timecode feed</strong> and copy the generated URL.</li>
+          <li>Configure the receiving system to poll that URL at a sensible interval.</li>
+          <li>Test deck A, deck B and the crossfader before using the data in a live production.</li>
+        </ol>
+        <div className="doc-callout">
+          The key in the URL is the credential. Do not publish it in a public repository or browser
+          overlay template. Switching the tool off and on issues a new key and invalidates the old URL.
+        </div>
+      </>
+    ),
+  },
+  {
+    id: 'osc-output',
+    category: 'tools',
+    title: 'Connecting OSC output',
+    summary: 'Send live deck and mixer values to lighting, visuals or a Pure Data patch.',
+    keywords: 'osc udp output host port pure data lighting vj multicast broadcast firewall tools',
+    body: (
+      <>
+        <p>
+          OSC output sends deck and mixer state ten times per second over UDP. It is intended for a
+          known unicast destination such as a lighting computer, VJ workstation or Pure Data patch.
+        </p>
+        <ol className="doc-steps">
+          <li>Start the OSC receiver and note its IP address or hostname and UDP port.</li>
+          <li>Enter those values under <strong>OSC output</strong> on the Tools page.</li>
+          <li>Apply the destination, then enable the tool.</li>
+          <li>Move a fader and confirm the receiver sees addresses such as <code>/mixer/crossfader</code>.</li>
+        </ol>
+        <p>
+          Broadcast and multicast destinations are refused. OSC has no built-in authentication, so
+          the sender only accepts an ordinary unicast target. If no packets arrive, check the
+          receiver is bound to the configured port and that its firewall permits inbound UDP.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'now-playing',
+    category: 'tools',
+    title: 'Publishing now-playing information',
+    summary: 'Show the active track in Discord presence, a voice-channel caption or a webhook post.',
+    keywords: 'now playing presence channel status webhook announcements discord track title tools',
+    body: (
+      <>
+        <p>deck can publish the current programme in three different places. Each option is independent.</p>
+        <ul className="doc-list">
+          <li><strong>Channel status</strong> adds a short caption beneath the Discord voice channel while the bot is connected.</li>
+          <li><strong>Now playing status</strong> uses the playback bot&rsquo;s Discord activity.</li>
+          <li><strong>Track announcements</strong> posts through a Discord webhook when a track takes over the mix.</li>
+        </ul>
+        <p>
+          The active track is based on the audible mix, not simply the most recently loaded deck. A
+          track must hold the room for several seconds before an announcement is sent, which avoids
+          duplicate posts during a blend. Track titles are sent without allowing Discord mentions.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'url-import',
+    category: 'tools',
+    title: 'Importing audio from a URL',
+    summary: 'Bring a direct audio download or supported video link into the media pool.',
+    keywords: 'url import youtube direct link audio download promo pool yt-dlp licence tools',
+    body: (
+      <>
+        <p>
+          URL import is an optional tool for material you are authorised to use. It accepts direct
+          audio downloads and can extract audio from supported video links when the server has the
+          required downloader installed.
+        </p>
+        <ol className="doc-steps">
+          <li>Enable <strong>Import from URL</strong> on the Tools page.</li>
+          <li>Paste the direct download or supported media URL.</li>
+          <li>Select <strong>Import</strong> and wait for the new media-pool entry.</li>
+          <li>Check the title, analysis and audio before loading it during a live set.</li>
+        </ol>
+        <p>
+          Ordinary web pages, internal network addresses and unsafe redirects are refused. Playlist
+          links import one item rather than an entire playlist. The feature does not verify music
+          rights; the operator remains responsible for permission to download and play the material.
+        </p>
       </>
     ),
   },
@@ -545,16 +743,77 @@ const ARTICLES: Article[] = [
 export function Help() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<CategoryId | 'all'>('all');
+  const [selectedId, setSelectedId] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('article');
+  });
 
+  useEffect(() => {
+    const onPopState = () => setSelectedId(new URLSearchParams(window.location.search).get('article'));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const openArticle = (id: string | null) => {
+    const url = id ? `/home/help?article=${encodeURIComponent(id)}` : '/home/help';
+    window.history.pushState({}, '', url);
+    setSelectedId(id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const selected = ARTICLES.find((article) => article.id === selectedId) ?? null;
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return ARTICLES.filter((article) => {
       if (category !== 'all' && article.category !== category) return false;
       if (!needle) return true;
       const name = CATEGORIES.find((c) => c.id === article.category)?.name ?? '';
-      return `${article.title} ${article.keywords} ${name}`.toLowerCase().includes(needle);
+      return `${article.title} ${article.keywords} ${article.summary ?? ''} ${name}`.toLowerCase().includes(needle);
     });
   }, [category, query]);
+
+  if (selected) {
+    const categoryName = CATEGORIES.find((entry) => entry.id === selected.category)?.name ?? 'Help centre';
+    const related = ARTICLES.filter(
+      (article) => article.category === selected.category && article.id !== selected.id,
+    ).slice(0, 4);
+
+    return (
+      <SitePage current="/home/help">
+        <button type="button" className="help-back" onClick={() => openArticle(null)}>
+          <ArrowLeft size={14} /> All articles
+        </button>
+        <article className="help-reader">
+          <header className="help-reader-head">
+            <span className="site-eyebrow">{categoryName}</span>
+            <h1>{selected.title}</h1>
+            {selected.summary ? <p>{selected.summary}</p> : null}
+          </header>
+          <div className="help-reader-body">{selected.body}</div>
+        </article>
+
+        {related.length > 0 ? (
+          <aside className="help-related" aria-label="Related articles">
+            <h2>Related articles</h2>
+            <div className="help-related-grid">
+              {related.map((article) => (
+                <button type="button" key={article.id} onClick={() => openArticle(article.id)}>
+                  <span>{article.title}</span><ArrowRight size={13} />
+                </button>
+              ))}
+            </div>
+          </aside>
+        ) : null}
+
+        <section className="doc-next">
+          <p>
+            Still stuck? <a href={`mailto:${EMAIL}?subject=deck%20—%20help`}>Email us</a> with the
+            rig name, browser and what happened immediately before the problem.
+          </p>
+        </section>
+      </SitePage>
+    );
+  }
 
   // Only the categories with something in them, so the filter never offers a
   // heading that leads to an empty page.
@@ -568,10 +827,15 @@ export function Help() {
       <header className="doc-head">
         <h1>Help centre</h1>
         <p>
-          Everything the booth does, and what to do when it does not. Search it, or pick a heading —
-          if the answer is not here, we would rather you asked than guessed.
+          Guides for setting up the booth, running a set and solving common problems. Search the
+          library or browse by topic.
         </p>
       </header>
+
+      <div className="help-overview">
+        <span><BookOpen size={14} /><strong>{ARTICLES.length}</strong> articles</span>
+        <span><strong>{CATEGORIES.length}</strong> topics</span>
+      </div>
 
       <div className="help-search">
         <Search size={15} />
@@ -621,12 +885,17 @@ export function Help() {
         groups.map((group) => (
           <section className="help-group" key={group.id}>
             <h2 className="help-group-title">{group.name}</h2>
-            {group.articles.map((article) => (
-              <article className="help-article" id={article.id} key={article.id}>
-                <h3>{article.title}</h3>
-                {article.body}
-              </article>
-            ))}
+            <div className="help-article-grid">
+              {group.articles.map((article) => (
+                <button className="help-article-card" type="button" id={article.id} key={article.id} onClick={() => openArticle(article.id)}>
+                  <span>
+                    <strong>{article.title}</strong>
+                    <small>{article.summary ?? 'Open the complete guide and operating notes.'}</small>
+                  </span>
+                  <ArrowRight size={14} />
+                </button>
+              ))}
+            </div>
           </section>
         ))
       )}
