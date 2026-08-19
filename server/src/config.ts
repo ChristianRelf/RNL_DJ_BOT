@@ -30,17 +30,6 @@ function num(name: string, fallback: number): number {
 const dataDir = path.resolve(process.env.DATA_DIR ?? './data');
 
 /**
- * Reads a variable that has a fallback, recording the fallback's name as the
- * missing one only if neither is set. Used by the auth/playback split, where
- * the older single-application variables still stand in for both.
- */
-function reqEither(name: string, fallback: string): string {
-  const v = process.env[name];
-  if (v && v.trim()) return v.trim();
-  return req(fallback);
-}
-
-/**
  * Whoever runs the platform: the portal, the allowlist, the bot pool, every
  * rig. A step above a guild admin, who can force-take the decks in one server
  * and nothing else.
@@ -62,28 +51,20 @@ export const config = {
      */
     guildId: (process.env.DISCORD_GUILD_ID ?? '').trim(),
     /**
-     * The default playback bot — "deck". Its token is what the rig speaks
-     * through until an owner points it at another one from the console.
+     * "deck" — the one Discord application this runs on.
+     *
+     * It is the bot people invite, the account the room hears by default, the
+     * application `/dj` is registered against, and the token the sign-in gate
+     * reads guild membership with.
+     *
+     * A rig can be pointed at a different playback account from its tools page,
+     * but the gate deliberately stays on this one: who is allowed to sign in
+     * must not change when the bot the room hears does.
      */
     playback: {
       token: req('DISCORD_BOT_TOKEN'),
       applicationId: req('DISCORD_CLIENT_ID'),
-    },
-    /**
-     * The sign-in application — "deck auth". Separate from playback so the
-     * account people log in through does not change when the bot the room hears
-     * does. Falls back to the playback application, which is how this rig ran
-     * before the two were split.
-     *
-     * Its token is only ever used to read guild membership and roles, so the
-     * gate keeps working no matter which bot is currently on air. That bot must
-     * be in the guild; if only the playback bot is, leave AUTH_BOT_TOKEN unset
-     * and the fallback covers it.
-     */
-    auth: {
-      clientId: reqEither('AUTH_CLIENT_ID', 'DISCORD_CLIENT_ID'),
-      clientSecret: reqEither('AUTH_CLIENT_SECRET', 'DISCORD_CLIENT_SECRET'),
-      token: reqEither('AUTH_BOT_TOKEN', 'DISCORD_BOT_TOKEN'),
+      clientSecret: req('DISCORD_CLIENT_SECRET'),
     },
   },
   access: {
@@ -148,6 +129,19 @@ if (missingOnce.length > 0) {
 
 if (config.http.sessionSecret.length < 32) {
   throw new Error('SESSION_SECRET must be at least 32 characters long.');
+}
+
+// Signing in requires being on the allowlist, and only a platform admin can put
+// anybody on it. With nobody configured, an install is not merely limited — it
+// is sealed: no portal, no way to grant access, and no hint as to why. That is
+// worth refusing to start over, because the alternative is discovering it as a
+// login page that rejects everyone including you.
+if (config.access.platformAdminIds.length === 0) {
+  throw new Error(
+    'PLATFORM_ADMIN_IDS is empty, so nobody could reach the portal or be let in. ' +
+      'Set it to your Discord user id — enable Developer Mode in Discord, then ' +
+      'right-click your own name and Copy User ID.',
+  );
 }
 
 // A scheme-less PUBLIC_URL still boots but breaks OAuth (Discord rejects a

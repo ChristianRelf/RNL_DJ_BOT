@@ -202,9 +202,9 @@ function Configure({
 
       {gateMissing && (
         <p className="onboard-warn">
-          <AlertTriangle size={13} /> The sign-in bot cannot read that server yet, so nobody
-          there will be able to log in. Invite the sign-in application&rsquo;s bot as well, or
-          leave AUTH_BOT_TOKEN unset so the playback bot answers membership checks.
+          <AlertTriangle size={13} /> deck cannot read that server yet, so nobody there will be
+          able to sign in. Discord sometimes takes a moment to catch up — reload this page, and
+          if it persists, check the bot is still in the server.
         </p>
       )}
 

@@ -197,21 +197,19 @@ whichever step fails.
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `DISCORD_BOT_TOKEN` | — | Required. The default playback bot's token. |
-| `DISCORD_CLIENT_ID` | — | Required. The playback application ID. |
-| `DISCORD_CLIENT_SECRET` | — | Required unless `AUTH_CLIENT_SECRET` is set. |
-| `DISCORD_GUILD_ID` | — | Required. The one server this rig serves. |
-| `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | *(playback app)* | The application people sign in through, if you keep it separate. |
-| `AUTH_BOT_TOKEN` | *(playback token)* | Token used for membership and role lookups. Its bot must be in the guild. |
+| `DISCORD_BOT_TOKEN` | — | Required. deck's bot token. Playback *and* membership lookups. |
+| `DISCORD_CLIENT_ID` | — | Required. deck's application ID. |
+| `DISCORD_CLIENT_SECRET` | — | Required. Drives the OAuth2 sign-in. |
+| `DISCORD_GUILD_ID` | — | Only to import a legacy `db.json` on first start. Unset it afterwards. |
 | `PLATFORM_ADMIN_IDS` | — | Who runs the platform: the portal, the allowlist, the bot pool, every rig. Read as `OWNER_USER_IDS` too, for installs that predate the rename. |
 | `PORTAL_HOST` | — | Hostname the owner portal answers on, e.g. `portal.deck.ronation.live`. |
 | `COOKIE_DOMAIN` | — | Scopes the session cookie so one sign-in covers the console and the portal. |
 | `SESSION_SECRET` | — | Required, ≥32 chars. Rotating it signs everyone out. |
 | `PUBLIC_URL` | `http://localhost:7403` | Must match the registered redirect URI. |
 | `PORT` | `7403` | |
-| `DJ_ROLE_IDS` | *(empty)* | Comma separated. Empty means any guild member may sign in. |
-| `ADMIN_ROLE_IDS` / `ADMIN_USER_IDS` | *(empty)* | May force-take control and delete anyone's media. The guild owner is always an admin. |
-| `MAX_UPLOAD_MB` | `100` | Per file. |
+| `DJ_ROLE_IDS` | *(empty)* | Seeds the imported guild only. Per-rig roles are chosen during onboarding. |
+| `ADMIN_ROLE_IDS` / `ADMIN_USER_IDS` | *(empty)* | Seeds the imported guild only. The server owner is always an admin. |
+| `MAX_UPLOAD_MB` | `100` | Per file, on the legacy upload route. Nothing else uploads. |
 | `CONTROL_IDLE_TIMEOUT_S` | `180` | Idle hand-over, applied **only** when someone is queued. `0` disables. |
 | `CONTROL_DISCONNECT_GRACE_S` | `20` | Survives a page refresh without losing the decks. |
 | `DATA_DIR` | `./data` | `deck.db` — metadata only. No audio is ever stored here. |
@@ -277,20 +275,18 @@ Every command — from the web UI *and* from slash commands — goes through one
 `Rig.execute` path where it is schema-validated and permission-checked, so the
 control lock cannot be bypassed by talking to the socket directly.
 
-## Two applications, two jobs
+## One bot, several jobs
 
-Signing in and playing audio are separate concerns, so they can be separate
-Discord applications:
+Everything runs on a single Discord application — **deck**. It is the bot people
+invite, the account the room hears by default, the application `/dj` is
+registered against, and the token that answers "is this person in the server, and
+what roles do they have?".
 
-- **deck** — the playback bot. Whatever token is on air is what the room hears,
-  and it is the application `/dj` is registered against.
-- **deck auth** — sign-in. Its client ID and secret drive OAuth2, and its token
-  answers "is this person in the guild, and what roles do they have?".
-
-Keeping the gate off the playback token is what makes swapping bots safe: who is
-allowed in never depends on which account happens to be speaking. A single
-application still works — leave the `AUTH_*` variables unset and it fills both
-roles, which is how every install before this one ran.
+That last one is why the gate reads the token from the environment rather than
+whichever bot is currently on air. A rig can be pointed at a different playback
+account from its tools page, and who is allowed to sign in must not change when
+the account the room hears does. `deck` is in every server this runs for — the
+onboarding wizard is what put it there — so it is the stable thing to ask.
 
 A platform admin (`PLATFORM_ADMIN_IDS`) can add further playback bots from a
 rig's tools page by pasting a token. The application ID is read back from the token, and the bot

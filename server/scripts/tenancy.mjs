@@ -27,6 +27,7 @@ process.env.DISCORD_CLIENT_SECRET = 'test-secret';
 process.env.SESSION_SECRET = 'x'.repeat(48);
 process.env.PUBLIC_URL = 'http://localhost:7403';
 process.env.DISCORD_GUILD_ID = '111111111111111111';
+process.env.PLATFORM_ADMIN_IDS = '999';
 process.env.LOG_LEVEL = 'error';
 
 /** A legacy document for the importer to find, written before anything loads. */
