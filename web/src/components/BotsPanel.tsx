@@ -95,8 +95,8 @@ export function BotsPanel({ user, live, voiceLive, api }: Props) {
           <h2>Playback bot</h2>
           <p>
             The Discord account the room hears. <strong>deck</strong> is the default; add your own
-            bots here and switch between them without a restart. Signing in is separate — that
-            stays on <strong>deck auth</strong> whatever is playing.
+            bots here and switch between them without a restart. Signing in is unaffected — that
+            always goes through <strong>deck</strong>, whatever is playing.
           </p>
         </div>
         <button type="button" className="btn tiny" onClick={load} title="Reload the list">

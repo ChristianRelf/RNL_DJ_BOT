@@ -48,7 +48,7 @@ const accessCache = new Map<string, { at: number; result: AccessResult }>();
 
 export function authorizeUrl(state: string): string {
   const params = new URLSearchParams({
-    client_id: config.discord.auth.clientId,
+    client_id: config.discord.playback.applicationId,
     redirect_uri: redirectUri,
     response_type: 'code',
     // Just `identify`. Setting a rig up goes through Discord's own bot-invite
@@ -90,8 +90,8 @@ export interface ExchangeResult {
 
 export async function exchangeCode(code: string): Promise<ExchangeResult> {
   const body = new URLSearchParams({
-    client_id: config.discord.auth.clientId,
-    client_secret: config.discord.auth.clientSecret,
+    client_id: config.discord.playback.applicationId,
+    client_secret: config.discord.playback.clientSecret,
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,

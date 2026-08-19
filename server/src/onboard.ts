@@ -113,9 +113,10 @@ export function mountOnboarding(app: express.Express): void {
       return res.redirect(`/onboard?rig=${encodeURIComponent(existing.slug)}`);
     }
 
-    // The sign-in gate reads membership with the auth application's token. If
-    // that is a different bot it has to be in the server too, and saying so now
-    // beats the first person to try logging in discovering it.
+    // The same bot that was just invited is the one the sign-in gate reads
+    // membership with, so this should always pass. It is checked anyway,
+    // because "should always pass" is where the surprising failures live and
+    // this one would otherwise surface as nobody being able to log in.
     const gateOk = await verifyAuthAccess(guildId);
     const info = await guildInfo(guildId);
 
