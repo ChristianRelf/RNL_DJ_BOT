@@ -558,7 +558,20 @@ export function createApp(): express.Express {
     );
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io')) return next();
-      res.sendFile(path.join(webDist, 'index.html'));
+
+      // A hashed asset express.static did not find is gone, not a route. Falling
+      // through to index.html answers a stylesheet or module request with HTML,
+      // which the browser refuses on the MIME mismatch — the page renders
+      // unstyled, or blank, with nothing but 200s in the network log. A browser
+      // holding index.html from an earlier build asks for exactly these, so let
+      // it have the 404 and fetch the shell again.
+      if (req.path.startsWith('/assets/')) return next();
+
+      // The shell names the current build's hashed assets, so it has to be
+      // revalidated every load; the assets it points at stay immutable.
+      res.sendFile(path.join(webDist, 'index.html'), {
+        headers: { 'cache-control': 'no-cache' },
+      });
     });
   } else {
     log.warn(`web build not found at ${webDist} — run "npm run build -w web"`);
