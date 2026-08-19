@@ -5,7 +5,7 @@ import { Backdrop } from './landing/Backdrop';
 import { Crossfade, type Contrast } from './landing/Crossfade';
 import { Cue, Mix } from './landing/Mix';
 import { PadPlay } from './landing/PadPlay';
-import { BEAT_S, useReducedMotion } from './landing/beat';
+import { useReducedMotion } from './landing/beat';
 
 /**
  * The product pitch, at /home. The front door is the sign-in page; this is
@@ -38,19 +38,19 @@ const SPECS = [
 /** The category distinction the whole product rests on. */
 const CONTRAST: readonly Contrast[] = [
   {
-    them: 'Music bots queue links.',
-    us: 'deck mixes records.',
-    body: 'Beatmatch, ride the crossfader, kill the bass on the way in, drop a four-beat loop and hold it. Two decks and a real isolator, not a playlist with a skip button.',
+    them: 'A music bot plays a queue.',
+    us: 'deck provides a live mixing console.',
+    body: 'Two decks, waveforms, cue points, loops, EQ, effects and a configurable crossfader—all operated live from the browser.',
   },
   {
-    them: 'Music bots take requests.',
-    us: 'deck gives your crew a booth.',
-    body: 'One person on the decks at a time, with a queue for who plays next and automatic handover when someone goes idle. Everyone else watches the meters move in real time.',
+    them: 'A music bot has shared playback controls.',
+    us: 'deck has clear operator control.',
+    body: 'One DJ holds the controls while everyone else follows the console in real time. Handover is explicit, with an orderly queue for the next operator.',
   },
   {
-    them: 'Music bots make you their product.',
-    us: 'deck is a booth we run for you.',
-    body: 'No install, no server to keep alive, no tokens to rotate. Your library stays in your room and is never pooled with anyone else’s, and nothing about your set is recorded or reported.',
+    them: 'A self-hosted bot needs ongoing maintenance.',
+    us: 'deck is managed for your server.',
+    body: 'There is no bot token, container or audio stack for your team to maintain. Each server has its own private library and access policy.',
   },
 ];
 
@@ -60,40 +60,40 @@ const MODULES = [
     id: 'decks',
     n: '03',
     label: 'The decks',
-    statement: 'Mix like you mean it',
-    lede: 'Everything you would reach for on a real controller, in a browser tab. Load a track, find the one, and work it.',
+    statement: 'A complete browser mixing console',
+    lede: 'The controls needed for a live set, presented in a focused two-deck workspace.',
     points: [
       'Two decks with waveform scrubbing and cue points',
       'Beat-locked loops, beat jumps and loop rolls',
-      'Pitch fader with one-press tempo matching and tap tempo',
-      'Three-band EQ that kills properly, plus a sweepable filter',
-      'Crossfader that runs from a constant-power blend to a hard cut',
+      'Pitch control, tempo matching and tap tempo',
+      'Three-band isolator EQ and sweepable filters',
+      'Adjustable crossfader curve, from smooth blends to hard cuts',
     ],
   },
   {
     id: 'desk',
     n: '04',
     label: 'The desk',
-    statement: 'A mixer with the rest of it',
-    lede: 'The compact strip is what you reach for mid-mix. The advanced desk is everything behind it, on its own panel.',
+    statement: 'Detailed control when you need it',
+    lede: 'Core controls stay close at hand. Routing, effects and master processing remain available in the advanced mixer.',
     points: [
       'Per-channel pan, mute and a post-fader effects send',
       'Send effects: tape echo, reverb and flanger, timed in beats',
       'Master isolator, left–right balance and a mono fold-down',
       'Brickwall limiter with gain-reduction metering',
-      'Map a MIDI controller onto any of it, with fader pickup',
+      'MIDI mapping with fader pickup',
     ],
   },
   {
     id: 'crew',
     n: '05',
     label: 'The crew',
-    statement: 'Hand the booth around',
-    lede: 'Built for a group from the start, so nobody is passing a laptop or arguing about who is in charge.',
+    statement: 'Designed for shared operation',
+    lede: 'A defined control model keeps multi-DJ sessions predictable without preventing the rest of the room from participating.',
     points: [
       'One operator at a time, with a request queue',
-      'Hands over automatically if you idle while someone waits',
-      'Live presence — see who is in and who is playing',
+      'Automatic handover when an operator is idle and someone is waiting',
+      'Live presence for viewers and operators',
       'Access gated on the Discord roles you already use',
       'Everyone else watches the console live, read-only',
     ],
@@ -102,8 +102,8 @@ const MODULES = [
     id: 'library',
     n: '06',
     label: 'The library',
-    statement: 'Drop files in and play',
-    lede: 'Uploads are decoded once, on the way in. No tagging session before you can start a set.',
+    statement: 'A private library for each server',
+    lede: 'Upload music, organise it in place and prepare the next track without interrupting the live output.',
     points: [
       'Waveforms and tempo read on upload',
       'Search, tag and rename in place',
@@ -116,8 +116,8 @@ const MODULES = [
     id: 'console',
     n: '07',
     label: 'The console',
-    statement: 'Arrange it how you play',
-    lede: 'The booth is a grid of tools you place yourself. Your layout is yours — it never moves anyone else’s.',
+    statement: 'A workspace that fits the operator',
+    lede: 'Arrange and resize the console panels for the screen and workflow in front of you. Layouts are saved per browser.',
     points: [
       'Drag tools in, drag them to size, snapped to a twelve-column grid',
       'Nothing overlaps: what you drop onto gets pushed out of the way',
@@ -130,14 +130,14 @@ const MODULES = [
     id: 'wiring',
     n: '08',
     label: 'The wiring',
-    statement: 'Fit it into the rest of the show',
-    lede: 'The booth does not have to be an island. Switch on what you need from the tools page.',
+    statement: 'Connect it to the wider production',
+    lede: 'Optional outputs and integrations connect the booth to broadcast, lighting and visual systems.',
     points: [
       'Timecode feed over HTTP for overlays and lighting',
       'OSC output to Pure Data, a lighting desk or a VJ rig',
       'Import straight from a promo-pool download link',
-      'Upgrades land without you doing anything',
-      'Every tool off by default, and shared across the crew',
+      'Managed updates with no client deployment',
+      'Optional tools remain disabled until an operator enables them',
     ],
   },
 ];
@@ -145,83 +145,65 @@ const MODULES = [
 const AUDIENCE = [
   {
     title: 'Community servers',
-    body: 'Listening parties, movie nights and the Friday set — without one person screen-sharing a browser tab at everyone.',
+    body: 'Listening parties, regular DJ sets and community events with a console the whole room can follow.',
   },
   {
     title: 'Internet radio',
-    body: 'A rotating roster of DJs with scheduled shows, all working the same booth and handing over cleanly between sets.',
+    body: 'A rotating roster of presenters working from the same library and handing over cleanly between programmes.',
   },
   {
     title: 'Events and tournaments',
-    body: 'Walk-on music, filler between matches, and a proper fade out of the room when the stream goes live.',
+    body: 'Walk-on music, interval programming and controlled transitions into or out of a live stream.',
   },
 ];
 
 const STEPS = [
   {
-    title: 'Join the waitlist',
-    body: 'Your Discord handle and where it is for. We come back to you when a spot opens.',
+    title: 'Request access',
+    body: 'Tell us which Discord community you operate and how you plan to use the booth.',
   },
   {
-    title: 'We bring the bot in',
-    body: 'It joins your server and takes the role you nominate. Nothing for you to install.',
+    title: 'Configure the server',
+    body: 'We add the playback bot and connect access to the Discord roles you nominate.',
   },
   {
-    title: 'Sign in and play',
-    body: 'No new account. Upload, drag it to a deck, and the voice channel hears it.',
+    title: 'Open the console',
+    body: 'Sign in with Discord, upload your library and start mixing into the voice channel.',
   },
 ];
 
 const FAQ = [
   {
     q: 'What do I have to set up?',
-    a: 'Nothing. We bring the bot into your Discord server, point it at the role you nominate, and send you the booth link. There is no developer portal, no token to paste and nothing to keep running.',
+    a: 'We add the playback bot, configure the nominated Discord roles and provide the console URL. Your team does not need to host an application or manage a bot token.',
   },
   {
     q: 'Where does the audio go?',
-    a: 'It is mixed and encoded on our machines and streamed straight into your voice channel. Sets are not recorded, and the stream is the only thing that leaves the booth.',
+    a: 'Audio is mixed and encoded by the service, then streamed directly into your Discord voice channel. Sets are not recorded.',
   },
   {
     q: 'What can I upload?',
-    a: 'MP3, WAV, FLAC, OGG, M4A, AAC and Opus, plus most other formats. Your library is your room’s alone — there is no shared pool, and nobody else can see it.',
+    a: 'MP3, WAV, FLAC, OGG, M4A, AAC and Opus are supported. Libraries are isolated by server and are not pooled across customers.',
   },
   {
     q: 'Can two people mix at once?',
-    a: 'No, and that is on purpose. One person holds control while the rest watch live. Control passes when the holder releases it, and automatically if they sit idle for three minutes while somebody is waiting. Nobody gets bumped off an empty queue.',
+    a: 'One person operates the console at a time while others watch live. Control can be released or handed over, and automatically passes after three minutes of inactivity when another operator is waiting.',
   },
   {
     q: 'Can people request tracks?',
-    a: 'Anyone signed in can add to the shared queue whether or not they hold the decks — lining a track up does not change what the room is hearing. Loading, reordering and clearing need control.',
+    a: 'Yes. Signed-in members can submit requests or add to the shared queue without taking control of the live decks. An operator decides what is loaded and played.',
   },
   {
     q: 'Do you track us?',
-    a: 'No. There is no analytics and no third-party scripts anywhere in the booth. We can see that a room is running because we run it — we do not sell that, share it, or watch what you play.',
+    a: 'The console does not use third-party analytics. Operational status is visible to platform administrators, but sets are not recorded and listening activity is not sold or shared.',
   },
   {
     q: 'How do we get in?',
-    a: 'Join the waitlist. Access opens in batches so every new room is set up properly rather than dropped into a queue, and we come to you on Discord when a spot is ready.',
+    a: 'Submit an access request with your Discord details. New servers are onboarded in batches so roles, permissions and playback are configured correctly.',
   },
 ];
 
 /* --------------------------------------------------------------- pieces */
-
-/**
- * The opening line lands in time: a word on every eighth note, so the first
- * thing the page does is keep the tempo it is about to run at.
- */
-function Kinetic({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(' ').map((word, index) => (
-        <span className="kin" key={`${word}-${index}`}>
-          {/* The word gap is the wrapper's margin, not a space — a space inside
-              an overflow-hidden inline-block is trimmed away. */}
-          <span style={{ animationDelay: `${(index * BEAT_S * 0.5).toFixed(3)}s` }}>{word}</span>
-        </span>
-      ))}
-    </>
-  );
-}
 
 /**
  * The console illustration. It tilts a little towards the pointer — enough to
@@ -282,14 +264,16 @@ export function Home() {
           lead
           statement={
             <>
-              <Kinetic text="A real DJ booth for" />
-              <span className="cue-turn">
-                <Kinetic text="your Discord server." />
-              </span>
+              Live DJ mixing,
+              <span className="cue-turn"> built for Discord.</span>
             </>
           }
-          lede="Two decks, a proper mixer and eight sample pads — mixed live into a voice channel by you and your crew. Not a queue bot."
+          lede="A managed, browser-based DJ console with two decks, a full mixer and shared operation—streamed directly into your Discord voice channel."
         >
+          <div className="cue-cta cue-cta-hero">
+            <a className="btn is-primary" href="/home/access">Request access</a>
+            <a className="btn" href="/login">Sign in</a>
+          </div>
           <dl className="readout">
             {SPECS.map((spec) => (
               <div key={spec.label}>
@@ -304,9 +288,9 @@ export function Home() {
         <Cue
           id="difference"
           n="02"
-          label="The difference"
-          statement="Not another music bot"
-          lede="Take the fader. Everything to the left of it is what a music bot does; everything to the right is what a booth does."
+          label="Product model"
+          statement="More than queued playback"
+          lede="Use the crossfader to compare a conventional music bot with a live, operated booth."
         >
           <Crossfade items={CONTRAST} />
         </Cue>
@@ -328,8 +312,8 @@ export function Home() {
           id="pads"
           n="09"
           label="The pads"
-          statement="Eight pads. Press one."
-          lede="No sign-up and no demo to book. The keys 1 to 8 work here too, exactly as they do on the console."
+          statement="Try the sample pads"
+          lede="The console includes eight assignable pads with one-shot, loop and gate modes. Use keys 1–8 to test the interaction."
         >
           <PadPlay />
         </Cue>
@@ -337,8 +321,8 @@ export function Home() {
         <Cue
           id="rooms"
           n="10"
-          label="Who runs it"
-          statement="Built for rooms with a schedule"
+          label="Use cases"
+          statement="For teams that programme live audio"
         >
           <dl className="notes">
             {AUDIENCE.map((item) => (
@@ -353,9 +337,9 @@ export function Home() {
         <Cue
           id="getting-in"
           n="11"
-          label="Getting in"
-          statement="Three steps, none of them yours to build"
-          lede="No portal, no container, no tokens. The setup that used to take an afternoon is a conversation and an invite."
+          label="Onboarding"
+          statement="A managed setup in three steps"
+          lede="We handle the playback bot and role configuration. Your team signs in with Discord and works from the browser."
         >
           <ol className="steps">
             {STEPS.map((step, index) => (
@@ -371,7 +355,7 @@ export function Home() {
           </p>
         </Cue>
 
-        <Cue id="questions" n="12" label="Questions" statement="The things people ask first">
+        <Cue id="questions" n="12" label="Questions" statement="Frequently asked questions">
           <div className="asks">
             {FAQ.map((item) => (
               <details key={item.q}>
@@ -385,13 +369,13 @@ export function Home() {
         <Cue
           id="end"
           n="13"
-          label="End of set"
-          statement="Put a booth in your server."
-          lede="Access opens in batches, and every room gets set up properly rather than handed a link. Tell us what you are running — a community, a station, an event — and we will come to you."
+          label="Get access"
+          statement="Bring live mixing to your server."
+          lede="Tell us about your community, station or event. We onboard new servers in batches and configure each deployment with you."
         >
           <div className="cue-cta">
             <a className="btn is-primary" href="/home/access">
-              Join the waitlist
+              Request access
             </a>
             <a className="btn" href="/home/help">
               Browse the help centre

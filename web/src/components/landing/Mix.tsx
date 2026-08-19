@@ -27,9 +27,6 @@ import { bump, useFrame } from './beat';
 
 /** Where the head sits in the window, as a fraction of its height. */
 const PLAYHEAD = 0.4;
-/** The set is 42 minutes, so the transport has something honest to count. */
-const RUNTIME = 42 * 60;
-
 const LiveCue = createContext<string | null>(null);
 
 /* --------------------------------------------------------------- the wave */
@@ -68,7 +65,6 @@ export function Mix({ children }: { children: ReactNode }) {
   const spineRef = useRef<HTMLDivElement | null>(null);
   const beamRef = useRef<HTMLDivElement | null>(null);
   const fillRef = useRef<HTMLSpanElement | null>(null);
-  const timeRef = useRef<HTMLSpanElement | null>(null);
   const [live, setLive] = useState<{ id: string; n: string; label: string } | null>(null);
   // The playhead only moves when the page scrolls, so the clip and the fill
   // are only rewritten when they would actually change.
@@ -138,10 +134,6 @@ export function Mix({ children }: { children: ReactNode }) {
     const progress = played / height;
     spineRef.current?.style.setProperty('--played', `${played.toFixed(1)}px`);
     if (fillRef.current) fillRef.current.style.width = `${(progress * 100).toFixed(2)}%`;
-    if (timeRef.current) {
-      const at = Math.round(progress * RUNTIME);
-      timeRef.current.textContent = `${Math.floor(at / 60)}:${String(at % 60).padStart(2, '0')}`;
-    }
   });
 
   return (
@@ -172,11 +164,8 @@ export function Mix({ children }: { children: ReactNode }) {
         <span className="transport-track">
           <span className="transport-fill" ref={fillRef} />
         </span>
-        <span className="transport-time mono">
-          <span ref={timeRef}>0:00</span> / 42:00
-        </span>
         <a className="transport-cta" href="/home/access">
-          Join the waitlist
+          Request access
         </a>
       </div>
     </LiveCue.Provider>

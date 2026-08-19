@@ -7,6 +7,8 @@ import {
   Loader2,
   Play,
   Radio,
+  RefreshCw,
+  Search,
   Square,
   Trash2,
   UserPlus,
@@ -87,13 +89,19 @@ export function Portal() {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       setData(await api('/api/portal/overview'));
+      setUpdatedAt(Date.now());
       setError(null);
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
@@ -139,14 +147,27 @@ export function Portal() {
     );
   }
 
+  const liveRigs = data.guilds.filter((guild) => guild.voice?.status === 'ready').length;
+  const runningRigs = data.guilds.filter((guild) => guild.running).length;
+  const tracks = data.guilds.reduce((total, guild) => total + guild.tracks, 0);
+
   return (
     <div className="portal">
       <header className="portal-head">
-        <h1 className="portal-title">deck portal</h1>
-        <span className="portal-health mono">
-          {data.health.rigs} rig{data.health.rigs === 1 ? '' : 's'} · {data.health.memoryMb} MB ·
-          up {uptime(data.health.uptime)}
-        </span>
+        <div>
+          <span className="portal-eyebrow mono">PLATFORM ADMIN</span>
+          <h1 className="portal-title">Deck operations</h1>
+          <p className="portal-subtitle">Rigs, access and playback infrastructure at a glance.</p>
+        </div>
+        <div className="portal-head-actions">
+          <span className="portal-health mono">
+            {data.health.memoryMb} MB · up {uptime(data.health.uptime)}
+            {updatedAt ? ` · updated ${ago(updatedAt)}` : ''}
+          </span>
+          <button type="button" className="btn btn-small" disabled={refreshing} onClick={() => void load()}>
+            <RefreshCw size={12} className={refreshing ? 'spin' : ''} /> Refresh
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -155,6 +176,14 @@ export function Portal() {
         </p>
       )}
 
+      <section className="portal-summary" aria-label="Platform summary">
+        <Summary label="On air" value={liveRigs} tone={liveRigs > 0 ? 'live' : undefined} detail={`${runningRigs} running`} />
+        <Summary label="Rigs" value={data.guilds.length} detail={`${data.guilds.length - runningRigs} stopped`} />
+        <Summary label="Known tracks" value={tracks} detail="across all rigs" />
+        <Summary label="Waiting" value={data.waitlist.length} tone={data.waitlist.length > 0 ? 'attention' : undefined} detail={`${data.allowlist.length} allowed`} />
+        <Summary label="Playback bots" value={data.bots.length} detail="shared pool" />
+      </section>
+
       <div className="portal-grid">
         <Rigs guilds={data.guilds} busy={busy} run={run} />
         <Allowlist entries={data.allowlist} busy={busy} run={run} />
@@ -162,6 +191,16 @@ export function Portal() {
         <Bots bots={data.bots} />
       </div>
     </div>
+  );
+}
+
+function Summary({ label, value, detail, tone }: { label: string; value: number; detail: string; tone?: 'live' | 'attention' }) {
+  return (
+    <article className={`portal-stat${tone ? ` is-${tone}` : ''}`}>
+      <span className="portal-stat-label">{label}</span>
+      <strong className="portal-stat-value mono">{value}</strong>
+      <span className="portal-stat-detail">{detail}</span>
+    </article>
   );
 }
 
@@ -176,9 +215,44 @@ function Rigs({
   busy: string | null;
   run: (key: string, work: () => Promise<unknown>) => Promise<void>;
 }) {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'live' | 'idle' | 'stopped'>('all');
+  const needle = query.trim().toLowerCase();
+  const visible = guilds.filter((guild) => {
+    const live = guild.voice?.status === 'ready';
+    const matchesState =
+      filter === 'all' ||
+      (filter === 'live' && live) ||
+      (filter === 'idle' && guild.running && !live) ||
+      (filter === 'stopped' && !guild.running);
+    const matchesText =
+      !needle ||
+      guild.name.toLowerCase().includes(needle) ||
+      guild.slug.toLowerCase().includes(needle) ||
+      Boolean(guild.bot?.name.toLowerCase().includes(needle)) ||
+      Boolean(guild.voice?.channelName?.toLowerCase().includes(needle));
+    return matchesState && matchesText;
+  });
+
   return (
     <section className="portal-panel portal-rigs">
-      <h2 className="portal-panel-title">Rigs</h2>
+      <div className="portal-section-head">
+        <h2 className="portal-panel-title">Rigs <span className="portal-count mono">{guilds.length}</span></h2>
+        {guilds.length > 0 ? (
+          <div className="portal-rig-tools">
+            <label className="portal-search">
+              <Search size={12} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search rigs" aria-label="Search rigs" />
+            </label>
+            <select className="portal-filter mono" value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} aria-label="Filter rigs by status">
+              <option value="all">ALL</option>
+              <option value="live">ON AIR</option>
+              <option value="idle">IDLE</option>
+              <option value="stopped">STOPPED</option>
+            </select>
+          </div>
+        ) : null}
+      </div>
 
       {guilds.length === 0 ? (
         <p className="panel-empty">
@@ -186,10 +260,10 @@ function Rigs({
         </p>
       ) : (
         <ul className="portal-list">
-          {guilds.map((guild) => {
+          {visible.map((guild) => {
             const live = guild.voice?.status === 'ready';
             return (
-              <li key={guild.id} className="portal-rig">
+              <li key={guild.id} className={`portal-rig${live ? ' is-live' : ''}`}>
                 <div className="portal-rig-main">
                   <a className="portal-rig-name" href={`/g/${guild.slug}/deck`}>
                     {guild.name}
@@ -251,6 +325,7 @@ function Rigs({
                   <button
                     type="button"
                     className="btn btn-small btn-danger"
+                    title={`Delete ${guild.name}`}
                     disabled={busy !== null}
                     onClick={() => {
                       // Deleting a rig throws away its library metadata, its
@@ -274,6 +349,7 @@ function Rigs({
               </li>
             );
           })}
+          {visible.length === 0 ? <li className="portal-no-results">No rigs match this view.</li> : null}
         </ul>
       )}
     </section>
@@ -311,7 +387,7 @@ function Allowlist({
   return (
     <section className="portal-panel">
       <h2 className="portal-panel-title">
-        <UserPlus size={13} /> Who can sign in
+        <UserPlus size={13} /> Who can sign in <span className="portal-count mono">{entries.length}</span>
       </h2>
       <p className="portal-hint">
         A Discord user id. Being on this list is what lets somebody log in at all — which rigs
@@ -351,6 +427,7 @@ function Allowlist({
               <button
                 type="button"
                 className="btn btn-small btn-danger"
+                title={`Remove ${entry.note || entry.discordId} from the allowlist`}
                 disabled={busy !== null}
                 onClick={() =>
                   run(entry.discordId, () =>
@@ -383,7 +460,7 @@ function Waitlist({
 
   return (
     <section className="portal-panel">
-      <h2 className="portal-panel-title">Asking for access</h2>
+      <h2 className="portal-panel-title">Asking for access <span className="portal-count mono">{entries.length}</span></h2>
 
       {entries.length === 0 ? (
         <p className="panel-empty">Nobody waiting.</p>
@@ -414,6 +491,7 @@ function Waitlist({
                 <button
                   type="button"
                   className="btn btn-small btn-danger"
+                  title={`Dismiss access request from ${entry.community}`}
                   disabled={busy !== null}
                   onClick={() =>
                     run(entry.id, () =>
@@ -438,7 +516,7 @@ function Bots({ bots }: { bots: Array<{ id: string; name: string; tag: string | 
   return (
     <section className="portal-panel">
       <h2 className="portal-panel-title">
-        <BotIcon size={13} /> Playback bots
+        <BotIcon size={13} /> Playback bots <span className="portal-count mono">{bots.length}</span>
       </h2>
       <p className="portal-hint">
         Shared across every rig. Added from a rig&rsquo;s tools page, where the token can be
