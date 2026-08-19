@@ -1,5 +1,5 @@
 import { ActivityType } from 'discord.js';
-import { bot } from '../discord/bot';
+import type { Bot } from '../discord/bot';
 import { createLogger } from '../logger';
 import type { DeckId, EngineState } from '../protocol';
 
@@ -64,7 +64,7 @@ function audible(state: EngineState): Playing | null {
   return best;
 }
 
-class NowPlaying {
+export class NowPlaying {
   private timer: NodeJS.Timeout | null = null;
   private snapshot: (() => EngineState) | null = null;
   private presence = false;
@@ -75,6 +75,8 @@ class NowPlaying {
   private candidateSince = 0;
   /** The track already acted on, so nothing is said twice. */
   private settled: string | null = null;
+
+  constructor(private readonly bot: Bot) {}
 
   /**
    * Brings the watcher in line with the tools. Safe to call on every change:
@@ -135,7 +137,7 @@ class NowPlaying {
 
   private setActivity(playing: Playing | null): void {
     try {
-      const user = bot.client.user;
+      const user = this.bot.client.user;
       if (!user) return;
       if (!playing) return this.clearActivity();
       user.setActivity({ name: playing.title.slice(0, 120), type: ActivityType.Listening });
@@ -146,7 +148,7 @@ class NowPlaying {
 
   private clearActivity(): void {
     try {
-      bot.client.user?.setPresence({ activities: [] });
+      this.bot.client.user?.setPresence({ activities: [] });
     } catch {
       /* no client to clear it on */
     }
@@ -175,4 +177,4 @@ class NowPlaying {
   }
 }
 
-export const nowPlaying = new NowPlaying();
+/** Instantiated per rig — one poll timer and one settled track each. */

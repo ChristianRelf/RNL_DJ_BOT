@@ -23,13 +23,19 @@ export interface SessionUser {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  /**
+   * May force-take the decks and delete anyone's media — in *this* guild.
+   *
+   * Resolved per connection rather than carried in the session, because one
+   * person is not the same thing in two servers, and a token cannot say "admin"
+   * without saying where.
+   */
   isAdmin: boolean;
   /**
-   * May add playback bots and choose which one the rig speaks through. A step
-   * above admin: an admin can force-take the decks, an owner decides which
-   * Discord account the room is listening to.
+   * Runs the platform: the portal, the allowlist, the bot pool, every rig. A
+   * step above a guild admin, and global rather than per-server.
    */
-  isOwner: boolean;
+  isPlatformAdmin: boolean;
 }
 
 /**
@@ -47,7 +53,13 @@ export interface ActiveBot {
   error: string | null;
 }
 
-export type MediaStatus = 'processing' | 'ready' | 'error';
+/**
+ * `missing` is a track the pool knows about that the hosting device's last scan
+ * could not find — a file moved, a drive unplugged, nobody hosting. It is kept
+ * rather than deleted so a queue entry, a pad assignment or a beat grid pointing
+ * at it survives until the folder comes back.
+ */
+export type MediaStatus = 'processing' | 'ready' | 'error' | 'missing';
 
 export interface MediaItem {
   id: string;
@@ -59,10 +71,44 @@ export interface MediaItem {
   uploadedAt: number;
   /** Mono peak envelope, PEAK_BUCKETS values in 0..1. Empty while processing. */
   peaks: number[];
+  /**
+   * Authoritative tempo. A hand-set value wins over anything detected, which is
+   * why this stays separate from the grid below rather than being read off it.
+   */
   bpm: number | null;
+  /** Where the beats are, or null when nothing trustworthy was found. */
+  beatGrid: BeatGrid | null;
+  /** Camelot notation, e.g. "8A". Set by hand for now. */
+  key: string | null;
   tags: string[];
   status: MediaStatus;
   error?: string;
+}
+
+/**
+ * Where the beats of a track are.
+ *
+ * Deliberately a tempo and an offset rather than a list of beat times. A list
+ * would be the honest shape for a track that genuinely drifts, but it is ~800
+ * numbers per track in a store that rewrites itself whole on every change and
+ * ships the full library on connect — and it turns every consumer, from a
+ * quantised cue to a tempo-locked delay, into a binary search instead of one
+ * multiply. Tracks that really do drift are the ones a single tempo cannot
+ * describe at all, and `confidence` is how those are refused rather than
+ * mis-described.
+ *
+ *   the nth beat, in source ms = beatOffsetMs + n * 60000 / bpm
+ */
+export interface BeatGrid {
+  bpm: number;
+  /** Where the first beat sits, 0 <= x < one beat. */
+  beatOffsetMs: number;
+  beatsPerBar: number;
+  /** Which beat of the bar lands on `beatOffsetMs`. Zero until somebody says. */
+  downbeat: number;
+  /** How well the detected beats agreed on one grid, 0..1. */
+  confidence: number;
+  source: 'auto' | 'manual';
 }
 
 export interface DeckEq {
@@ -104,6 +150,13 @@ export interface DeckState {
   loop: DeckLoop;
   repeat: boolean;
   bpm: number | null;
+  /**
+   * The deck is loaded and playing, but its audio is not arriving fast enough
+   * and it has faded down waiting. Always false for a deck reading a local
+   * file; the console shows it so a dropout reads as a supply problem rather
+   * than as the deck having silently stopped.
+   */
+  starved: boolean;
 }
 
 export type PadMode = 'oneshot' | 'loop' | 'gate';
@@ -267,6 +320,55 @@ export interface PresenceUser {
   connections: number;
 }
 
+/**
+ * Which device is serving this rig's audio.
+ *
+ * Deck plays straight off a folder on somebody's machine — nothing is uploaded
+ * and the server keeps no audio at all — so exactly one console at a time holds
+ * the library and answers requests for it. When nobody does, the decks have
+ * nothing to play.
+ */
+export interface HostState {
+  hosted: boolean;
+  userId: string | null;
+  userName: string | null;
+  trackCount: number;
+}
+
+/**
+ * A track the hosting device can serve, from its folder scan.
+ *
+ * The id is a content hash rather than a path, so renaming a file or moving it
+ * within the folder keeps whatever the server knows about it — the beat grid,
+ * the cue point, the tags.
+ */
+export interface HostTrackInfo {
+  trackId: string;
+  title: string;
+  path: string;
+  /** Decoded length in sample frames. Authoritative: the ring sizes requests off it. */
+  frames: number;
+  sizeBytes: number;
+}
+
+/** Server asking the host for audio. Answered with `audio:chunk`. */
+export interface AudioNeedMessage {
+  sourceKey: string;
+  trackId: string;
+  fromFrame: number;
+  frames: number;
+  /** Bumped on every seek; a chunk carrying a stale one is dropped on arrival. */
+  seq: number;
+}
+
+/** Host answering, with interleaved s16le stereo as a binary attachment. */
+export interface AudioChunkMessage {
+  sourceKey: string;
+  fromFrame: number;
+  seq: number;
+  pcm: ArrayBuffer | Uint8Array;
+}
+
 export interface EngineState {
   decks: Record<DeckId, DeckState>;
   pads: PadState[];
@@ -276,6 +378,7 @@ export interface EngineState {
   bot: ActiveBot;
   voice: VoiceState;
   control: ControlState;
+  host: HostState;
   users: PresenceUser[];
   channels: VoiceChannelInfo[];
   rev: number;
@@ -352,6 +455,11 @@ export interface ClientCommands {
   'voice:join': { channelId: string };
   'voice:leave': Record<string, never>;
   'media:update': { id: string; title?: string; bpm?: number | null; tags?: string[] };
+  /**
+   * Re-reads the beat grid off an already-decoded track. Exists because aubio
+   * tends to get installed *after* a library has been imported, not before.
+   */
+  'media:analyse': { id: string };
   'media:delete': { id: string };
   'control:request': Record<string, never>;
   'control:release': Record<string, never>;

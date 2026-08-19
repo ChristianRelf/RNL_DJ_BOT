@@ -1,18 +1,25 @@
 # RNL DJ Bot
 
-A Discord music bot you drive like a DJ rig. Upload audio to a shared media pool,
-load it onto two decks, ride the EQ and crossfader, fire sample pads — all from a
-React control surface, streamed live into a Discord voice channel.
+A Discord music bot you drive like a DJ rig. Point it at the folder your music
+lives in, load tracks onto two decks, ride the EQ and crossfader, fire sample
+pads — all from a React control surface, streamed live into a Discord voice
+channel.
+
+**Nothing is uploaded.** The server stores no audio at all: it holds a few
+seconds of each playing deck in memory and asks your machine for the rest as it
+goes. One deployment runs many servers' rigs at once, each with its own decks,
+its own library and its own Discord account.
 
 Any number of DJs can be signed in at once; a control lock makes sure only one of
 them is touching the decks at a time, with a hand-over queue for the rest.
 
 ```text
- browser (TSX control surface)          server (Node)                    Discord
+ your machine                          server (Node)                    Discord
  ┌───────────────────────────┐   ws    ┌──────────────────────────┐    ┌─────────┐
- │ decks · mixer · fx · pads │◀──────▶ │ control lock             │    │  voice  │
- │ pool · queue · crew · midi│  state  │ mix graph (48k stereo)   │───▶│ channel │
- └───────────────────────────┘ +meters │ ffmpeg decode on upload  │opus└─────────┘
+ │ music folder (read-only)  │◀──────▶ │ Rig per guild            │    │  voice  │
+ │ decoded cache (OPFS)      │  audio  │  control lock            │───▶│ channel │
+ │ decks · mixer · fx · pads │  state  │  mix graph (48k stereo)  │opus│         │
+ └───────────────────────────┘ +meters │  8 s ring per deck       │    └─────────┘
               ▲ Discord OAuth2         └──────────────────────────┘
 ```
 
@@ -196,7 +203,9 @@ whichever step fails.
 | `DISCORD_GUILD_ID` | — | Required. The one server this rig serves. |
 | `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET` | *(playback app)* | The application people sign in through, if you keep it separate. |
 | `AUTH_BOT_TOKEN` | *(playback token)* | Token used for membership and role lookups. Its bot must be in the guild. |
-| `OWNER_USER_IDS` | *(rig owner)* | Who may add playback bots and switch between them. Owners are always admins. |
+| `PLATFORM_ADMIN_IDS` | — | Who runs the platform: the portal, the allowlist, the bot pool, every rig. Read as `OWNER_USER_IDS` too, for installs that predate the rename. |
+| `PORTAL_HOST` | — | Hostname the owner portal answers on, e.g. `portal.deck.ronation.live`. |
+| `COOKIE_DOMAIN` | — | Scopes the session cookie so one sign-in covers the console and the portal. |
 | `SESSION_SECRET` | — | Required, ≥32 chars. Rotating it signs everyone out. |
 | `PUBLIC_URL` | `http://localhost:7403` | Must match the registered redirect URI. |
 | `PORT` | `7403` | |
@@ -205,7 +214,7 @@ whichever step fails.
 | `MAX_UPLOAD_MB` | `100` | Per file. |
 | `CONTROL_IDLE_TIMEOUT_S` | `180` | Idle hand-over, applied **only** when someone is queued. `0` disables. |
 | `CONTROL_DISCONNECT_GRACE_S` | `20` | Survives a page refresh without losing the decks. |
-| `DATA_DIR` | `./data` | Uploads, decoded PCM and `db.json`. |
+| `DATA_DIR` | `./data` | `deck.db` — metadata only. No audio is ever stored here. |
 | `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | Only needed if they are not on `PATH`. |
 | `LOG_LEVEL` | `info` | `debug` also prints boot stack traces. |
 
@@ -229,14 +238,19 @@ npm run smoke -w server   # audio engine checks, no Discord or ffmpeg needed
 ```
 
 `npm run smoke` synthesises PCM directly and asserts frame size, crossfade,
-EQ kills, looping, seeking, rate, the >28 MB streaming path, pads and the limiter.
+EQ kills, looping, seeking, rate, the streaming path, pads and the limiter.
 
 ## How the audio works
 
-Uploads are decoded **once**, at upload time, into headerless 48 kHz stereo
-`s16le` — exactly the format the Opus encoder wants. Nothing on the realtime path
-touches a codec, and seeking is a byte offset rather than a re-decode. The waveform
-envelope is captured during that same pass.
+Your files never leave your machine. The console decodes a track **once**, the
+first time it is loaded, into headerless 48 kHz stereo `s16le` — exactly the
+format the Opus encoder wants — and keeps that in an OPFS cache on your device
+(1 GB, least-recently-used). The waveform envelope is built in the same pass.
+
+The server asks for quarter-second chunks a few times a second per playing deck,
+keeping an 8-second ring per source. Nothing on the realtime path touches a
+codec, and a seek is a byte offset rather than a re-decode. Steady state is about
+**1.8 Mbit/s of upstream per playing deck**; a paused deck costs nothing.
 
 The mix graph renders in 20 ms blocks (one Opus frame). Each deck resamples its
 source with linear interpolation for pitch, runs the isolator and filter, applies
@@ -253,12 +267,14 @@ Rendering is **pull-driven** by the voice player, so Discord's own 20 ms packet
 cadence clocks the mix and no buffer can drift. When the bot is not in a channel a
 local timer takes over so deck positions stay truthful while you cue up.
 
-Files up to 28 MB (≈2.5 min of stereo) are held in RAM; longer ones stream through
-a 2-second sliding window, refilled with a positional read roughly once every two
-seconds per deck.
+Each source holds a 4-second window as planar float, refilled from an 8-second
+ring the host device fills on demand — about 1.5 MB per source, so two decks and
+eight pads come to well under 15 MB per rig. When the ring runs dry the source
+fades out over 30 ms and back in when audio arrives, because a late frame is the
+one thing the voice player cannot absorb but a short dropout it can.
 
 Every command — from the web UI *and* from slash commands — goes through one
-`Engine.execute` path where it is schema-validated and permission-checked, so the
+`Rig.execute` path where it is schema-validated and permission-checked, so the
 control lock cannot be bypassed by talking to the socket directly.
 
 ## Two applications, two jobs
@@ -276,30 +292,73 @@ allowed in never depends on which account happens to be speaking. A single
 application still works — leave the `AUTH_*` variables unset and it fills both
 roles, which is how every install before this one ran.
 
-An owner (`OWNER_USER_IDS`) can add further playback bots from **/deck/tools**
-by pasting a token. The application ID is read back from the token, and the bot
+A platform admin (`PLATFORM_ADMIN_IDS`) can add further playback bots from a
+rig's tools page by pasting a token. The application ID is read back from the token, and the bot
 is checked for guild membership before anything is stored. Switching drops the
 voice connection and remakes it as the new bot — the old one leaves the channel,
 the new one rejoins it, and `/dj` is re-registered against the new application.
 The decks keep running throughout, but the room hears the gap.
 
 Tokens are sealed with AES-256-GCM under a key derived from `SESSION_SECRET`
-before they reach `db.json`, and no endpoint ever returns one — the console sees
+before they reach the database, and no endpoint ever returns one — the console sees
 a name, an application ID and a fingerprint. Rotating `SESSION_SECRET` signs
 everyone out *and* invalidates the stored tokens, which is the right blast
 radius if it has leaked.
 
+## Rigs, and setting one up
+
+A rig is one Discord server's decks. They live in the database, not in the
+environment, and are addressed by slug:
+
+| URL | What |
+| --- | --- |
+| `/` | sign in, then straight through to your rig |
+| `/rigs` | the picker, when you DJ in more than one server |
+| `/g/<slug>/deck` | that server's console |
+| `/g/<slug>/tools` | its tools page |
+| `/onboard` | setting a new one up |
+| `portal.deck.ronation.live` | the owner portal |
+
+Signing in at all takes being on the allowlist, which is a list of Discord user
+ids a platform admin keeps in the portal. Being on it does not grant access to
+anything by itself — each server's own roles still decide who can DJ there.
+
+Setting a rig up is two steps. **Add deck to your server** hands you to
+Discord's own bot-authorisation dialog, and Discord tells the server which guild
+you picked; the rig is created there and then. The second step names it and
+chooses which role may DJ and which may take over. Both have sane defaults, so
+abandoning the wizard halfway leaves a working rig rather than a broken one.
+
+Nothing here ever asks anyone to find and paste a guild id, and no OAuth token
+is kept: the only scope sign-in asks for is `identify`.
+
+## Upgrading from a single-guild install
+
+The first start after upgrading imports `data/db.json` into the guild named by
+`DISCORD_GUILD_ID` — its library, queue, pads, mixer, tools, bots and waitlist.
+It runs once, and **the file is left where it is**: it is the only copy of that
+library's tempos and cue points, and losing it to a half-finished migration is
+not a risk worth taking. Unset `DISCORD_GUILD_ID` afterwards.
+
+The audio itself is a different matter. Tracks that were uploaded still have
+their decoded PCM under `data/pcm`, and those keep playing from disk exactly as
+before. Anything else needs to be in the music folder the console is pointed at.
+
 ## Known limits
 
-- **One rig per deployment.** A single guild, a single voice connection, one set of
-  decks. Multiple simultaneous voice channels would need the mixer and lock to be
-  keyed by guild.
+- **A rig only plays while a console is open.** The audio comes off somebody's
+  machine, so closing that tab drains the buffer and pauses the decks about six
+  seconds later. There is no unattended playback.
+- **One library per rig.** Whoever is hosting serves every track; a second DJ can
+  drive the decks but can only load what the host's folder has.
+- **Chromium for the folder.** `showDirectoryPicker` is Chrome and Edge only.
+  Firefox and Safari fall back to re-picking the folder each session.
+- **Tracks over 12 minutes will not decode.** `decodeAudioData` is all-or-nothing
+  and an hour of stereo is 1.4 GB in one allocation. Lifting this needs WebCodecs.
 - **No true headphone cue.** Discord gets one bus, so pre-listen happens locally in
   the DJ's browser and is not sample-accurate against the live mix.
-- **No beat detection or sync.** BPM is a manual field; matching tempo is done by
-  ear with the pitch fader.
-- Opus encoding for one stereo stream is roughly a tenth of a core; the mix graph
-  itself is well under that.
+- Opus encoding for one stereo stream is roughly a tenth of a core, so ten
+  simultaneous rigs is about one core; the mix graph itself is well under that.
 
 ## Layout
 

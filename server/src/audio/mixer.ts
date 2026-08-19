@@ -22,6 +22,8 @@ const METER_DECAY = 0.86;
 const FX_TAIL_FRAMES = 250;
 /** Frames of render-cost history, ~10 seconds at 20 ms each. */
 const FRAME_HISTORY = 500;
+/** One least-significant bit of the 16-bit output, in the float domain. */
+const LSB = 1 / 32767;
 
 /**
  * How long frames are taking to render.
@@ -136,6 +138,27 @@ export class Mixer extends EventEmitter {
     frameMs: [0, 0],
   };
   private clipHold = 0;
+
+  /**
+   * Dither state.
+   *
+   * Rounding to 16 bits leaves an error that correlates with the signal, and
+   * correlated error is not noise — on a long fade it is a granular, grainy
+   * tail rather than a smooth one. A triangular dither decorrelates it, trading
+   * that for a couple of dB of flat, unchanging hiss at -90 dBFS.
+   *
+   * Kept honest: this feeds an Opus encoder whose own noise floor is far above
+   * that, so through Discord nobody will ever hear the difference. It costs
+   * three operations a sample and it is right for anything that taps the mix
+   * before the encoder, which is why it is here at all.
+   *
+   * Each channel's dither is the difference between successive uniforms, which
+   * is triangular *and* high-passed — the noise it does add sits up where the
+   * ear is least sensitive rather than spread flat.
+   */
+  private rng = 0x9e3779b9;
+  private ditherL = 0;
+  private ditherR = 0;
 
   private tail = 0;
   private fxTail = 0;
@@ -305,6 +328,19 @@ export class Mixer extends EventEmitter {
     const balR = Math.sin(balanceTheta) * Math.SQRT2;
     const wet = this.fx.mix;
 
+    // Dither belongs on signal, not on silence: an idle rig should put out true
+    // zeros rather than a hiss, and the meter's own decay is what keeps the
+    // dither running through a fade-out and its tail before standing down.
+    const ditherScale =
+      this.fx.active ||
+      this.decks.A.playing ||
+      this.decks.B.playing ||
+      padsActive ||
+      this.meterValues.master[0] > 0 ||
+      this.meterValues.master[1] > 0
+        ? LSB
+        : 0;
+
     let peakML = 0;
     let peakMR = 0;
     let peakPL = 0;
@@ -373,9 +409,34 @@ export class Mixer extends EventEmitter {
       if (afl > peakFL) peakFL = afl;
       if (afr > peakFR) peakFR = afr;
 
+      // xorshift32, inline. `Math.random()` here would be a call into C++
+      // 1920 times a frame for something this cheap to do in three shifts.
+      let x = this.rng;
+      x ^= x << 13;
+      x ^= x >>> 17;
+      x ^= x << 5;
+      this.rng = x;
+      const uL = (x >>> 8) / 0x1000000;
+      x ^= x << 13;
+      x ^= x >>> 17;
+      x ^= x << 5;
+      this.rng = x;
+      const uR = (x >>> 8) / 0x1000000;
+
+      const dl = (uL - this.ditherL) * ditherScale;
+      const dr = (uR - this.ditherR) * ditherScale;
+      this.ditherL = uL;
+      this.ditherR = uR;
+
       const offset = i * 4;
-      this.out.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(l * 32767))), offset);
-      this.out.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(r * 32767))), offset + 2);
+      this.out.writeInt16LE(
+        Math.max(-32768, Math.min(32767, Math.round((l + dl) * 32767))),
+        offset,
+      );
+      this.out.writeInt16LE(
+        Math.max(-32768, Math.min(32767, Math.round((r + dr) * 32767))),
+        offset + 2,
+      );
     }
 
     this.updateMeters({

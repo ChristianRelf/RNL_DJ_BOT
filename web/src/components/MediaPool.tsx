@@ -136,6 +136,8 @@ function TrackEditor({
 }
 
 interface MediaPoolProps {
+  /** This rig's API prefix. Uploads and pre-listen both hang off it. */
+  api: string;
   media: MediaItem[];
   user: SessionUser;
   locked: boolean;
@@ -151,7 +153,7 @@ interface UploadJob {
 
 let uploadSeq = 0;
 
-export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
+export function MediaPool({ media, user, locked, send, api }: MediaPoolProps) {
   const [query, setQuery] = useState('');
   const [uploads, setUploads] = useState<UploadJob[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -184,7 +186,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
       const body = new FormData();
       body.append('files', file);
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/api/media');
+      xhr.open('POST', `${api}/media`);
       xhr.withCredentials = true;
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) patch({ progress: event.loaded / event.total });
@@ -216,7 +218,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
     }
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
-    audio.src = `/api/media/${previewId}/audio`;
+    audio.src = `${api}/media/${previewId}/audio`;
     audio.volume = 0.7;
     audio.onended = () => setPreviewId(null);
     void audio.play().catch(() => setPreviewId(null));
@@ -324,7 +326,9 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                       ? `${formatTime(item.durationMs)}  ${formatBytes(item.sizeBytes)}`
                       : item.status === 'processing'
                         ? 'decoding...'
-                        : item.error ?? 'failed'}
+                        : item.status === 'missing'
+                          ? 'not in the hosted folder'
+                          : item.error ?? 'failed'}
                     {'   '}
                     {item.uploadedBy.name} {relativeTime(item.uploadedAt)}
                   </span>

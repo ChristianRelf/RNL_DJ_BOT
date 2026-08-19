@@ -147,4 +147,4 @@ export function isUnicast(host: string): boolean {
   return true;
 }
 
-export const oscSender = new OscSender();
+/** Instantiated per rig — one UDP socket and one timer each. */

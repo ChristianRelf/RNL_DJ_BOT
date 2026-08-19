@@ -3,7 +3,8 @@
     "allow": [
       "Bash(grep -n \"^\\\\.\\\\|^/\\\\* \\\\|^  \\\\.\" web/src/styles.css)",
       "Bash(grep -n \"^/\\\\* \\\\|^\\\\/\\\\* -\\\\{3,\\\\}\" styles.css)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(python -)"
     ]
   }
 }

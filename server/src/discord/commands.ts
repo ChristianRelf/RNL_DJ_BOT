@@ -9,9 +9,8 @@ import {
   type ChatInputCommandInteraction,
   type GuildMember,
 } from 'discord.js';
-import { bot } from './bot';
-import { engine, CommandError } from '../engine';
-import { checkAccess } from '../auth';
+import { CommandError, type Rig } from '../rig';
+import { checkAccess, isPlatformAdmin } from '../auth';
 import { config } from '../config';
 import { createLogger } from '../logger';
 import type { SessionUser } from '../protocol';
@@ -42,16 +41,16 @@ const dj = new SlashCommandBuilder()
  * every bot swap — otherwise the command would keep pointing at the bot that
  * has just been taken off.
  */
-export async function registerCommands(): Promise<void> {
-  const identity = bot.identity;
+export async function registerCommands(rig: Rig): Promise<void> {
+  const identity = rig.bot.identity;
   if (!identity) return;
   const rest = new REST({ version: '10' }).setToken(identity.token);
   try {
     await rest.put(
-      Routes.applicationGuildCommands(identity.applicationId, config.discord.guildId),
+      Routes.applicationGuildCommands(identity.applicationId, rig.guildId),
       { body: [dj.toJSON()] },
     );
-    log.info(`registered /dj slash command for ${identity.name}`);
+    log.info(`registered /dj for ${identity.name} in ${rig.guildId}`);
   } catch (err) {
     log.warn('could not register slash commands:', (err as Error).message);
   }
@@ -68,11 +67,15 @@ export async function clearCommands(identity: {
   name: string;
   token: string;
   applicationId: string;
+  guildId?: string;
 }): Promise<void> {
   const rest = new REST({ version: '10' }).setToken(identity.token);
   try {
+    // Without a guild the command list cannot be addressed at all, so this is
+    // a no-op rather than a global wipe of the application's commands.
+    if (!identity.guildId) return;
     await rest.put(
-      Routes.applicationGuildCommands(identity.applicationId, config.discord.guildId),
+      Routes.applicationGuildCommands(identity.applicationId, identity.guildId),
       { body: [] },
     );
     log.info(`removed /dj from ${identity.name}`);
@@ -81,14 +84,14 @@ export async function clearCommands(identity: {
   }
 }
 
-function toSessionUser(member: GuildMember, access: { isAdmin: boolean; isOwner: boolean }): SessionUser {
+function toSessionUser(member: GuildMember, access: { isAdmin: boolean }): SessionUser {
   return {
     id: member.id,
     username: member.user.username,
     displayName: member.displayName,
     avatarUrl: member.displayAvatarURL({ size: 64 }),
     isAdmin: access.isAdmin,
-    isOwner: access.isOwner,
+    isPlatformAdmin: isPlatformAdmin(member.id),
   };
 }
 
@@ -97,13 +100,20 @@ function formatTime(ms: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-/** Attached through `onClient`, so a bot swap keeps /dj answering. */
-export function attachCommandHandlers(): void {
-  bot.onClient((client) => {
+/**
+ * Attached through `onClient`, so a bot swap keeps /dj answering.
+ *
+ * Bound to one rig. An interaction is routed by the client it arrived on rather
+ * than by its guild id: several rigs may share a Discord account, and the one
+ * that should answer is the one whose gateway session heard it.
+ */
+export function attachCommandHandlers(rig: Rig): void {
+  rig.bot.onClient((client) => {
     client.on(Events.InteractionCreate, async (interaction) => {
       if (!interaction.isChatInputCommand() || interaction.commandName !== 'dj') return;
+      if (interaction.guildId !== rig.guildId) return;
       try {
-        await handle(interaction);
+        await handle(rig, interaction);
       } catch (err) {
         const message = err instanceof CommandError ? err.message : 'Something went wrong.';
         if (!(err instanceof CommandError)) log.error('interaction failed:', err);
@@ -115,7 +125,7 @@ export function attachCommandHandlers(): void {
   });
 }
 
-async function handle(interaction: ChatInputCommandInteraction): Promise<void> {
+async function handle(rig: Rig, interaction: ChatInputCommandInteraction): Promise<void> {
   const sub = interaction.options.getSubcommand();
 
   if (sub === 'panel') {
@@ -127,7 +137,7 @@ async function handle(interaction: ChatInputCommandInteraction): Promise<void> {
   }
 
   if (sub === 'now') {
-    const state = engine.state();
+    const state = rig.state();
     const embed = new EmbedBuilder()
       .setTitle('RNL DJ — now playing')
       .setColor(state.voice.status === 'ready' ? 0x22d3ee : 0x64748b)
@@ -159,16 +169,14 @@ async function handle(interaction: ChatInputCommandInteraction): Promise<void> {
   // summon / leave both mutate the rig, so they run the same permission path
   // as the web UI.
   const member = interaction.member as GuildMember | null;
-  if (!member || interaction.guildId !== config.discord.guildId) {
-    throw new CommandError('Use this in the DJ server.');
-  }
-  const access = await checkAccess(member.id, member.displayName);
+  if (!member) throw new CommandError('Use this in a server.');
+  const access = await checkAccess(rig.guildId, member.id, member.displayName);
   if (!access.allowed) throw new CommandError(access.reason ?? 'You are not allowed to do that.');
   const user = toSessionUser(member, access);
 
   if (sub === 'leave') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    await engine.execute(user, 'voice:leave', {});
+    await rig.execute(user, 'voice:leave', {});
     await interaction.editReply('👋 Left the voice channel.');
     return;
   }
@@ -181,8 +189,8 @@ async function handle(interaction: ChatInputCommandInteraction): Promise<void> {
     }
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     // Grab the lock if it is free so summoning works without opening the panel.
-    if (!engine.control.holderId) await engine.execute(user, 'control:request', {});
-    await engine.execute(user, 'voice:join', { channelId });
+    if (!rig.control.holderId) await rig.execute(user, 'control:request', {});
+    await rig.execute(user, 'voice:join', { channelId });
     await interaction.editReply(
       `🔊 Connected. Open the panel to start mixing: ${config.http.publicUrl}`,
     );

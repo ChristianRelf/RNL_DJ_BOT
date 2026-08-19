@@ -42,33 +42,32 @@ interface RawMember {
   user?: { id: string; username: string; global_name: string | null };
 }
 
-/** The guild's owner, cached — it changes about once a lifetime. */
-let ownerId: string | null = null;
-let ownerFetchedAt = 0;
+/** Each guild's owner, cached — it changes about once a lifetime. */
+const owners = new Map<string, { id: string | null; at: number }>();
 const OWNER_TTL_MS = 60 * 60 * 1000;
 
 async function api(path: string, token = config.discord.auth.token): Promise<Response> {
   return fetch(`${API}${path}`, { headers: { authorization: `Bot ${token}` } });
 }
 
-async function guildOwnerId(): Promise<string | null> {
-  if (ownerId && Date.now() - ownerFetchedAt < OWNER_TTL_MS) return ownerId;
+async function guildOwnerId(guildId: string): Promise<string | null> {
+  const cached = owners.get(guildId);
+  if (cached && Date.now() - cached.at < OWNER_TTL_MS) return cached.id;
   try {
-    const res = await api(`/guilds/${config.discord.guildId}`);
-    if (!res.ok) return ownerId;
+    const res = await api(`/guilds/${guildId}`);
+    if (!res.ok) return cached?.id ?? null;
     const guild = (await res.json()) as { owner_id?: string };
-    ownerId = guild.owner_id ?? null;
-    ownerFetchedAt = Date.now();
+    owners.set(guildId, { id: guild.owner_id ?? null, at: Date.now() });
   } catch (err) {
     log.debug('could not read the guild owner:', (err as Error).message);
   }
-  return ownerId;
+  return owners.get(guildId)?.id ?? null;
 }
 
 /** Looks up a guild member. See MemberLookup for why "no" has two shapes. */
-export async function member(userId: string): Promise<MemberLookup> {
+export async function member(guildId: string, userId: string): Promise<MemberLookup> {
   try {
-    const res = await api(`/guilds/${config.discord.guildId}/members/${userId}`);
+    const res = await api(`/guilds/${guildId}/members/${userId}`);
 
     // 404 is the only status that means what it says. Discord returns it both
     // for an unknown member and an unknown guild, but a wrong guild id would
@@ -78,8 +77,8 @@ export async function member(userId: string): Promise<MemberLookup> {
     if (res.status === 401 || res.status === 403) {
       log.error(
         `membership lookup refused (HTTP ${res.status}). The sign-in token cannot read guild ` +
-          `${config.discord.guildId} — invite that application's bot to the server, or unset ` +
-          'AUTH_BOT_TOKEN so the playback bot answers membership checks.',
+          `${guildId} — invite that application's bot to that server so it can answer ` +
+          'membership checks.',
       );
       return {
         kind: 'unavailable',
@@ -102,7 +101,7 @@ export async function member(userId: string): Promise<MemberLookup> {
         id: userId,
         displayName: raw.nick || raw.user?.global_name || raw.user?.username || '',
         roleIds: raw.roles ?? [],
-        isGuildOwner: (await guildOwnerId()) === userId,
+        isGuildOwner: (await guildOwnerId(guildId)) === userId,
       },
     };
   } catch (err) {
@@ -117,20 +116,88 @@ export async function member(userId: string): Promise<MemberLookup> {
  * see the guild, rather than leaving it to be discovered by the first person
  * who cannot log in.
  */
-export async function verifyAuthAccess(): Promise<void> {
+export async function verifyAuthAccess(guildId: string): Promise<boolean> {
   try {
-    const res = await api(`/guilds/${config.discord.guildId}`);
+    const res = await api(`/guilds/${guildId}`);
     if (res.ok) {
       const guild = (await res.json()) as { name?: string };
-      log.info(`sign-in gate reading guild "${guild.name ?? config.discord.guildId}"`);
-      return;
+      log.info(`sign-in gate reading guild "${guild.name ?? guildId}"`);
+      return true;
     }
     log.error(
-      `the sign-in gate cannot read guild ${config.discord.guildId} (HTTP ${res.status}). ` +
-        'Invite the auth application\'s bot to the server, or leave AUTH_BOT_TOKEN unset to ' +
-        'use the playback bot for membership checks.',
+      `the sign-in gate cannot read guild ${guildId} (HTTP ${res.status}). Invite the auth ` +
+        'application bot to that server, or nobody there will be able to sign in.',
     );
   } catch (err) {
     log.error('sign-in gate check failed:', (err as Error).message);
+  }
+  return false;
+}
+
+export interface GuildInfo {
+  id: string;
+  name: string;
+  ownerId: string | null;
+  iconUrl: string | null;
+}
+
+/** What a guild is called, for naming a rig without asking anyone to type it. */
+export async function guildInfo(guildId: string): Promise<GuildInfo | null> {
+  try {
+    const res = await api(`/guilds/${guildId}`);
+    if (!res.ok) return null;
+    const guild = (await res.json()) as { id: string; name: string; owner_id?: string; icon?: string };
+    return {
+      id: guild.id,
+      name: guild.name,
+      ownerId: guild.owner_id ?? null,
+      iconUrl: guild.icon
+        ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
+        : null,
+    };
+  } catch (err) {
+    log.debug('could not read guild:', (err as Error).message);
+    return null;
+  }
+}
+
+export interface RoleInfo {
+  id: string;
+  name: string;
+  color: number;
+  /** Everyone has this one, so offering it as "the DJ role" would be a no-op. */
+  isEveryone: boolean;
+}
+
+/**
+ * The roles somebody can pick from when setting a rig up.
+ *
+ * Managed roles are left out: those belong to integrations and bots, nobody
+ * hands them to a person, and a list with fifteen of them in is harder to read
+ * than one without.
+ */
+export async function guildRoles(guildId: string): Promise<RoleInfo[]> {
+  try {
+    const res = await api(`/guilds/${guildId}/roles`);
+    if (!res.ok) return [];
+    const roles = (await res.json()) as Array<{
+      id: string;
+      name: string;
+      color: number;
+      managed?: boolean;
+      position: number;
+    }>;
+    return roles
+      .filter((role) => !role.managed)
+      .sort((a, b) => b.position - a.position)
+      .map((role) => ({
+        id: role.id,
+        name: role.name,
+        color: role.color,
+        isEveryone: role.id === guildId,
+      }));
+  } catch (err) {
+    log.debug('could not read roles:', (err as Error).message);
+    return [];
   }
 }

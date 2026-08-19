@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { config, redirectUri } from './config';
 import { member } from './discord/gate';
+import { getGuild, isAllowed } from './db/platform';
 import { createLogger } from './logger';
 import type { SessionUser } from './protocol';
 
@@ -16,17 +17,33 @@ const ACCESS_CACHE_TTL_MS = 60_000;
 
 export interface AccessResult {
   allowed: boolean;
+  /** Per guild: may force-take control and delete anyone's media. */
   isAdmin: boolean;
-  isOwner: boolean;
   displayName: string;
   reason?: string;
 }
 
-/** Owners are configured by id, so this holds with or without a guild lookup. */
-export function isOwner(userId: string): boolean {
-  return config.access.ownerUserIds.includes(userId);
+/**
+ * Runs the platform: the portal, the allowlist, the bot pool, every rig.
+ *
+ * Configured by id rather than stored, so it holds even against an empty
+ * database — there has to be someone who can let the first person in.
+ */
+export function isPlatformAdmin(userId: string): boolean {
+  return config.access.platformAdminIds.includes(userId);
 }
 
+/**
+ * May sign in at all, before any guild has an opinion.
+ *
+ * Platform admins are exempt: locking the operator out of their own install by
+ * editing a table is not a state worth being able to reach.
+ */
+export function maySignIn(userId: string): boolean {
+  return isPlatformAdmin(userId) || isAllowed(userId) !== null;
+}
+
+/** Keyed by guild as well as user: the same person is not the same thing in two servers. */
 const accessCache = new Map<string, { at: number; result: AccessResult }>();
 
 export function authorizeUrl(state: string): string {
@@ -34,6 +51,9 @@ export function authorizeUrl(state: string): string {
     client_id: config.discord.auth.clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
+    // Just `identify`. Setting a rig up goes through Discord's own bot-invite
+    // flow, which hands back the guild it was added to — so there is never a
+    // need to list somebody's servers, or to hold a token that could.
     scope: 'identify',
     state,
     prompt: 'none',
@@ -58,7 +78,17 @@ interface DiscordUserResponse {
   avatar: string | null;
 }
 
-export async function exchangeCode(code: string): Promise<DiscordUserResponse> {
+export interface ExchangeResult {
+  profile: DiscordUserResponse;
+  /**
+   * Discarded immediately by the only caller. It is returned rather than
+   * dropped here so that the one place a token could be kept is a decision
+   * somebody has to make on purpose, in the open.
+   */
+  accessToken: string;
+}
+
+export async function exchangeCode(code: string): Promise<ExchangeResult> {
   const body = new URLSearchParams({
     client_id: config.discord.auth.clientId,
     client_secret: config.discord.auth.clientSecret,
@@ -83,20 +113,44 @@ export async function exchangeCode(code: string): Promise<DiscordUserResponse> {
     headers: { authorization: `${token.token_type} ${token.access_token}` },
   });
   if (!userRes.ok) throw new Error('Could not read your Discord profile.');
-  return (await userRes.json()) as DiscordUserResponse;
+  return {
+    profile: (await userRes.json()) as DiscordUserResponse,
+    accessToken: token.access_token,
+  };
 }
 
 /**
- * Guild membership + role gate.
+ * Membership + role gate for one guild.
  *
  * The auth application's token is the source of truth, never the bot currently
  * playing — swapping the playback bot must not change who is allowed in.
+ *
+ * Roles are read from the rig's own record rather than from the environment,
+ * because "the DJ role" means a different id in every server.
  */
-export async function checkAccess(userId: string, fallbackName: string): Promise<AccessResult> {
-  const cached = accessCache.get(userId);
+export async function checkAccess(
+  guildId: string,
+  userId: string,
+  fallbackName: string,
+): Promise<AccessResult> {
+  const key = `${guildId}:${userId}`;
+  const cached = accessCache.get(key);
   if (cached && Date.now() - cached.at < ACCESS_CACHE_TTL_MS) return cached.result;
 
-  const lookup = await member(userId);
+  const guild = getGuild(guildId);
+  if (!guild) {
+    return { allowed: false, isAdmin: false, displayName: fallbackName, reason: 'No such rig.' };
+  }
+  if (guild.status === 'suspended') {
+    return {
+      allowed: false,
+      isAdmin: false,
+      displayName: fallbackName,
+      reason: 'This rig has been suspended.',
+    };
+  }
+
+  const lookup = await member(guildId, userId);
   let result: AccessResult;
 
   if (lookup.kind === 'unavailable') {
@@ -105,7 +159,6 @@ export async function checkAccess(userId: string, fallbackName: string): Promise
     return {
       allowed: false,
       isAdmin: false,
-      isOwner: isOwner(userId),
       displayName: fallbackName,
       reason: lookup.reason,
     };
@@ -114,39 +167,44 @@ export async function checkAccess(userId: string, fallbackName: string): Promise
   if (lookup.kind === 'absent') {
     result = {
       allowed: false,
-      isAdmin: false,
-      isOwner: isOwner(userId),
+      isAdmin: isPlatformAdmin(userId),
       displayName: fallbackName,
-      reason: 'You are not a member of the DJ server.',
+      reason: 'You are not a member of that Discord server.',
     };
   } else {
     const found = lookup.member;
     const roleIds = new Set(found.roleIds);
-    const owner = isOwner(userId);
     const isAdmin =
-      owner ||
-      config.access.adminUserIds.includes(userId) ||
-      config.access.adminRoleIds.some((id) => roleIds.has(id)) ||
-      found.isGuildOwner;
+      isPlatformAdmin(userId) ||
+      found.isGuildOwner ||
+      guild.adminRoleIds.some((id) => roleIds.has(id));
     const hasDjRole =
-      config.access.djRoleIds.length === 0 || config.access.djRoleIds.some((id) => roleIds.has(id));
+      guild.djRoleIds.length === 0 || guild.djRoleIds.some((id) => roleIds.has(id));
 
     result = {
       allowed: isAdmin || hasDjRole,
       isAdmin,
-      isOwner: owner,
       displayName: found.displayName || fallbackName,
-      reason: isAdmin || hasDjRole ? undefined : 'You do not have a DJ role in this server.',
+      reason: isAdmin || hasDjRole ? undefined : 'You do not have a DJ role in that server.',
     };
   }
 
-  accessCache.set(userId, { at: Date.now(), result });
+  accessCache.set(key, { at: Date.now(), result });
   return result;
 }
 
-export function invalidateAccess(userId?: string): void {
-  if (userId) accessCache.delete(userId);
-  else accessCache.clear();
+export function invalidateAccess(guildId?: string, userId?: string): void {
+  if (!guildId) {
+    accessCache.clear();
+    return;
+  }
+  if (userId) {
+    accessCache.delete(`${guildId}:${userId}`);
+    return;
+  }
+  for (const key of accessCache.keys()) {
+    if (key.startsWith(`${guildId}:`)) accessCache.delete(key);
+  }
 }
 
 export function avatarUrl(user: DiscordUserResponse): string | null {
@@ -163,11 +221,16 @@ export function issueSession(res: Response, user: SessionUser): void {
     secure: config.http.publicUrl.startsWith('https://'),
     maxAge: SESSION_TTL_S * 1000,
     path: '/',
+    // Set on the parent so one sign-in covers the portal subdomain too.
+    ...(config.http.cookieDomain ? { domain: config.http.cookieDomain } : {}),
   });
 }
 
 export function clearSession(res: Response): void {
-  res.clearCookie(SESSION_COOKIE, { path: '/' });
+  res.clearCookie(SESSION_COOKIE, {
+    path: '/',
+    ...(config.http.cookieDomain ? { domain: config.http.cookieDomain } : {}),
+  });
 }
 
 export function setStateCookie(res: Response, state: string): void {
@@ -177,10 +240,14 @@ export function setStateCookie(res: Response, state: string): void {
     secure: config.http.publicUrl.startsWith('https://'),
     maxAge: 10 * 60 * 1000,
     path: '/',
+    ...(config.http.cookieDomain ? { domain: config.http.cookieDomain } : {}),
   });
 }
 
-export function readSessionToken(cookieHeader: string | undefined, name = SESSION_COOKIE): string | null {
+export function readSessionToken(
+  cookieHeader: string | undefined,
+  name = SESSION_COOKIE,
+): string | null {
   if (!cookieHeader) return null;
   for (const part of cookieHeader.split(';')) {
     const idx = part.indexOf('=');
@@ -190,6 +257,14 @@ export function readSessionToken(cookieHeader: string | undefined, name = SESSIO
   return null;
 }
 
+/**
+ * The session, as identity only.
+ *
+ * `isAdmin` is deliberately not carried here any more. It used to be baked in
+ * at sign-in, which was true of a rig that served one guild and is a lie in a
+ * process that serves twenty — a token cannot say "admin" without saying where.
+ * It is resolved per connection instead, against the guild being connected to.
+ */
 export function verifySession(token: string | null | undefined): SessionUser | null {
   if (!token) return null;
   try {
@@ -202,11 +277,11 @@ export function verifySession(token: string | null | undefined): SessionUser | n
       username: payload.username,
       displayName: payload.displayName,
       avatarUrl: payload.avatarUrl ?? null,
-      isAdmin: payload.isAdmin,
+      isAdmin: false,
       // Read from configuration rather than trusted from the token, so adding
-      // or removing an owner takes effect without waiting for sessions to
-      // expire — in both directions.
-      isOwner: isOwner(payload.id),
+      // or removing a platform admin takes effect without waiting for sessions
+      // to expire — in both directions.
+      isPlatformAdmin: isPlatformAdmin(payload.id),
     };
   } catch {
     return null;
@@ -232,14 +307,14 @@ export function requireUser(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
-/** Guards the endpoints that hold bot tokens. */
-export function requireOwner(req: Request, res: Response, next: NextFunction): void {
+/** Guards the portal, and everything that holds bot tokens. */
+export function requirePlatformAdmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
     res.status(401).json({ error: 'Not signed in.' });
     return;
   }
-  if (!isOwner(req.user.id)) {
-    res.status(403).json({ error: 'Only the rig owner can manage playback bots.' });
+  if (!isPlatformAdmin(req.user.id)) {
+    res.status(403).json({ error: 'That is not yours to manage.' });
     return;
   }
   next();

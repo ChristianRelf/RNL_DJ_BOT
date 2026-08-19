@@ -18,16 +18,18 @@ interface Props {
   /** The bot the console currently believes is on air, from the rig state. */
   live: ActiveBot;
   voiceLive: boolean;
+  /** This rig's API prefix. */
+  api: string;
 }
 
-async function api(path: string, init?: RequestInit): Promise<any> {
+async function request(path: string, init?: RequestInit): Promise<any> {
   const res = await fetch(path, { credentials: 'include', ...init });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status}).`);
   return body;
 }
 
-export function BotsPanel({ user, live, voiceLive }: Props) {
+export function BotsPanel({ user, live, voiceLive, api }: Props) {
   const [bots, setBots] = useState<BotSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function BotsPanel({ user, live, voiceLive }: Props) {
   const [token, setToken] = useState('');
 
   const load = useCallback(() => {
-    api('/api/bots')
+    request(`${api}/bots`)
       .then((body) => {
         setBots(body.bots);
         setError(null);
@@ -57,7 +59,7 @@ export function BotsPanel({ user, live, voiceLive }: Props) {
     load();
   }, [live.id, load]);
 
-  if (!user.isOwner) return null;
+  if (!user.isPlatformAdmin) return null;
 
   const run = async (label: string, work: () => Promise<any>) => {
     setBusy(label);
@@ -75,7 +77,7 @@ export function BotsPanel({ user, live, voiceLive }: Props) {
 
   const submit = () =>
     run('add', async () => {
-      const body = await api('/api/bots', {
+      const body = await request(`${api}/bots`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: name.trim() || undefined, token: token.trim() }),
@@ -157,7 +159,7 @@ export function BotsPanel({ user, live, voiceLive }: Props) {
                       }
                       onClick={() =>
                         run(entry.id, () =>
-                          api(`/api/bots/${entry.id}/activate`, { method: 'POST' }),
+                          request(`${api}/bots/${entry.id}/activate`, { method: 'POST' }),
                         )
                       }
                     >
@@ -172,7 +174,7 @@ export function BotsPanel({ user, live, voiceLive }: Props) {
                       title="Forget this bot and its token"
                       aria-label={`Remove ${entry.name}`}
                       onClick={() =>
-                        run(entry.id, () => api(`/api/bots/${entry.id}`, { method: 'DELETE' }))
+                        run(entry.id, () => request(`${api}/bots/${entry.id}`, { method: 'DELETE' }))
                       }
                     >
                       <Trash2 size={12} />

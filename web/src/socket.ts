@@ -19,6 +19,14 @@ export interface ToastEntry extends Toast {
 
 export interface DjClient {
   status: ConnectionStatus;
+  /**
+   * The live socket, for the audio channel.
+   *
+   * Exposed because hosting is not a command — it does not go through `send`,
+   * it answers requests the server makes — so the library hook needs the socket
+   * itself rather than the command surface built on top of it.
+   */
+  socket: Socket | null;
   error: string | null;
   user: SessionUser | null;
   state: EngineState | null;
@@ -30,7 +38,15 @@ export interface DjClient {
 
 let toastSeq = 0;
 
-export function useDj(): DjClient {
+/**
+ * The socket for one rig.
+ *
+ * Nothing connects until a guild is known: the server resolves the rig during
+ * the handshake and refuses a socket that does not name one, because a console
+ * that connected first and picked a guild afterwards would have a window where
+ * it was subscribed to nothing and looked simply broken.
+ */
+export function useDj(guildId: string | null): DjClient {
   const socketRef = useRef<Socket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +54,7 @@ export function useDj(): DjClient {
   const [state, setState] = useState<EngineState | null>(null);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
+  const [socketInstance, setSocketInstance] = useState<Socket | null>(null);
 
   const pushToast = useCallback((toast: Toast) => {
     const entry = { ...toast, id: ++toastSeq };
@@ -47,14 +64,17 @@ export function useDj(): DjClient {
   }, []);
 
   useEffect(() => {
+    if (!guildId) return;
     const socket = io({
       path: '/socket.io',
       withCredentials: true,
       transports: ['websocket', 'polling'],
       reconnectionDelay: 500,
       reconnectionDelayMax: 4000,
+      auth: { guildId },
     });
     socketRef.current = socket;
+    setSocketInstance(socket);
 
     socket.on('connect', () => {
       setStatus('online');
@@ -93,8 +113,9 @@ export function useDj(): DjClient {
       socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;
+      setSocketInstance(null);
     };
-  }, [pushToast]);
+  }, [pushToast, guildId]);
 
   const send = useCallback(
     <K extends CommandName>(command: K, payload: ClientCommands[K]): Promise<Ack> =>
@@ -125,8 +146,8 @@ export function useDj(): DjClient {
   }, []);
 
   return useMemo(
-    () => ({ status, error, user, state, media, toasts, dismiss, send }),
-    [status, error, user, state, media, toasts, dismiss, send],
+    () => ({ status, error, user, state, media, toasts, dismiss, send, socket: socketInstance }),
+    [status, error, user, state, media, toasts, dismiss, send, socketInstance],
   );
 }
 

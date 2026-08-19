@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PAD_COUNT } from './protocol';
+import { PAD_COUNT, PEAK_BUCKETS } from './protocol';
 import { WEBHOOK_PATTERN } from './tools/nowPlaying';
 
 const deckId = z.enum(['A', 'B']);
@@ -127,6 +127,7 @@ export const commandSchemas = {
       tags: z.array(z.string().trim().min(1).max(24)).max(12).optional(),
     })
     .strict(),
+  'media:analyse': z.object({ id: mediaId }).strict(),
   'media:delete': z.object({ id: mediaId }).strict(),
   'control:request': z.object({}).strict(),
   'control:release': z.object({}).strict(),
@@ -173,3 +174,53 @@ export const NEEDS_CONTROL = new Set<CommandKey>([
   'voice:join',
   'voice:leave',
 ]);
+
+/**
+ * The audio-streaming channel.
+ *
+ * Kept apart from `commandSchemas` because these are not commands: they carry
+ * no authority over the mix, they are answered rather than executed, and they
+ * arrive at a few a second per playing deck rather than when somebody touches a
+ * control. They still get validated, and harder than most — `frames` sizes a
+ * buffer, so a NaN or a negative here is not a bad command but a crash.
+ */
+const trackId = z.string().min(1).max(128);
+
+export const hostTrackSchema = z
+  .object({
+    trackId,
+    title: z.string().min(1).max(200),
+    path: z.string().max(1024),
+    // A quarter of a million frames is about 90 minutes. Long enough for a
+    // recorded set, short enough that a bad number cannot ask for a gigabyte.
+    frames: z.number().int().min(0).max(48000 * 60 * 90),
+    sizeBytes: z.number().int().min(0).max(4 * 1024 * 1024 * 1024),
+  })
+  .strict();
+
+/** A folder scan. The ceiling is a backstop against somebody picking C:\. */
+export const hostTracksSchema = z
+  .object({ tracks: z.array(hostTrackSchema).max(20_000) })
+  .strict();
+
+export const audioChunkSchema = z
+  .object({
+    sourceKey: z.string().min(1).max(32),
+    fromFrame: z.number().int().min(0),
+    seq: z.number().int().min(0),
+  })
+  .strict();
+
+/** "I have this track but cannot serve it yet." Same shape as a chunk header. */
+export const audioNoneSchema = audioChunkSchema;
+
+export const audioGoneSchema = z.object({ trackId }).strict();
+
+/** The waveform envelope, computed on the device while it decodes. */
+export const mediaPeaksSchema = z
+  .object({
+    trackId,
+    peaks: z.array(z.number().min(0).max(1)).length(PEAK_BUCKETS),
+    frames: z.number().int().min(0),
+  })
+  .strict();

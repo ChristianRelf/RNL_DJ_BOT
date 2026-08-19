@@ -1,9 +1,6 @@
-import fs from 'node:fs';
-import fsp from 'node:fs/promises';
-import path from 'node:path';
-import { config } from './config';
+import { db } from './db';
 import { createLogger } from './logger';
-import type { MediaItem, MixerState, PadMode, QueueState, ToolsState } from './protocol';
+import type { MediaItem, MixerState, PadMode, QueueItem, QueueState, ToolsState } from './protocol';
 
 const log = createLogger('store');
 
@@ -14,8 +11,12 @@ export interface PersistedPad {
 }
 
 /**
- * A playback bot an owner added from the console. The token is sealed (see
- * secrets.ts) so a stolen copy of this file is not a usable Discord account.
+ * A playback bot an owner added from the portal. The token is sealed (see
+ * secrets.ts) so a stolen copy of the database is not a usable Discord account.
+ *
+ * Platform-wide rather than per-guild: one Discord account can be on air in
+ * several servers at once, and re-pasting the same token per rig would mean the
+ * same secret stored several times over.
  */
 export interface PersistedBot {
   id: string;
@@ -30,9 +31,9 @@ export interface PersistedBot {
 }
 
 /**
- * Somebody asking for access. Written by the public endpoint, read only by an
- * owner — this is the one place in the database that holds details of people
- * who are not in the guild, so it stays out of the state broadcast entirely.
+ * Somebody asking for access. Written by the public endpoint, read only by a
+ * platform admin — this is the one place in the database that holds details of
+ * people who are not in any guild, so it stays out of every state broadcast.
  */
 export interface WaitlistEntry {
   id: string;
@@ -47,21 +48,20 @@ export interface WaitlistEntry {
   at: number;
 }
 
-export interface PersistedDb {
-  version: 1;
-  media: Record<string, MediaItem>;
-  mixer: MixerState;
-  tools: ToolsState;
-  pads: PersistedPad[];
-  lastVoiceChannelId: string | null;
-  queue: QueueState;
-  waitlist: WaitlistEntry[];
-  bots: PersistedBot[];
-  /** Which bot to play through. Null means the one from the environment. */
-  activeBotId: string | null;
+/** One rig, as the platform knows it. */
+export interface GuildRecord {
+  id: string;
+  /** What appears in the URL: /g/<slug>/deck */
+  slug: string;
+  name: string;
+  createdAt: number;
+  createdBy: string;
+  status: 'active' | 'suspended';
+  djRoleIds: string[];
+  adminRoleIds: string[];
 }
 
-const DEFAULT_MIXER: MixerState = {
+export const DEFAULT_MIXER: MixerState = {
   crossfader: 0,
   crossfaderCurve: 0,
   master: 1,
@@ -79,7 +79,7 @@ const DEFAULT_MIXER: MixerState = {
  * channel caption is the exception: it writes to the channel the rig is
  * already playing into and nowhere else, so it is on unless someone says not.
  */
-const DEFAULT_TOOLS: ToolsState = {
+export const DEFAULT_TOOLS: ToolsState = {
   timecode: false,
   timecodeKey: '',
   urlImport: false,
@@ -93,71 +93,143 @@ const DEFAULT_TOOLS: ToolsState = {
   announceWebhook: '',
 };
 
-function defaults(): PersistedDb {
-  return {
-    version: 1,
-    media: {},
-    mixer: { ...DEFAULT_MIXER },
-    tools: { ...DEFAULT_TOOLS },
-    pads: Array.from({ length: 8 }, () => ({ mediaId: null, gain: 0.9, mode: 'oneshot' as PadMode })),
-    lastVoiceChannelId: null,
-    queue: { items: [], auto: false },
-    waitlist: [],
-    bots: [],
-    activeBotId: null,
-  };
+export function defaultPads(): PersistedPad[] {
+  return Array.from({ length: 8 }, () => ({
+    mediaId: null,
+    gain: 0.9,
+    mode: 'oneshot' as PadMode,
+  }));
+}
+
+/** The mutable state of one rig, in the shape the engine works with. */
+interface GuildData {
+  media: Record<string, MediaItem>;
+  mixer: MixerState;
+  tools: ToolsState;
+  pads: PersistedPad[];
+  lastVoiceChannelId: string | null;
+  queue: QueueState;
+  activeBotId: string | null;
 }
 
 /**
- * Tiny JSON document store. The whole document is a few hundred KB at most
- * (peak envelopes dominate), so rewriting it on change is cheaper than pulling
- * in a database and a native build step.
+ * One guild's slice of the database, mirrored in memory.
+ *
+ * In memory because the audio path reads it: the engine asks for the mixer
+ * state and a media item's title while rendering, and a query there would be a
+ * disk read inside a 20 ms budget. Writes go the other way — through here, then
+ * to SQLite on a debounce, so a knob dragged across its travel is one write and
+ * not eighty.
  */
-class Store {
-  private data: PersistedDb = defaults();
+export class GuildStore {
+  private data: GuildData = {
+    media: {},
+    mixer: { ...DEFAULT_MIXER },
+    tools: { ...DEFAULT_TOOLS },
+    pads: defaultPads(),
+    lastVoiceChannelId: null,
+    queue: { items: [], auto: false },
+    activeBotId: null,
+  };
+
+  /** Media ids touched since the last write. Rewriting 500 rows to change one title would not do. */
+  private dirtyMedia = new Set<string>();
+  private removedMedia = new Set<string>();
+  private queueDirty = false;
+  private padsDirty = false;
+  private guildDirty = false;
+
   private writeQueued = false;
   private writing: Promise<void> = Promise.resolve();
 
-  load(): void {
-    try {
-      const raw = fs.readFileSync(config.paths.dbFile, 'utf8');
-      const parsed = JSON.parse(raw) as PersistedDb;
-      this.data = { ...defaults(), ...parsed };
-      // Nested sections are merged one level deep too, so a database written
-      // before the master EQ or the effects bus existed gains them at default
-      // rather than as undefined knobs the audio thread would read as NaN.
-      this.data.mixer = {
-        ...DEFAULT_MIXER,
-        ...(parsed.mixer ?? {}),
-        masterEq: { ...DEFAULT_MIXER.masterEq, ...(parsed.mixer?.masterEq ?? {}) },
-        fx: { ...DEFAULT_MIXER.fx, ...(parsed.mixer?.fx ?? {}) },
-      };
-      // Merged over the defaults so a database written before a tool existed
-      // gains it switched off rather than undefined.
-      this.data.tools = { ...DEFAULT_TOOLS, ...(parsed.tools ?? {}) };
-      if (!Array.isArray(this.data.pads) || this.data.pads.length !== 8) {
-        this.data.pads = defaults().pads;
-      }
-      if (!Array.isArray(this.data.bots)) this.data.bots = [];
-      if (!Array.isArray(this.data.waitlist)) this.data.waitlist = [];
-      // A queue written before this existed, or hand-edited, comes back empty
-      // rather than as an array of undefined the engine would trip over.
-      this.data.queue = {
-        items: Array.isArray(parsed.queue?.items) ? parsed.queue.items.filter((i) => i?.mediaId) : [],
-        auto: Boolean(parsed.queue?.auto),
-      };
-      log.info(`loaded ${Object.keys(this.data.media).length} media items`);
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
-        log.warn('could not read db, starting fresh:', (err as Error).message);
-      }
-      this.data = defaults();
-    }
-  }
+  constructor(readonly guildId: string) {}
 
-  get db(): PersistedDb {
+  get db(): GuildData {
     return this.data;
   }
+
+  /* ----------------------------------------------------------------- load */
+
+  load(): void {
+    const database = db();
+
+    const row = database
+      .prepare(
+        `SELECT mixer, tools, queue_auto, last_voice_channel_id, active_bot_id
+         FROM guilds WHERE id = ?`,
+      )
+      .get(this.guildId) as
+      | {
+          mixer: string;
+          tools: string;
+          queue_auto: number;
+          last_voice_channel_id: string | null;
+          active_bot_id: string | null;
+        }
+      | undefined;
+
+    if (row) {
+      // Merged over the defaults one level deep, so a database written before
+      // the master EQ or the effects bus existed gains them at their defaults
+      // rather than as undefined knobs the audio thread would read as NaN.
+      const mixer = safeParse<Partial<MixerState>>(row.mixer, {});
+      this.data.mixer = {
+        ...DEFAULT_MIXER,
+        ...mixer,
+        masterEq: { ...DEFAULT_MIXER.masterEq, ...(mixer.masterEq ?? {}) },
+        fx: { ...DEFAULT_MIXER.fx, ...(mixer.fx ?? {}) },
+      };
+      this.data.tools = { ...DEFAULT_TOOLS, ...safeParse<Partial<ToolsState>>(row.tools, {}) };
+      this.data.queue.auto = row.queue_auto === 1;
+      this.data.lastVoiceChannelId = row.last_voice_channel_id;
+      this.data.activeBotId = row.active_bot_id;
+    }
+
+    const mediaRows = database
+      .prepare('SELECT data FROM media WHERE guild_id = ?')
+      .all(this.guildId) as Array<{ data: string }>;
+    this.data.media = {};
+    for (const media of mediaRows) {
+      const item = safeParse<MediaItem | null>(media.data, null);
+      if (!item?.id) continue;
+      // Written before these existed, and `JSON.stringify` drops `undefined` —
+      // so without this the web side sees a property that is not there rather
+      // than one that is null.
+      if (item.beatGrid === undefined) item.beatGrid = null;
+      if (item.key === undefined) item.key = null;
+      this.data.media[item.id] = item;
+    }
+
+    const queueRows = database
+      .prepare('SELECT data FROM queue WHERE guild_id = ? ORDER BY position')
+      .all(this.guildId) as Array<{ data: string }>;
+    this.data.queue.items = queueRows
+      .map((q) => safeParse<QueueItem | null>(q.data, null))
+      .filter((entry): entry is QueueItem => Boolean(entry?.mediaId));
+
+    const padRows = database
+      .prepare('SELECT idx, media_id, gain, mode FROM pads WHERE guild_id = ? ORDER BY idx')
+      .all(this.guildId) as Array<{
+      idx: number;
+      media_id: string | null;
+      gain: number;
+      mode: string;
+    }>;
+    const pads = defaultPads();
+    for (const pad of padRows) {
+      if (pad.idx < 0 || pad.idx >= pads.length) continue;
+      pads[pad.idx] = {
+        mediaId: pad.media_id,
+        gain: pad.gain,
+        mode: pad.mode as PadMode,
+      };
+    }
+    this.data.pads = pads;
+
+    log.info(`${this.guildId}: ${Object.keys(this.data.media).length} media items`);
+  }
+
+  /* ---------------------------------------------------------------- media */
 
   listMedia(): MediaItem[] {
     return Object.values(this.data.media).sort((a, b) => b.uploadedAt - a.uploadedAt);
@@ -169,16 +241,42 @@ class Store {
 
   putMedia(item: MediaItem): void {
     this.data.media[item.id] = item;
+    this.dirtyMedia.add(item.id);
+    this.removedMedia.delete(item.id);
     this.save();
   }
 
   removeMedia(id: string): void {
     delete this.data.media[id];
+    this.dirtyMedia.delete(id);
+    this.removedMedia.add(id);
     this.save();
   }
 
-  /** Debounced atomic write. Multiple mutations in a tick collapse into one. */
+  /* ----------------------------------------------------------------- save */
+
+  /** Reads as intent at the call site; `save` already covers all of them. */
+  markGuild(): void {
+    this.save();
+  }
+
+  /**
+   * Debounced write.
+   *
+   * Everything that is not media is cheap to write and hard to track precisely
+   * — the mixer is one row, the queue is a handful — so a change to any of them
+   * marks the lot. Media is the exception, because a library is hundreds of rows
+   * carrying a waveform envelope each, and rewriting all of it to rename one
+   * track is the kind of thing that is fine until it is not.
+   */
   save(): void {
+    // Everything cheap is marked together. The queue is a handful of rows and
+    // the pads are eight; tracking which of them a caller touched would be a
+    // correctness problem waiting to happen — a missed mark is a set that comes
+    // back wrong after a restart — in exchange for saving a few hundred bytes.
+    this.guildDirty = true;
+    this.queueDirty = true;
+    this.padsDirty = true;
     if (this.writeQueued) return;
     this.writeQueued = true;
     setTimeout(() => {
@@ -188,14 +286,104 @@ class Store {
   }
 
   async flush(): Promise<void> {
-    const tmp = path.join(config.paths.tmpDir, `db-${process.pid}.json`);
+    const database = db();
+    const {
+      media,
+      mixer,
+      tools,
+      pads,
+      queue,
+      lastVoiceChannelId,
+      activeBotId,
+    } = this.data;
+
+    const dirty = [...this.dirtyMedia];
+    const removed = [...this.removedMedia];
+    const writeQueue = this.queueDirty;
+    const writePads = this.padsDirty;
+    const writeGuild = this.guildDirty;
+    this.dirtyMedia.clear();
+    this.removedMedia.clear();
+    this.queueDirty = false;
+    this.padsDirty = false;
+    this.guildDirty = false;
+
     try {
-      await fsp.writeFile(tmp, JSON.stringify(this.data), 'utf8');
-      await fsp.rename(tmp, config.paths.dbFile);
+      database.exec('BEGIN');
+
+      if (writeGuild) {
+        database
+          .prepare(
+            `UPDATE guilds SET mixer = ?, tools = ?, queue_auto = ?,
+                    last_voice_channel_id = ?, active_bot_id = ?
+             WHERE id = ?`,
+          )
+          .run(
+            JSON.stringify(mixer),
+            JSON.stringify(tools),
+            queue.auto ? 1 : 0,
+            lastVoiceChannelId,
+            activeBotId,
+            this.guildId,
+          );
+      }
+
+      if (dirty.length > 0) {
+        const upsert = database.prepare(
+          `INSERT INTO media (id, guild_id, uploaded_at, data) VALUES (?, ?, ?, ?)
+           ON CONFLICT(guild_id, id) DO UPDATE SET uploaded_at = excluded.uploaded_at,
+                                                   data = excluded.data`,
+        );
+        for (const id of dirty) {
+          const item = media[id];
+          if (!item) continue;
+          upsert.run(id, this.guildId, item.uploadedAt, JSON.stringify(item));
+        }
+      }
+
+      if (removed.length > 0) {
+        const drop = database.prepare('DELETE FROM media WHERE guild_id = ? AND id = ?');
+        for (const id of removed) drop.run(this.guildId, id);
+      }
+
+      if (writeQueue) {
+        database.prepare('DELETE FROM queue WHERE guild_id = ?').run(this.guildId);
+        const insert = database.prepare(
+          'INSERT INTO queue (id, guild_id, position, data) VALUES (?, ?, ?, ?)',
+        );
+        queue.items.forEach((entry, index) => {
+          insert.run(entry.id, this.guildId, index, JSON.stringify(entry));
+        });
+      }
+
+      if (writePads) {
+        const upsert = database.prepare(
+          `INSERT INTO pads (guild_id, idx, media_id, gain, mode) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(guild_id, idx) DO UPDATE SET media_id = excluded.media_id,
+                                                    gain = excluded.gain,
+                                                    mode = excluded.mode`,
+        );
+        pads.forEach((pad, index) => {
+          upsert.run(this.guildId, index, pad.mediaId, pad.gain, pad.mode);
+        });
+      }
+
+      database.exec('COMMIT');
     } catch (err) {
-      log.error('failed to persist db:', (err as Error).message);
+      try {
+        database.exec('ROLLBACK');
+      } catch {
+        /* nothing open */
+      }
+      log.error(`failed to persist ${this.guildId}:`, (err as Error).message);
     }
   }
 }
 
-export const store = new Store();
+function safeParse<T>(text: string, fallback: T): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return fallback;
+  }
+}
