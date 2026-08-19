@@ -28,13 +28,17 @@ services:
       # site returning 502.
       - default
       - proxy
-    # Opus encoding + mixing is CPU bound but light; cap it so a runaway mix
-    # cannot starve the host.
+    # Opus encoding and mixing are CPU bound but light — roughly a tenth of a
+    # core per rig that is actually on air, so two cores covers about ten.
+    #
+    # Memory scales with rigs too, at ~15 MB of audio buffers each plus the
+    # library metadata a guild has in memory. 2 GB leaves room for ten rigs and
+    # the headroom to not be the thing that kills a set.
     deploy:
       resources:
         limits:
           cpus: "2.0"
-          memory: 1g
+          memory: 2g
 
 volumes:
   dj-data:
