@@ -66,6 +66,8 @@ export interface ConsoleGridProps {
   stacked: boolean;
   render: (id: WidgetId) => ReactNode;
   onChange: (layout: Layout) => void;
+  /** A tool dragged out of the tray should be fitted once it is mounted. */
+  onRequestFit: (id: WidgetId) => void;
   onHide: (id: WidgetId) => void;
   /** Tools waiting to be sized to their own content, once it has been measured. */
   fitting: ReadonlySet<WidgetId>;
@@ -83,12 +85,17 @@ export function ConsoleGrid({
   stacked,
   render,
   onChange,
+  onRequestFit,
   onHide,
   fitting,
   onFitHeight,
 }: ConsoleGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const drag = useRef<DragState | null>(null);
+  // Pointer events may arrive before React has committed the render caused by
+  // the previous one. Keep geometry work on the newest layout regardless.
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
   const [preview, setPreview] = useState<Layout | null>(null);
   /**
    * The same preview, for the drop to commit from. Pointer moves are not
@@ -185,11 +192,18 @@ export function ConsoleGrid({
               h: state.from.h + Math.round(row),
             };
 
-      previewRef.current = place(layout, state.id, next);
+      previewRef.current = place(layoutRef.current, state.id, next);
       setPreview(previewRef.current);
     },
-    [cellOf, layout],
+    [cellOf],
   );
+
+  const cancelDrag = useCallback(() => {
+    drag.current = null;
+    previewRef.current = null;
+    setDragging(null);
+    setPreview(null);
+  }, []);
 
   const endDrag = useCallback(
     (event: React.PointerEvent) => {
@@ -197,14 +211,11 @@ export function ConsoleGrid({
       if (!state || event.pointerId !== state.pointerId) return;
       // Capture releases itself when the pointer goes up; releasing it here
       // would have to find the element that took it, which is not this one.
-      drag.current = null;
       const landed = previewRef.current;
-      previewRef.current = null;
-      setDragging(null);
-      setPreview(null);
+      cancelDrag();
       if (state.live && landed) onChange(landed);
     },
-    [onChange],
+    [cancelDrag, onChange],
   );
 
   // Escape abandons a drag rather than committing it, like every other drag on
@@ -213,14 +224,17 @@ export function ConsoleGrid({
     if (!dragging) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      drag.current = null;
-      previewRef.current = null;
-      setDragging(null);
-      setPreview(null);
+      cancelDrag();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dragging]);
+  }, [cancelDrag, dragging]);
+
+  // Leaving arrange mode (including when the viewport stacks) must not leave a
+  // captured pointer or an old preview waiting to commit later.
+  useEffect(() => {
+    if (!arranging || stacked) cancelDrag();
+  }, [arranging, cancelDrag, stacked]);
 
   // A tray drag that ends anywhere but on the grid still has to take its
   // landing rectangle with it.
@@ -272,7 +286,8 @@ export function ConsoleGrid({
     if (!rect) return;
     // `place` unhides whatever it is given, so a tool from the tray arrives on
     // the console at the cell it was dropped on.
-    onChange(place(layout, id, rect));
+    onChange(place(layoutRef.current, id, rect));
+    onRequestFit(id);
   };
 
   /* --------------------------------------------------------------- edits */
@@ -358,7 +373,8 @@ export function ConsoleGrid({
       }}
       onPointerMove={moveDrag}
       onPointerUp={endDrag}
-      onPointerCancel={endDrag}
+      onPointerCancel={cancelDrag}
+      onLostPointerCapture={cancelDrag}
       onDragOver={onDragOver}
       onDragLeave={() => setDropAt(null)}
       onDrop={onDrop}

@@ -398,6 +398,7 @@ export default function App({
           stacked={stacked}
           render={(id) => widgets[id]}
           onChange={applyLayout}
+          onRequestFit={(id) => setFitting((prev) => new Set(prev).add(id))}
           onHide={(id) =>
             applyLayout(layout.map((w) => (w.id === id ? { ...w, hidden: true } : w)))
           }
