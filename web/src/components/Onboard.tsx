@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRight, Check, FolderOpen, Loader2, Plus } from 'lucide-react';
-import { SiteNav } from './SiteNav';
+import { SitePage } from './SiteNav';
 
 /**
  * Setting a rig up.
@@ -70,9 +70,8 @@ export function Onboard() {
   }
 
   return (
-    <div className="page">
-      <SiteNav />
-      <main className="page-main onboard">
+    <SitePage>
+      <div className="onboard">
         {error && (
           <p className="onboard-error">
             <AlertTriangle size={13} /> {error}
@@ -93,8 +92,8 @@ export function Onboard() {
         ) : (
           <Invite existing={state.rigs.length} />
         )}
-      </main>
-    </div>
+      </div>
+    </SitePage>
   );
 }
 

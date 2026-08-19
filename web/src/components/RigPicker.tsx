@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Radio, Disc3, AlertTriangle } from 'lucide-react';
 import { fetchRigs, type RigSummary } from '../lib/rigs';
-import { SiteNav } from './SiteNav';
+import { SitePage } from './SiteNav';
 
 /**
  * Which rig to open.
@@ -47,9 +47,8 @@ export function RigPicker() {
   }
 
   return (
-    <div className="page">
-      <SiteNav />
-      <main className="page-main rigpicker">
+    <SitePage>
+      <div className="rigpicker">
         <h1 className="rigpicker-title">Your rigs</h1>
 
         {rigs.length === 0 ? (
@@ -83,7 +82,7 @@ export function RigPicker() {
             ))}
           </ul>
         )}
-      </main>
-    </div>
+      </div>
+    </SitePage>
   );
 }

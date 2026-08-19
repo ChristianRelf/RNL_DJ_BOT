@@ -6610,7 +6610,6 @@ kbd {
 .onboard {
   max-width: 560px;
   margin: 0 auto;
-  padding: 48px 20px 80px;
 }
 
 .onboard-step {
@@ -6698,4 +6697,109 @@ kbd {
 .btn-large {
   padding: 9px 16px;
   font-size: 14px;
+}
+
+/* The one affirmative button on a screen: the step that moves you forward.
+   Everything else on the page stays the neutral .btn so this reads as the
+   single thing to press. */
+.btn-primary {
+  border-color: var(--accent-dim);
+  background: linear-gradient(180deg, #a86d1f, #7a5218);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #c07f24, #8c5e1c);
+  border-color: var(--accent);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: #6b4715;
+  box-shadow: var(--sink);
+}
+
+/* The onboarding column sets its own measure; the shell around it already
+   supplies the vertical rhythm, so it does not add its own on top. */
+
+/* --- rig picker -----------------------------------------------------------
+   Where you land with more than one rig to your name: a plain list of rooms,
+   each one a door. It carries the same measure as onboarding because the two
+   screens sit either side of the same moment.
+   ------------------------------------------------------------------------ */
+
+.rigpicker {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.rigpicker-title {
+  margin: 0 0 18px;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.rigpicker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rigpicker-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 12px 14px;
+  text-decoration: none;
+  box-shadow: var(--raise);
+  transition: border-color 0.08s linear, background 0.08s linear;
+}
+
+.rigpicker-card:hover {
+  border-color: var(--line-strong);
+  background: var(--panel-2);
+}
+
+.rigpicker-card:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.rigpicker-name {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* The status line: on air, idle, whether a library is connected. Quiet by
+   design — it is context for the choice, not the choice itself. */
+.rigpicker-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.rigpicker-meta svg {
+  flex: none;
+}
+
+/* Shown in place of a list that has nothing in it yet. */
+.panel-empty {
+  margin: 0;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
