@@ -11,8 +11,8 @@ const log = createLogger('rigs');
 /**
  * Every rig this process is running.
  *
- * The only singleton left. Everything a guild owns — its mixer, its gateway
- * session, its store, its control lock — hangs off a `Rig`, and this is the map
+ * The only singleton left. Everything a guild owns - its mixer, its gateway
+ * session, its store, its control lock - hangs off a `Rig`, and this is the map
  * from a guild id to one. What used to be five module-level instances is now
  * one map, which is the whole of the multi-guild change: the audio graph itself
  * was already properly instance-scoped and needed nothing.
@@ -46,7 +46,7 @@ class RigManager {
   async startAll(): Promise<void> {
     const guilds = listGuilds().filter((g) => g.status === 'active');
     if (guilds.length === 0) {
-      log.info('no rigs configured yet — add one from the portal');
+      log.info('no rigs configured yet - add one from the portal');
       return;
     }
 

@@ -17,7 +17,7 @@ import type { DjClient } from '../socket';
 
 interface DeckPanelProps {
   deck: DeckState;
-  /** The opposite deck — the reference the tempo tools match against. */
+  /** The opposite deck - the reference the tempo tools match against. */
   other: DeckState;
   media: MediaItem[];
   locked: boolean;
@@ -26,7 +26,7 @@ interface DeckPanelProps {
   throttled: <T extends 'deck:set' | 'deck:seek'>(command: T, payload: any) => void;
 }
 
-/** Below this the outro readout goes red — time to have the next one ready. */
+/** Below this the outro readout goes red - time to have the next one ready. */
 const OUTRO_MS = 30_000;
 /** Beat-jump distances, and the seconds they stand in for on an untagged track. */
 const JUMPS = [-4, -1, 1, 4] as const;
@@ -39,7 +39,7 @@ const TAP_MINIMUM = 4;
  * Tap along to set a track's tempo.
  *
  * Sync, beat loops and beat jumps all need a BPM, and detection does not always
- * find one — this is how you give a track its tempo by hand rather than leaving
+ * find one - this is how you give a track its tempo by hand rather than leaving
  * a third of the deck greyed out.
  */
 function TapTempo({
@@ -92,7 +92,7 @@ function TapTempo({
       title={
         disabled
           ? 'Load a track to tap its tempo'
-          : 'Tap in time with the track to set its BPM — four taps to lock on'
+          : 'Tap in time with the track to set its BPM - four taps to lock on'
       }
       onPointerDown={tap}
     >

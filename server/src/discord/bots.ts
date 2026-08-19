@@ -12,7 +12,7 @@ const log = createLogger('bots');
 /**
  * Which Discord account one rig plays through.
  *
- * "deck" — the bot from the environment — is the default for every rig and
+ * "deck" - the bot from the environment - is the default for every rig and
  * cannot be removed; a platform admin can add others by pasting a token, and
  * point any rig at any of them without a restart.
  *
@@ -212,7 +212,7 @@ export class BotRegistry {
 
     // Asked before the row is deleted. `activeId` falls back to the default for
     // any id it cannot find, so asking afterwards always answers "it was not
-    // active" — and the bot being removed would carry on playing on the very
+    // active" - and the bot being removed would carry on playing on the very
     // token that was just revoked.
     const wasActive = this.activeId() === id;
 
@@ -231,7 +231,7 @@ export class BotRegistry {
    *
    * Voice cannot be handed between two Discord accounts, so the connection is
    * dropped and remade: the old bot leaves the channel, the new one logs in and
-   * rejoins where the old one was. The mix itself never stops — the decks keep
+   * rejoins where the old one was. The mix itself never stops - the decks keep
    * running through the silent path while the swap happens.
    */
   async activate(user: SessionUser, id: string): Promise<void> {
@@ -253,7 +253,7 @@ export class BotRegistry {
       credentials = credentialsFor(entry);
       if (!credentials) {
         throw new BotError(
-          `The stored token for "${entry.name}" could not be read — it was encrypted with a ` +
+          `The stored token for "${entry.name}" could not be read - it was encrypted with a ` +
             'different SESSION_SECRET. Remove it and add the token again.',
         );
       }
@@ -283,8 +283,8 @@ export class BotRegistry {
     } catch (err) {
       const message = (err as Error).message;
       this.lastErrors.set(credentials.id, message);
-      // A refused login leaves the previous bot connected — `connect` puts it
-      // back rather than leaving the rig with no gateway at all — so the failure
+      // A refused login leaves the previous bot connected - `connect` puts it
+      // back rather than leaving the rig with no gateway at all - so the failure
       // belongs against the bot that would not start, not against the rig. Put
       // the old one back in the channel it was pulled out of.
       const recovered = this.bot.isReady;

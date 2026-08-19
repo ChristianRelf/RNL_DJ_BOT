@@ -14,7 +14,7 @@ import { useReducedMotion } from './landing/beat';
  * The page is one track. The whole set is drawn as a waveform down the left,
  * the full height of the document; a playhead sits fixed at 40% of the window;
  * and every block of copy is a cue point that goes live as it crosses the head.
- * There are no sections and no cards — thirteen cues with identical anatomy,
+ * There are no sections and no cards - thirteen cues with identical anatomy,
  * one transport across the bottom, and one shader behind the lot, all driven by
  * the same scroll position. See landing/Mix.tsx, which is the whole mechanism.
  *
@@ -24,7 +24,7 @@ import { useReducedMotion } from './landing/beat';
  * you, it hands you.
  *
  * Every claim is something the software actually does, and every number is a
- * shipped default — if a feature or a default changes, change it here too. No
+ * shipped default - if a feature or a default changes, change it here too. No
  * invented pricing, no invented adoption, nothing that needs a footnote.
  */
 
@@ -40,7 +40,7 @@ const CONTRAST: readonly Contrast[] = [
   {
     them: 'A music bot plays a queue.',
     us: 'deck provides a live mixing console.',
-    body: 'Two decks, waveforms, cue points, loops, EQ, effects and a configurable crossfader—all operated live from the browser.',
+    body: 'Two decks, waveforms, cue points, loops, EQ, effects and a configurable crossfader-all operated live from the browser.',
   },
   {
     them: 'A music bot has shared playback controls.',
@@ -206,7 +206,7 @@ const FAQ = [
 /* --------------------------------------------------------------- pieces */
 
 /**
- * The console illustration. It tilts a little towards the pointer — enough to
+ * The console illustration. It tilts a little towards the pointer - enough to
  * read as a rig on a desk rather than a screenshot, not enough that anyone has
  * to wait for it to settle.
  */
@@ -268,7 +268,7 @@ export function Home() {
               <span className="cue-turn"> built for Discord.</span>
             </>
           }
-          lede="A managed, browser-based DJ console with two decks, a full mixer and shared operation—streamed directly into your Discord voice channel."
+          lede="A managed, browser-based DJ console with two decks, a full mixer and shared operation-streamed directly into your Discord voice channel."
         >
           <div className="cue-cta cue-cta-hero">
             <a className="btn is-primary" href="/home/access">Request access</a>

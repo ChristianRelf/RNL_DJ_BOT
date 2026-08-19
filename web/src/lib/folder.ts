@@ -2,7 +2,7 @@
  * The music folder.
  *
  * Deck plays straight off a folder on your machine. Nothing is uploaded, and
- * nothing is copied — the files stay where they are and are opened read-only,
+ * nothing is copied - the files stay where they are and are opened read-only,
  * a window at a time, as the decks ask for them.
  *
  * The folder handle itself is kept in IndexedDB, which is what makes this
@@ -97,8 +97,8 @@ type WithPermissions = FileSystemDirectoryHandle & {
  *
  * A handle can come back in three states, and they need different things from
  * the person sitting there: already granted, needing a click to re-grant, or
- * gone entirely. `requestPermission` cannot be called here — it needs a user
- * gesture — which is exactly why "needs-permission" is a state and not an error.
+ * gone entirely. `requestPermission` cannot be called here - it needs a user
+ * gesture - which is exactly why "needs-permission" is a state and not an error.
  */
 export async function restoreFolder(): Promise<{
   status: FolderStatus;
@@ -150,7 +150,7 @@ export async function forgetFolder(): Promise<void> {
 /**
  * What makes a file the same file across a rescan.
  *
- * A hash of its size and the bytes at each end, rather than its path — so
+ * A hash of its size and the bytes at each end, rather than its path - so
  * renaming a track, or moving it between folders, keeps everything the server
  * knows about it: the beat grid, the cue point, the tags. Paths are the one
  * thing about a music library that changes constantly.
@@ -222,7 +222,7 @@ function titleOf(name: string): string {
  * Walks the folder and reports what is playable.
  *
  * Fingerprints and durations are cached against size and modified-time, so a
- * rescan of a folder that has not changed does almost no work — which matters,
+ * rescan of a folder that has not changed does almost no work - which matters,
  * because a rescan happens every time the console reconnects.
  */
 export async function scanFolder(

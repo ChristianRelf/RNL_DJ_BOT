@@ -7,7 +7,7 @@ import { SitePage } from './SiteNav';
  *
  * Two steps and no forms to speak of: add the bot to a Discord server, then say
  * who is allowed to drive it. The server is picked in Discord's own dialog, so
- * nobody is ever asked to find and paste a guild id — and the id that comes back
+ * nobody is ever asked to find and paste a guild id - and the id that comes back
  * is Discord's word for it rather than the browser's.
  */
 
@@ -83,7 +83,7 @@ export function Onboard() {
             <h1 className="onboard-title">Not set up yet</h1>
             <p className="onboard-body">
               Your account can sign in, but it has not been cleared to create a rig. If somebody
-              is expecting you to set one up, ask them to enable it — otherwise{' '}
+              is expecting you to set one up, ask them to enable it - otherwise{' '}
               <a href="/home/access">put your community on the list</a>.
             </p>
           </section>
@@ -105,7 +105,7 @@ function Invite({ existing }: { existing: number }) {
       <h1 className="onboard-title">Add deck to your server</h1>
       <p className="onboard-body">
         Deck plays into a Discord voice channel, so the first thing it needs is to be in your
-        server. Discord will ask which one — pick it there and you will land back here.
+        server. Discord will ask which one - pick it there and you will land back here.
       </p>
       <p className="onboard-note">
         It asks for three permissions: view channels, connect, and speak. Nothing else, and
@@ -202,7 +202,7 @@ function Configure({
       {gateMissing && (
         <p className="onboard-warn">
           <AlertTriangle size={13} /> deck cannot read that server yet, so nobody there will be
-          able to sign in. Discord sometimes takes a moment to catch up — reload this page, and
+          able to sign in. Discord sometimes takes a moment to catch up - reload this page, and
           if it persists, check the bot is still in the server.
         </p>
       )}
@@ -242,7 +242,7 @@ function Configure({
 
       <p className="onboard-body onboard-next">
         <FolderOpen size={14} /> Next, the console will ask for the folder your music lives in.
-        Nothing gets uploaded — deck plays straight off your machine.
+        Nothing gets uploaded - deck plays straight off your machine.
       </p>
 
       <button type="button" className="btn btn-primary btn-large" onClick={finish} disabled={saving}>

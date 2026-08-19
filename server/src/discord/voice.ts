@@ -27,7 +27,7 @@ const log = createLogger('voice');
  *
  * Discord shows a channel's status under its name to everyone in the server, so
  * this is the one place the booth announces itself to people who never open the
- * console — the channel list says the decks are live without anyone asking.
+ * console - the channel list says the decks are live without anyone asking.
  *
  * The wording is editable from the tools page; this is what it falls back to.
  */
@@ -43,7 +43,7 @@ function captionText(tools: ToolsState): string | null {
  * Owns the single voice connection and keeps the mixer wired into it.
  *
  * The mix is fed in as raw 48 kHz stereo PCM, so the voice player's Opus
- * encoder pulls one 20 ms frame at a time straight from the mix graph — no
+ * encoder pulls one 20 ms frame at a time straight from the mix graph - no
  * intermediate ffmpeg process on the realtime path.
  */
 export class VoiceManager extends EventEmitter {
@@ -92,21 +92,21 @@ export class VoiceManager extends EventEmitter {
    * Gets the rig onto the stage, whenever it finds itself on one.
    *
    * A stage channel puts everyone who arrives in the audience, muted at the
-   * server, and a booth in the audience is a booth nobody can hear — it keeps
+   * server, and a booth in the audience is a booth nobody can hear - it keeps
    * mixing and encoding perfectly while the room sits in silence. Joining one
    * directly and being dragged into one both land here, because both produce
    * the same thing: our own voice state, suppressed, in a stage.
    *
    * Three outcomes, in the order they are worth trying:
    *  - We can unsuppress ourselves (the rig is a stage moderator, or holds Mute
-   *    Members) — up we go, no one has to do anything.
+   *    Members) - up we go, no one has to do anything.
    *  - A moderator has offered us the floor, which Discord records by putting a
    *    request-to-speak timestamp on us. The same call accepts it.
    *  - Neither: raise a hand, and take the offer through the branch above when
    *    it arrives.
    *
    * Every attempt changes our voice state, which fires this again, so each
-   * distinct situation is tried exactly once — keyed on the channel and the
+   * distinct situation is tried exactly once - keyed on the channel and the
    * timestamp, so a fresh offer is always a fresh attempt even if the last one
    * failed a moment ago.
    */
@@ -143,7 +143,7 @@ export class VoiceManager extends EventEmitter {
       log.debug(`could not go up on stage yet: ${(err as Error).message}`);
     }
 
-    // Already asked and still waiting — asking twice would not make it arrive
+    // Already asked and still waiting - asking twice would not make it arrive
     // any sooner, and it would clear the hand a moderator is looking at.
     if (state.requestToSpeakTimestamp) {
       log.info(`waiting for a moderator to bring the rig up in #${channel.name}`);
@@ -155,7 +155,7 @@ export class VoiceManager extends EventEmitter {
       log.info(`asked to speak in #${channel.name}`);
     } catch (err) {
       log.warn(
-        `cannot get on stage in #${channel.name} — the bot needs the Request to Speak ` +
+        `cannot get on stage in #${channel.name} - the bot needs the Request to Speak ` +
           `permission, or to be made a stage moderator: ${(err as Error).message}`,
       );
     }
@@ -196,8 +196,8 @@ export class VoiceManager extends EventEmitter {
     const channel = await this.bot.voiceChannel(channelId);
     if (!channel) throw new Error('That voice channel no longer exists.');
 
-    // Discord refuses these joins silently — the connection just sits in
-    // "signalling" until it times out — so every one of them is checked here
+    // Discord refuses these joins silently - the connection just sits in
+    // "signalling" until it times out - so every one of them is checked here
     // and reported properly instead.
     const me =
       channel.guild.members.me ?? (await channel.guild.members.fetchMe().catch(() => null));
@@ -237,7 +237,7 @@ export class VoiceManager extends EventEmitter {
     }
 
     if (channel.type === ChannelType.GuildStageVoice) {
-      // Arriving in the audience is normal and handled — `takeTheStage` picks
+      // Arriving in the audience is normal and handled - `takeTheStage` picks
       // it up off our own voice state a moment after the join lands.
       log.info(`#${channel.name} is a stage channel; the rig will try to go up`);
     }
@@ -289,7 +289,7 @@ export class VoiceManager extends EventEmitter {
     } catch {
       // Where it stalled says why: "signalling" means Discord never sent the
       // voice server details, "connecting" means the UDP handshake to that
-      // server failed — usually blocked outbound UDP or a missing encryption
+      // server failed - usually blocked outbound UDP or a missing encryption
       // package.
       const stuckAt = connection.state.status;
       this.teardown(false);
@@ -336,7 +336,7 @@ export class VoiceManager extends EventEmitter {
   /**
    * Re-writes the caption for the channel already joined. Called when the tool
    * is switched or reworded mid-set, which is the only time the status can go
-   * stale — every other path through here joins or leaves.
+   * stale - every other path through here joins or leaves.
    */
   refreshChannelStatus(): void {
     if (!this.channelId || this.status !== 'ready') return;
@@ -347,7 +347,7 @@ export class VoiceManager extends EventEmitter {
    * Writes the channel's status line, or clears it with an empty string.
    *
    * Best effort in both directions. It needs the Set Voice Channel Status
-   * permission, which the join deliberately does not require — a rig that
+   * permission, which the join deliberately does not require - a rig that
    * refused to play because it could not write a caption would be a bad trade.
    */
   private async writeChannelStatus(channelId: string, status: string): Promise<void> {
@@ -377,7 +377,7 @@ export class VoiceManager extends EventEmitter {
 
   private teardown(notify: boolean): void {
     // Sent before the connection goes away, while the bot is still a member of
-    // the channel — Discord will not take a status from a bot that has left.
+    // the channel - Discord will not take a status from a bot that has left.
     if (this.channelId) void this.writeChannelStatus(this.channelId, '');
 
     this.stageAttempt = null;

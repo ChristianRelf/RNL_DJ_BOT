@@ -8,14 +8,14 @@ import { useFrame, useReducedMotion } from './beat';
  * draws seven spectral ribbons through a warped haze, rings out on every bar,
  * and flares when someone hits a pad further down the page. The palette runs
  * from the deck-A blue to the console accent, crossfaded by how far down the
- * page you are — so the page literally changes colour as you read it.
+ * page you are - so the page literally changes colour as you read it.
  *
  * Rules it keeps:
  *  - No dependency. It is ~120 lines of GLSL and a quad; a 600KB 3D library to
  *    draw a full-screen shader would be the whole bundle for one background.
  *  - It never blocks the page. If WebGL is missing, refused or lost, the class
  *    falls back to a CSS wash that looks like the same idea, more quietly.
- *  - It stops when it is not being watched — hidden tab, or reduced motion, in
+ *  - It stops when it is not being watched - hidden tab, or reduced motion, in
  *    which case it paints one still frame and shuts the loop down.
  */
 
@@ -172,7 +172,7 @@ export function Backdrop() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rigRef = useRef<Rig | null>(null);
   const alive = useRef(false);
-  // Where the pointer is going, and where the shader has got to — the gap is
+  // Where the pointer is going, and where the shader has got to - the gap is
   // the parallax easing, which is what stops it feeling glued to the cursor.
   const target = useRef<[number, number]>([0, 0]);
   const eased = useRef<[number, number]>([0, 0]);
@@ -242,12 +242,12 @@ export function Backdrop() {
       rigRef.current = null;
       // Deliberately not calling `loseContext` here. A canvas hands back the
       // same context every time it is asked, so a forced loss on the way out
-      // would leave the remount — StrictMode does exactly this — holding a
+      // would leave the remount - StrictMode does exactly this - holding a
       // dead context and falling back for the rest of the visit.
     };
   }, []);
 
-  // Reduced motion still gets a picture — one frame, held. The clock stays
+  // Reduced motion still gets a picture - one frame, held. The clock stays
   // unsubscribed, so nothing is running behind the page at all.
   useEffect(() => {
     if (!reduced) return;
@@ -281,7 +281,7 @@ export function Backdrop() {
     ];
 
     // The light stays with you the whole way down, but steps back once the
-    // first cue has gone by — it is a backdrop for reading at that point.
+    // first cue has gone by - it is a backdrop for reading at that point.
     const past = window.scrollY / Math.max(1, window.innerHeight);
     scroll.current = Math.min(1, window.scrollY / span.current);
     canvas.style.opacity = String(Math.max(0.36, 1 - past * 0.68));

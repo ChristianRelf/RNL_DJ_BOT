@@ -12,7 +12,7 @@ const PAN_SMOOTHING = smoothingCoefficient(20);
 /**
  * The head follows the pitch fader over about 25 ms rather than jumping to it.
  * A rate set instantly is a step in read-head velocity, and a fader drag is a
- * stream of them — which is what a stepped, zippered pitch actually is.
+ * stream of them - which is what a stepped, zippered pitch actually is.
  */
 const RATE_SMOOTHING = smoothingCoefficient(25);
 /**
@@ -71,9 +71,9 @@ export class Deck {
    *
    * Two things feed this. Smoothing the rate means a fader move advances the
    * head slightly less than an instant jump would have, and that shortfall is
-   * booked here and paid back — so smoothing costs nothing in position, which
+   * booked here and paid back - so smoothing costs nothing in position, which
    * is what stops it fighting anything that cares where the head actually is.
-   * And a deliberate shove — a nudge now, a phase correction later — is the
+   * And a deliberate shove - a nudge now, a phase correction later - is the
    * same thing at a larger size: ask for frames, get them worked off smoothly
    * instead of jumped.
    */
@@ -83,8 +83,8 @@ export class Deck {
    *
    * The default is deliberately slow, so note what that means for a big move:
    * hauling the fader from double speed back to unity books about 1200 frames
-   * and takes some seconds to work off. That is the right trade — the head ends
-   * up exactly where it should be and nobody can hear 0.2% — but it is why a
+   * and takes some seconds to work off. That is the right trade - the head ends
+   * up exactly where it should be and nobody can hear 0.2% - but it is why a
    * caller that wants its frames sooner has to say so.
    */
   private bendLimit = PHASE_BIAS;
@@ -248,12 +248,12 @@ export class Deck {
 
   /**
    * How many frames can be rendered before the position hits something that
-   * needs handling — the end of a loop, or the end of the track.
+   * needs handling - the end of a loop, or the end of the track.
    *
    * The read head only ever moves forward, so the distance to a boundary
    * divided by the rate is the number of frames until it fires. `fastest` is
-   * the quickest the head could possibly go over this run — the ramp is heading
-   * there and any repayment is on top — because an estimate that undershoots
+   * the quickest the head could possibly go over this run - the ramp is heading
+   * there and any repayment is on top - because an estimate that undershoots
    * the real rate would sail past a loop point before anything noticed. If the
    * envelope closes mid-run the head advances less than predicted, which only
    * ever makes the estimate conservative, which is the safe direction.
@@ -274,8 +274,8 @@ export class Deck {
       const closes = Math.ceil(Math.log(0.0005 / this.envelope) / Math.log(1 - TRANSPORT_FADE));
       run = Math.min(run, Math.max(1, closes - 1));
     }
-    // At least one frame, always: a head already sitting past a boundary — a
-    // seek beyond the loop end, say — has to render a frame and then wrap,
+    // At least one frame, always: a head already sitting past a boundary - a
+    // seek beyond the loop end, say - has to render a frame and then wrap,
     // exactly as the per-sample form did, or this would not terminate.
     if (looping) {
       run = Math.min(run, Math.max(1, Math.ceil((loopEnd - this.position) / fastest)));
@@ -288,8 +288,8 @@ export class Deck {
    * Returns true when the deck reached the end of the track this block.
    *
    * The block is rendered as a series of *runs*, each ending where the read
-   * head meets a boundary. In the ordinary case — no loop wrap, no end of
-   * track — that is one run covering the whole block, and the inner loop is
+   * head meets a boundary. In the ordinary case - no loop wrap, no end of
+   * track - that is one run covering the whole block, and the inner loop is
    * what it always was. Splitting it this way is what lets the source be read
    * a run at a time rather than a sample at a time, and it is where quantised
    * actions land later: a scheduled cue point is simply another boundary.
@@ -329,7 +329,7 @@ export class Deck {
       // The source fills the output buffers for the whole run in one call and
       // the rest of the chain works over them in place. A head that is not
       // advancing reads at rate zero, which holds the frame it stopped on for
-      // as long as the fade takes — the same sample the per-frame form repeated.
+      // as long as the fade takes - the same sample the per-frame form repeated.
       if (!src) {
         outL.fill(0, i, end);
         outR.fill(0, i, end);

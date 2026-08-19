@@ -4,13 +4,13 @@
  *
  * This is a personal preference rather than rig state. Two operators on
  * different screens want different arrangements, and somebody tidying their
- * console should not rearrange everyone else's mid-set — so it lives in this
+ * console should not rearrange everyone else's mid-set - so it lives in this
  * browser and never goes near the server.
  *
  * The console is a free grid rather than a flow: every tool carries an explicit
  * column and row, so it stays exactly where it was put. Nothing is ever allowed
- * to sit on top of anything else — a move or a resize pushes whatever it lands
- * on downwards — which is what keeps panels from clipping each other.
+ * to sit on top of anything else - a move or a resize pushes whatever it lands
+ * on downwards - which is what keeps panels from clipping each other.
  */
 
 export type WidgetId =
@@ -56,8 +56,8 @@ export const DRAG_MIME = 'application/x-rnl-widget';
 /**
  * What is currently being dragged out of the palette.
  *
- * A `dragover` handler is not allowed to read the transfer's data — only its
- * types — and the grid needs the id to draw the landing rectangle under the
+ * A `dragover` handler is not allowed to read the transfer's data - only its
+ * types - and the grid needs the id to draw the landing rectangle under the
  * cursor. One module-level value covers it: a pointer can only drag one thing
  * at a time.
  */
@@ -422,8 +422,8 @@ export function layoutHeight(layout: Layout): number {
 /* ------------------------------------------------------------ defaults */
 
 /**
- * A fresh console is the first preset. Everything the preset does not place —
- * the readouts, the advanced mixer, the FX rack, MIDI — waits in the palette
+ * A fresh console is the first preset. Everything the preset does not place -
+ * the readouts, the advanced mixer, the FX rack, MIDI - waits in the palette
  * tray rather than being in the way from the start.
  */
 export function defaultLayout(): Layout {
@@ -439,7 +439,7 @@ export function defaultLayout(): Layout {
 /**
  * Whether this browser has an arrangement of its own yet. A console that has
  * never been arranged gets its tiles fitted to their contents on the first
- * render, which is more honest than the sizes in the palette — those are
+ * render, which is more honest than the sizes in the palette - those are
  * guesses about panels whose height depends on what is in them.
  */
 export function hasStoredLayout(): boolean {
@@ -618,7 +618,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'compact',
     name: 'Compact',
-    hint: 'Decks, mixer and pool only — for a laptop screen',
+    hint: 'Decks, mixer and pool only - for a laptop screen',
     place: [
       ['deckA', 0, 0, 4, 25],
       ['mixer', 4, 0, 4, 22],
@@ -644,7 +644,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'monitor',
     name: 'Booth monitor',
-    hint: 'Read-only display for a second screen — nothing to knock',
+    hint: 'Read-only display for a second screen - nothing to knock',
     place: [
       ['nowPlaying', 0, 0, 6, 8],
       ['output', 6, 0, 6, 9],

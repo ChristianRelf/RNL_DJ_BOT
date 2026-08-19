@@ -1,7 +1,7 @@
 /**
  * Wire contract shared by the server and the web control surface.
  *
- * This file is mirrored verbatim at web/src/protocol.ts — keep the two in sync.
+ * This file is mirrored verbatim at web/src/protocol.ts - keep the two in sync.
  * (They are separate npm workspaces, so a copy is cheaper than a third package.)
  */
 
@@ -24,7 +24,7 @@ export interface SessionUser {
   displayName: string;
   avatarUrl: string | null;
   /**
-   * May force-take the decks and delete anyone's media — in *this* guild.
+   * May force-take the decks and delete anyone's media - in *this* guild.
    *
    * Resolved per connection rather than carried in the session, because one
    * person is not the same thing in two servers, and a token cannot say "admin"
@@ -39,7 +39,7 @@ export interface SessionUser {
 }
 
 /**
- * The Discord account the rig is currently playing through. No token material —
+ * The Discord account the rig is currently playing through. No token material -
  * this rides the state broadcast, which every signed-in DJ receives.
  */
 export interface ActiveBot {
@@ -55,7 +55,7 @@ export interface ActiveBot {
 
 /**
  * `missing` is a track the pool knows about that the hosting device's last scan
- * could not find — a file moved, a drive unplugged, nobody hosting. It is kept
+ * could not find - a file moved, a drive unplugged, nobody hosting. It is kept
  * rather than deleted so a queue entry, a pad assignment or a beat grid pointing
  * at it survives until the folder comes back.
  */
@@ -91,7 +91,7 @@ export interface MediaItem {
  * Deliberately a tempo and an offset rather than a list of beat times. A list
  * would be the honest shape for a track that genuinely drifts, but it is ~800
  * numbers per track in a store that rewrites itself whole on every change and
- * ships the full library on connect — and it turns every consumer, from a
+ * ships the full library on connect - and it turns every consumer, from a
  * quantised cue to a tempo-locked delay, into a binary search instead of one
  * multiply. Tracks that really do drift are the ones a single tempo cannot
  * describe at all, and `confidence` is how those are refused rather than
@@ -186,7 +186,7 @@ export interface FxState {
    * size. 20..2000.
    */
   timeMs: number;
-  /** Regeneration, 0..0.95 — reverb reads it as decay. */
+  /** Regeneration, 0..0.95 - reverb reads it as decay. */
   feedback: number;
   /** Damping of the wet path, 0 = dark, 1 = bright. */
   tone: number;
@@ -200,7 +200,7 @@ export interface FxState {
  * sitting in the queue.
  */
 export interface QueueItem {
-  /** Queue entry id — not the media id, so the same track can be queued twice. */
+  /** Queue entry id - not the media id, so the same track can be queued twice. */
   id: string;
   mediaId: string;
   addedBy: { id: string; name: string };
@@ -224,7 +224,7 @@ export const QUEUE_LIMIT = 200;
  *
  * Requests are not the queue. Anyone with a DJ role can put a track in the
  * queue themselves; a request comes from the rest of the room, who have no
- * console and no library, and it is an ask rather than an instruction — it
+ * console and no library, and it is an ask rather than an instruction - it
  * only becomes a queue entry when whoever is on the decks accepts it.
  *
  * `mediaId` is set when they picked a track out of the rig's library, which is
@@ -236,7 +236,7 @@ export interface RequestItem {
   mediaId: string | null;
   /** What they asked for: the track's title, or free text they typed. */
   text: string;
-  /** Anything they wanted to say with it — a dedication, a time to play it. */
+  /** Anything they wanted to say with it - a dedication, a time to play it. */
   note: string;
   by: { id: string; name: string; avatarUrl: string | null };
   at: number;
@@ -264,7 +264,7 @@ export interface MixerState {
   master: number;
   /** Master left/right balance, -1..1 */
   balance: number;
-  /** Sums the master to mono — for a club rig or a phone speaker. */
+  /** Sums the master to mono - for a club rig or a phone speaker. */
   mono: boolean;
   /** Brickwall limiter on the master, in place of the soft clipper. */
   limiter: boolean;
@@ -287,7 +287,7 @@ export interface ToolsState {
   timecode: boolean;
   /**
    * Key the timecode endpoint requires. External consumers cannot hold a
-   * Discord session, so the URL itself is the credential — it is rotated every
+   * Discord session, so the URL itself is the credential - it is rotated every
    * time the tool is switched on.
    */
   timecodeKey: string;
@@ -311,7 +311,7 @@ export interface ToolsState {
   announce: boolean;
   /**
    * Opens the request page at /g/<slug>/request to everyone in the Discord
-   * server — members without a DJ role included, who cannot reach anything
+   * server - members without a DJ role included, who cannot reach anything
    * else. Off until somebody opens it, like every other tool here.
    */
   requests: boolean;
@@ -362,8 +362,8 @@ export interface PresenceUser {
 /**
  * Which device is serving this rig's audio.
  *
- * Deck plays straight off a folder on somebody's machine — nothing is uploaded
- * and the server keeps no audio at all — so exactly one console at a time holds
+ * Deck plays straight off a folder on somebody's machine - nothing is uploaded
+ * and the server keeps no audio at all - so exactly one console at a time holds
  * the library and answers requests for it. When nobody does, the decks have
  * nothing to play.
  */
@@ -378,7 +378,7 @@ export interface HostState {
  * A track the hosting device can serve, from its folder scan.
  *
  * The id is a content hash rather than a path, so renaming a file or moving it
- * within the folder keeps whatever the server knows about it — the beat grid,
+ * within the folder keeps whatever the server knows about it - the beat grid,
  * the cue point, the tags.
  */
 export interface HostTrackInfo {
@@ -438,7 +438,7 @@ export interface Meters {
   reduction: number;
   /**
    * What one 20 ms frame costs to render, as [median, 95th percentile] in ms.
-   * The budget is 20 — the voice player pulls a frame every 20 ms and a late
+   * The budget is 20 - the voice player pulls a frame every 20 ms and a late
    * one is a dropout, so this is the number that says how much room is left.
    */
   frameMs: [number, number];
@@ -557,8 +557,8 @@ export interface BotSummary {
 /**
  * Shapes for the request page, which is HTTP rather than socket.
  *
- * Everything here is answered to any *member* of the guild, not just its DJs —
- * that is the whole point of the page — so it carries the least it can: no
+ * Everything here is answered to any *member* of the guild, not just its DJs -
+ * that is the whole point of the page - so it carries the least it can: no
  * media ids the caller did not search for, no library listing, nothing about
  * who else has asked for what.
  */
@@ -586,7 +586,7 @@ export interface RequestPageInfo {
   user: { id: string; displayName: string; avatarUrl: string | null };
   /** What the room is hearing, or null when the decks are quiet. */
   nowPlaying: string | null;
-  /** This person's own asks, newest first — including ones already dealt with. */
+  /** This person's own asks, newest first - including ones already dealt with. */
   mine: RequestItem[];
   /** How many more they may send before the rate limit stops them. */
   remaining: number;

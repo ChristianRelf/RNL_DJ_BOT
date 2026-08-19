@@ -14,9 +14,9 @@ interface PadsProps {
 const MODES: PadMode[] = ['oneshot', 'loop', 'gate'];
 const MODE_LABEL: Record<PadMode, string> = { oneshot: 'ONE', loop: 'LOOP', gate: 'HOLD' };
 const MODE_HINT: Record<PadMode, string> = {
-  oneshot: 'One shot — fires and runs to the end',
-  loop: 'Loop — fires until you hit it again',
-  gate: 'Hold — plays only while held',
+  oneshot: 'One shot - fires and runs to the end',
+  loop: 'Loop - fires until you hit it again',
+  gate: 'Hold - plays only while held',
 };
 /** Pad gain default, matching the engine. */
 const PAD_GAIN = 0.9;
@@ -104,7 +104,7 @@ export function Pads({ pads, locked, send, throttled }: PadsProps) {
                 type="button"
                 className={`pad-mode is-${pad.mode}`}
                 disabled={locked || !pad.mediaId}
-                title={`${MODE_HINT[pad.mode]} — click to cycle`}
+                title={`${MODE_HINT[pad.mode]} - click to cycle`}
                 onClick={() => {
                   const next = MODES[(MODES.indexOf(pad.mode) + 1) % MODES.length];
                   void send('pad:set', { index: pad.index, mode: next });

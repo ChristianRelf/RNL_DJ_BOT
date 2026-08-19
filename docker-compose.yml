@@ -28,7 +28,7 @@ services:
       # site returning 502.
       - default
       - proxy
-    # Opus encoding and mixing are CPU bound but light — roughly a tenth of a
+    # Opus encoding and mixing are CPU bound but light - roughly a tenth of a
     # core per rig that is actually on air, so two cores covers about ten.
     #
     # Memory scales with rigs too, at ~15 MB of audio buffers each plus the

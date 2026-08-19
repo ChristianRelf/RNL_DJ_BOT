@@ -66,7 +66,7 @@ export class FxBus {
     };
   }
 
-  /** True while the bus can still be heard — silence lets the mixer skip it. */
+  /** True while the bus can still be heard - silence lets the mixer skip it. */
   get active(): boolean {
     return this.mix > 0.0005;
   }

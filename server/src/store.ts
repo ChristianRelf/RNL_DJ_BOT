@@ -40,7 +40,7 @@ export interface PersistedBot {
 
 /**
  * Somebody asking for access. Written by the public endpoint, read only by a
- * platform admin — this is the one place in the database that holds details of
+ * platform admin - this is the one place in the database that holds details of
  * people who are not in any guild, so it stays out of every state broadcast.
  */
 export interface WaitlistEntry {
@@ -128,7 +128,7 @@ interface GuildData {
  *
  * In memory because the audio path reads it: the engine asks for the mixer
  * state and a media item's title while rendering, and a query there would be a
- * disk read inside a 20 ms budget. Writes go the other way — through here, then
+ * disk read inside a 20 ms budget. Writes go the other way - through here, then
  * to SQLite on a debounce, so a knob dragged across its travel is one write and
  * not eighty.
  */
@@ -205,7 +205,7 @@ export class GuildStore {
     for (const media of mediaRows) {
       const item = safeParse<MediaItem | null>(media.data, null);
       if (!item?.id) continue;
-      // Written before these existed, and `JSON.stringify` drops `undefined` —
+      // Written before these existed, and `JSON.stringify` drops `undefined` -
       // so without this the web side sees a property that is not there rather
       // than one that is null.
       if (item.beatGrid === undefined) item.beatGrid = null;
@@ -284,7 +284,7 @@ export class GuildStore {
    * Debounced write.
    *
    * Everything that is not media is cheap to write and hard to track precisely
-   * — the mixer is one row, the queue is a handful — so a change to any of them
+   * - the mixer is one row, the queue is a handful - so a change to any of them
    * marks the lot. Media is the exception, because a library is hundreds of rows
    * carrying a waveform envelope each, and rewriting all of it to rename one
    * track is the kind of thing that is fine until it is not.
@@ -292,8 +292,8 @@ export class GuildStore {
   save(): void {
     // Everything cheap is marked together. The queue is a handful of rows and
     // the pads are eight; tracking which of them a caller touched would be a
-    // correctness problem waiting to happen — a missed mark is a set that comes
-    // back wrong after a restart — in exchange for saving a few hundred bytes.
+    // correctness problem waiting to happen - a missed mark is a set that comes
+    // back wrong after a restart - in exchange for saving a few hundred bytes.
     this.guildDirty = true;
     this.queueDirty = true;
     this.requestsDirty = true;

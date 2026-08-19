@@ -1,9 +1,9 @@
 /**
  * The decoded-audio cache, and the thing that reads out of it.
  *
- * Runs in a dedicated worker for two reasons. The reads are synchronous — OPFS
+ * Runs in a dedicated worker for two reasons. The reads are synchronous - OPFS
  * sync access handles are the only random-access file API a browser has, and
- * they are worker-only — so doing them anywhere else would block the tab on
+ * they are worker-only - so doing them anywhere else would block the tab on
  * every request. And a backgrounded tab has its main thread throttled hard,
  * while a worker servicing messages does not, which is the difference between a
  * set surviving somebody switching windows and not.
@@ -18,7 +18,7 @@ const CHANNELS = 2;
 const BYTES_PER_FRAME = CHANNELS * 2;
 
 /**
- * Ceiling on the decoded cache. About 85 minutes of audio — far more than the
+ * Ceiling on the decoded cache. About 85 minutes of audio - far more than the
  * ten sources a rig can have loaded at once, so eviction only ever touches
  * tracks nobody is playing.
  */
@@ -38,7 +38,7 @@ let manifest: Manifest = {};
 let pcmDir: FileSystemDirectoryHandle | null = null;
 /** Open sync handles, by track. A file may only have one at a time. */
 const handles = new Map<string, FileSystemSyncAccessHandle>();
-/** Tracks being written right now — never evicted out from under a decode. */
+/** Tracks being written right now - never evicted out from under a decode. */
 const writing = new Set<string>();
 
 async function root(): Promise<FileSystemDirectoryHandle> {
@@ -227,7 +227,7 @@ async function handle(msg: WorkerRequest): Promise<{ reply: WorkerReply; transfe
 
       entry.lastUsed = Date.now();
       const got = Math.floor(read / BYTES_PER_FRAME);
-      // Handed over rather than copied — this is the hot path, several times a
+      // Handed over rather than copied - this is the hot path, several times a
       // second per playing deck.
       return { reply: { id, ok: true, frames: got, pcm: buffer }, transfer: [buffer] };
     }

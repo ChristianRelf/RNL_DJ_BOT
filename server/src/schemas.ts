@@ -16,7 +16,7 @@ const eq = z
   .strict();
 
 /**
- * Every inbound command is validated before it reaches the audio engine —
+ * Every inbound command is validated before it reaches the audio engine -
  * a NaN or an out-of-range gain would otherwise poison the mix buffers.
  */
 export const commandSchemas = {
@@ -162,13 +162,13 @@ export const NEEDS_CONTROL = new Set<CommandKey>([
   'deck:nudge',
   'deck:set',
   'deck:loop',
-  // Anyone signed in may line a track up — that is the point of a shared queue,
+  // Anyone signed in may line a track up - that is the point of a shared queue,
   // and it does not touch what the room is hearing. Rearranging what somebody
   // else is about to play does, so the rest of these need the lock.
   'queue:move',
   'queue:clear',
   // A request is the room asking rather than telling, so what happens to one is
-  // the booth's call — not any signed-in tab's, the way adding to the queue is.
+  // the booth's call - not any signed-in tab's, the way adding to the queue is.
   'requests:accept',
   'requests:decline',
   'requests:clear',
@@ -192,7 +192,7 @@ export const NEEDS_CONTROL = new Set<CommandKey>([
  * Kept apart from `commandSchemas` because these are not commands: they carry
  * no authority over the mix, they are answered rather than executed, and they
  * arrive at a few a second per playing deck rather than when somebody touches a
- * control. They still get validated, and harder than most — `frames` sizes a
+ * control. They still get validated, and harder than most - `frames` sizes a
  * buffer, so a NaN or a negative here is not a bad command but a crash.
  */
 const trackId = z.string().min(1).max(128);

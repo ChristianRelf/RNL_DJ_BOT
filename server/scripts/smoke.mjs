@@ -1,5 +1,5 @@
 /**
- * Audio engine smoke test — exercises the realtime path without Discord or
+ * Audio engine smoke test - exercises the realtime path without Discord or
  * ffmpeg by synthesising raw PCM directly.
  *
  *   npm run build -w server && npm run smoke -w server
@@ -151,9 +151,9 @@ try {
   // it advances slightly less than an instant jump would have. That shortfall
   // is booked and repaid, and this is the assertion that it really is: after a
   // pitch move the head must sit exactly where an unsmoothed one would have.
-  // Everything that cares where the head is — sync, loops, the grid — rests on
+  // Everything that cares where the head is - sync, loops, the grid - rests on
   // this, so it is checked to well under a millisecond.
-  // Settle the head at unity first, then seek — which clears the debt the
+  // Settle the head at unity first, then seek - which clears the debt the
   // previous 2x pass booked. Measuring through someone else's outstanding debt
   // measures the wrong thing.
   B.rate = 1;

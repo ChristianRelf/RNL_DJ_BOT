@@ -1,7 +1,7 @@
 /**
  * Which rigs this account can open.
  *
- * The console is addressed by slug — `/g/nightshift/deck` — because a Discord
+ * The console is addressed by slug - `/g/nightshift/deck` - because a Discord
  * snowflake in a URL is a thing nobody can read or type. The slug is resolved
  * to a guild id once, here, and everything below works in ids: the socket
  * handshake, the API paths, the rooms the server broadcasts into.
@@ -37,7 +37,7 @@ export function parseRigPath(pathname: string): { slug: string; view: 'console' 
 }
 
 /**
- * `/g/<slug>/request`, or the short `/<slug>/request` — the form that gets read
+ * `/g/<slug>/request`, or the short `/<slug>/request` - the form that gets read
  * out in a voice channel. Null for anything else.
  *
  * The short form is safe to take literally because of the `/request` on the

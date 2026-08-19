@@ -7,7 +7,7 @@ import { DEFAULT_MIXER, DEFAULT_TOOLS, type GuildRecord, type PersistedBot, type
  * and who has asked to.
  *
  * These are read rarely and written rarely, so unlike a guild's own state there
- * is nothing mirrored in memory — the database is simply asked.
+ * is nothing mirrored in memory - the database is simply asked.
  */
 
 /* --------------------------------------------------------------- guilds */

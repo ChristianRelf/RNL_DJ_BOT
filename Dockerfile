@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---------------------------------------------------------------------------
-# base — toolchain needed to compile @discordjs/opus
+# base - toolchain needed to compile @discordjs/opus
 # ---------------------------------------------------------------------------
 FROM node:24-bookworm AS base
 WORKDIR /app
@@ -11,7 +11,7 @@ RUN apt-get update \
 ENV npm_config_fund=false npm_config_audit=false
 
 # ---------------------------------------------------------------------------
-# deps — full dependency tree (dev included) for building
+# deps - full dependency tree (dev included) for building
 # ---------------------------------------------------------------------------
 FROM base AS deps
 COPY package.json package-lock.json* ./
@@ -20,7 +20,7 @@ COPY web/package.json web/
 RUN npm ci --workspaces --include-workspace-root || npm install --workspaces --include-workspace-root
 
 # ---------------------------------------------------------------------------
-# build — compile the React control surface and the TypeScript server
+# build - compile the React control surface and the TypeScript server
 # ---------------------------------------------------------------------------
 FROM deps AS build
 COPY tsconfig.base.json ./
@@ -29,7 +29,7 @@ COPY web web
 RUN npm run build -w web && npm run build -w server
 
 # ---------------------------------------------------------------------------
-# prod-deps — runtime dependency tree only
+# prod-deps - runtime dependency tree only
 # ---------------------------------------------------------------------------
 FROM base AS prod-deps
 COPY package.json package-lock.json* ./

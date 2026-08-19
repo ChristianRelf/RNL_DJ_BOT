@@ -6547,7 +6547,7 @@ kbd {
 
 /* A track the hosting device's last scan could not find. Dimmed rather than
    struck through: the file is almost certainly fine, it is the folder that is
-   not there — an unplugged drive, or nobody hosting yet. */
+   not there - an unplugged drive, or nobody hosting yet. */
 .track.missing {
   opacity: 0.45;
 }
@@ -7087,7 +7087,7 @@ kbd {
 }
 
 /* The status line: on air, idle, whether a library is connected. Quiet by
-   design — it is context for the choice, not the choice itself. */
+   design - it is context for the choice, not the choice itself. */
 .rigpicker-meta {
   display: flex;
   align-items: center;
@@ -7115,7 +7115,7 @@ kbd {
 /* ------------------------------------------------------------- requests */
 
 /* The request page is the one screen here written for a phone held in a voice
-   channel rather than for a desk with a controller on it — so it is one column,
+   channel rather than for a desk with a controller on it - so it is one column,
    centred, with touch-sized targets, and it borrows the front-of-house buttons
    rather than the console's. */
 

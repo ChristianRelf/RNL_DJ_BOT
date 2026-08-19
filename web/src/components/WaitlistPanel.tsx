@@ -51,7 +51,7 @@ export function WaitlistPanel() {
         <div className="tool-heading">
           <h2>Waitlist</h2>
           <p>
-            Rooms asking for access, newest first. Remove one once they are in — nothing here is
+            Rooms asking for access, newest first. Remove one once they are in - nothing here is
             sent anywhere else.
           </p>
         </div>

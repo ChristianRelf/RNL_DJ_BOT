@@ -6,7 +6,7 @@ import type { WindowReader } from './windowReader';
  *
  * This is the whole safety margin against a slow connection, a busy device or a
  * browser that decided to throttle the tab. Eight seconds of stereo Int16 is
- * 1.5 MB — two decks and eight pads still come to under 15 MB per rig, and it
+ * 1.5 MB - two decks and eight pads still come to under 15 MB per rig, and it
  * buys enough slack that a request has to go unanswered for several seconds
  * running before anybody hears it.
  */
@@ -21,7 +21,7 @@ export const RING_FRAMES = SAMPLE_RATE * RING_SECONDS;
 const LOW_WATER_FRAMES = SAMPLE_RATE * 4;
 
 /**
- * How much is asked for at a time — 48 KB, a quarter of a second.
+ * How much is asked for at a time - 48 KB, a quarter of a second.
  *
  * Small deliberately. Every seek has to refill from nothing before the deck can
  * play again, and that pre-roll is the whole of the seek latency: at one-second
@@ -76,7 +76,7 @@ export interface AudioNeed {
  * The contract that matters is that `read` is synchronous and never waits: it
  * answers with whatever is in the ring right now, and returns short when the
  * audio has not arrived. `PcmSource` turns a short read into a fade rather than
- * a stall, so a slow device costs a dropout and never a late frame — which is
+ * a stall, so a slow device costs a dropout and never a late frame - which is
  * the trade this whole design rests on, because a late frame is the one thing
  * the voice player cannot absorb.
  */
@@ -156,7 +156,7 @@ export class RemoteWindowReader implements WindowReader {
   }
 
   /**
-   * The host has dropped this track — the file moved, the folder was
+   * The host has dropped this track - the file moved, the folder was
    * disconnected, or permission was revoked. Further requests would go
    * unanswered forever, so they stop.
    */
@@ -171,7 +171,7 @@ export class RemoteWindowReader implements WindowReader {
     const offset = fromFrame - this.head;
     if (offset < 0 || offset >= this.count) {
       // Not held. Answering short is what makes the source fade rather than
-      // stall — and asking for it is deliberately *not* done here. A read
+      // stall - and asking for it is deliberately *not* done here. A read
       // arrives with whatever offset the window happens to be filling from,
       // which during ordinary playback is the far end of the window, seconds
       // ahead of the playhead. Sizing demand off that makes the ring believe it
@@ -200,7 +200,7 @@ export class RemoteWindowReader implements WindowReader {
 
   /**
    * The playhead, told to the reader once per block by the deck. This is the
-   * sole driver of demand — see `read` for why nothing else may be.
+   * sole driver of demand - see `read` for why nothing else may be.
    */
   prefetch(fromFrame: number): void {
     if (this.closed) return;
@@ -217,8 +217,8 @@ export class RemoteWindowReader implements WindowReader {
   /**
    * Keeps the ring stocked around `pos`.
    *
-   * Called from the audio path on every block, so the common case — plenty
-   * buffered, nothing to do — has to be a couple of comparisons and out.
+   * Called from the audio path on every block, so the common case - plenty
+   * buffered, nothing to do - has to be a couple of comparisons and out.
    */
   private want(pos: number): void {
     if (this.closed || this.gone) return;
@@ -246,7 +246,7 @@ export class RemoteWindowReader implements WindowReader {
    *
    * Exactly from `pos`, with nothing fetched behind it. The source always asks
    * for a window that starts before its playhead, so anything bought back here
-   * is pre-roll the deck has to wait through before it makes a sound — and
+   * is pre-roll the deck has to wait through before it makes a sound - and
    * history for scrubbing arrives free anyway, as the playhead walks forward
    * through a ring that is kept filled ahead of it.
    */
@@ -292,7 +292,7 @@ export class RemoteWindowReader implements WindowReader {
   }
 
   /**
-   * The host has the track but cannot serve it yet — it is still decoding.
+   * The host has the track but cannot serve it yet - it is still decoding.
    *
    * This has to be said out loud rather than left unanswered. Requests are
    * capped in flight, so eight silent refusals would leave the reader believing
@@ -317,7 +317,7 @@ export class RemoteWindowReader implements WindowReader {
    * Chunks are only ever written contiguously onto the end of what is already
    * held. One that does not line up is either stale or the result of a dropped
    * request, and guessing where it belongs would put a slice of the wrong part
-   * of the track into the middle of the ring — audible, and hard to explain.
+   * of the track into the middle of the ring - audible, and hard to explain.
    */
   push(seq: number, fromFrame: number, pcm: Int16Array): boolean {
     if (this.closed || seq !== this.seq) return false;

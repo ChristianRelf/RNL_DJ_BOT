@@ -50,7 +50,7 @@ interface Presence {
 /**
  * Application core. Everything the control surface can do funnels through
  * `execute`, which is the single place permissions, validation and state
- * broadcasting are enforced — the Discord slash commands use the same path.
+ * broadcasting are enforced - the Discord slash commands use the same path.
  */
 /**
  * How long the rig keeps playing after the hosting device drops before it gives
@@ -109,16 +109,16 @@ export class Rig extends EventEmitter {
     });
     this.control.on('change', () => this.bumpState());
     this.control.on('timeout', (_id: string, name: string) =>
-      this.toast('warn', `${name} timed out — control passed on.`),
+      this.toast('warn', `${name} timed out - control passed on.`),
     );
     this.voice.on('change', () => this.bumpState());
 
-    // Losing the host does not stop the audio — the ring is still full and the
+    // Losing the host does not stop the audio - the ring is still full and the
     // decks play on out of it. What it starts is a clock: if nobody is serving
     // by the time that runs out, the set is paused where it actually stopped
     // rather than left to run silently on through the rest of the track.
     this.host.on('lost', () => {
-      this.toast('warn', 'The device hosting this library dropped — playing from the buffer.');
+      this.toast('warn', 'The device hosting this library dropped - playing from the buffer.');
       if (this.hostGrace) clearTimeout(this.hostGrace);
       this.hostGrace = setTimeout(() => {
         this.hostGrace = null;
@@ -126,7 +126,7 @@ export class Rig extends EventEmitter {
         const running = DECK_IDS.filter((id) => this.mixer.decks[id].playing);
         for (const id of running) this.mixer.decks[id].pause();
         if (running.length > 0) {
-          this.toast('error', 'Nobody is hosting the library — playback paused.');
+          this.toast('error', 'Nobody is hosting the library - playback paused.');
         }
         this.bumpState();
       }, HOST_GRACE_MS);
@@ -313,7 +313,7 @@ export class Rig extends EventEmitter {
   /**
    * Takes the next playable track off the queue and puts it on a deck.
    *
-   * Entries whose media has gone — deleted, or still failing to decode — are
+   * Entries whose media has gone - deleted, or still failing to decode - are
    * dropped as they are reached rather than jamming the queue behind something
    * that will never play.
    */
@@ -352,7 +352,7 @@ export class Rig extends EventEmitter {
    * Files an ask from somebody in the Discord server.
    *
    * Called from the HTTP side rather than through `execute`, because the person
-   * asking is not on the console socket — they are a guild member with no DJ
+   * asking is not on the console socket - they are a guild member with no DJ
    * role, which is exactly who the request page is for. Everything that decides
    * whether they may ask at all (the tool being on, membership, the rate limit)
    * is settled before this is reached; what is left here is the rig's own rules
@@ -380,7 +380,7 @@ export class Rig extends EventEmitter {
       throw new CommandError(
         duplicate.by.id === by.id
           ? 'You have already asked for that one.'
-          : 'Somebody has already asked for that — it is on the list.',
+          : 'Somebody has already asked for that - it is on the list.',
       );
     }
 
@@ -415,7 +415,7 @@ export class Rig extends EventEmitter {
   /**
    * Keeps the list at its ceiling by dropping what has already been dealt with,
    * oldest first. A pending ask is only ever dropped when there is nothing else
-   * left to drop — somebody waiting to hear their track should not fall off the
+   * left to drop - somebody waiting to hear their track should not fall off the
    * end because the booth declined forty others.
    */
   private trimRequests(): void {
@@ -443,7 +443,7 @@ export class Rig extends EventEmitter {
    * The waveform envelope for a track, computed on the device as it decoded.
    *
    * The frame count that comes with it is the decoder's, which supersedes the
-   * estimate the scan read off file metadata — approximate for anything
+   * estimate the scan read off file metadata - approximate for anything
    * variable-bitrate, and the difference is audible at the end of a track.
    */
   registerPeaks(trackId: string, peaks: number[], frames: number): void {
@@ -460,7 +460,7 @@ export class Rig extends EventEmitter {
    * Brings the pool in line with what the hosting device can actually serve.
    *
    * The device is authoritative about which files exist; the server is
-   * authoritative about everything anybody has decided about them — the tempo
+   * authoritative about everything anybody has decided about them - the tempo
    * somebody tapped, the beat grid, the tags. So a scan updates the first and
    * never touches the second, and a track that has dropped out of the folder is
    * marked missing rather than removed. Unplugging a drive should not throw away
@@ -504,7 +504,7 @@ export class Rig extends EventEmitter {
     }
 
     // Anything the scan did not mention is out of reach for now. Legacy tracks
-    // that still have a decoded file on disk are exempt — they play without a
+    // that still have a decoded file on disk are exempt - they play without a
     // host at all, and calling them missing would be plainly wrong.
     for (const item of this.store.listMedia()) {
       if (seen.has(item.id) || item.status === 'missing') continue;
@@ -618,7 +618,7 @@ export class Rig extends EventEmitter {
           'success',
           payload.next
             ? `"${item.title}" is up next.`
-            : `"${item.title}" queued — ${queue.items.length} in the queue.`,
+            : `"${item.title}" queued - ${queue.items.length} in the queue.`,
         );
         return;
       }
@@ -628,7 +628,7 @@ export class Rig extends EventEmitter {
         if (index < 0) return;
         const entry = queue.items[index];
         // Your own entry is yours to pull. Anyone else's needs the decks or
-        // admin — the same shape as editing somebody's upload.
+        // admin - the same shape as editing somebody's upload.
         const mine = entry.addedBy.id === user.id;
         if (!mine && !user.isAdmin && !this.control.has(user.id)) {
           throw new CommandError('Take control to remove somebody else\'s track.');
@@ -670,7 +670,7 @@ export class Rig extends EventEmitter {
         const request = this.requestOf(payload.id);
         if (!request.mediaId) {
           throw new CommandError(
-            'That one is somebody describing a track, not picking one — find it in the pool and queue it yourself.',
+            'That one is somebody describing a track, not picking one - find it in the pool and queue it yourself.',
           );
         }
         const item = this.readyMedia(request.mediaId);
@@ -696,7 +696,7 @@ export class Rig extends EventEmitter {
         this.store.save();
         this.toast(
           'success',
-          `"${item.title}" for ${request.by.name} — ${payload.next ? 'up next' : `${queue.items.length} in the queue`}.`,
+          `"${item.title}" for ${request.by.name} - ${payload.next ? 'up next' : `${queue.items.length} in the queue`}.`,
         );
         return;
       }
@@ -937,7 +937,7 @@ export class Rig extends EventEmitter {
 
   /**
    * Reads the beat grid off a decoded track and stores it. Safe to call again
-   * later — which is the point of the command that does, because operators
+   * later - which is the point of the command that does, because operators
    * install aubio *after* importing a library, not before.
    */
   private async analyse(item: MediaItem): Promise<void> {

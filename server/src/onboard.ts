@@ -17,13 +17,13 @@ const STATE_COOKIE = 'rnl_dj_onboard';
  *
  * The whole thing hangs off Discord's own bot-authorisation flow rather than
  * asking anyone to paste a guild id. Discord shows them a server picker they
- * already understand, and hands the guild id back in the callback — which also
+ * already understand, and hands the guild id back in the callback - which also
  * means this never has to hold an OAuth token to go looking for the servers
  * somebody administers. Discord decides who may add a bot where; there is no
  * reason to re-derive that here and a good reason not to.
  */
 
-/** Connect, Speak, View Channel — the least a rig can do its job with. */
+/** Connect, Speak, View Channel - the least a rig can do its job with. */
 const PERMISSIONS = (1n << 20n) | (1n << 21n) | (1n << 10n);
 
 function inviteUrl(state: string): string {
@@ -94,10 +94,10 @@ export function mountOnboarding(app: express.Express): void {
     const fail = (message: string) => res.redirect('/onboard?error=' + encodeURIComponent(message));
 
     if (error) return fail(error);
-    if (!cookie || !state) return fail('That setup link expired — start again.');
+    if (!cookie || !state) return fail('That setup link expired - start again.');
 
     const [expected, startedBy] = cookie.split('.');
-    if (!expected || expected !== state) return fail('Setup state mismatch — start again.');
+    if (!expected || expected !== state) return fail('Setup state mismatch - start again.');
     if (!guildId) return fail('Discord did not say which server that was. Try again.');
 
     // The person who started it has to still be the person finishing it, and

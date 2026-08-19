@@ -51,7 +51,7 @@ export const config = {
      */
     guildId: (process.env.DISCORD_GUILD_ID ?? '').trim(),
     /**
-     * "deck" — the one Discord application this runs on.
+     * "deck" - the one Discord application this runs on.
      *
      * It is the bot people invite, the account the room hears by default, the
      * application `/dj` is registered against, and the token the sign-in gate
@@ -81,8 +81,8 @@ export const config = {
     portalHost: (process.env.PORTAL_HOST ?? '').trim().toLowerCase(),
     /**
      * Domain to scope the session cookie to. Set it to the parent of both the
-     * console and the portal — `deck.ronation.live` covers
-     * `portal.deck.ronation.live` — so one sign-in serves both. Left empty the
+     * console and the portal - `deck.ronation.live` covers
+     * `portal.deck.ronation.live` - so one sign-in serves both. Left empty the
      * cookie is host-only, which is right for localhost.
      */
     cookieDomain: (process.env.COOKIE_DOMAIN ?? '').trim(),
@@ -103,8 +103,8 @@ export const config = {
   },
   /**
    * External binaries the rig shells out to. None of them are on the realtime
-   * path — ffmpeg decodes at upload time, yt-dlp only runs when someone pastes
-   * a link — so a missing one costs a feature rather than the mix.
+   * path - ffmpeg decodes at upload time, yt-dlp only runs when someone pastes
+   * a link - so a missing one costs a feature rather than the mix.
    */
   bin: {
     ffmpeg: process.env.FFMPEG_PATH ?? 'ffmpeg',
@@ -115,8 +115,8 @@ export const config = {
   logLevel: (process.env.LOG_LEVEL ?? 'info') as 'debug' | 'info' | 'warn' | 'error',
 } as const;
 
-// Deduplicated: a variable that stands in for two settings — the playback
-// application also covering sign-in, say — would otherwise be named twice in
+// Deduplicated: a variable that stands in for two settings - the playback
+// application also covering sign-in, say - would otherwise be named twice in
 // the same breath, which reads like two different problems.
 const missingOnce = [...new Set(missing)];
 
@@ -132,14 +132,14 @@ if (config.http.sessionSecret.length < 32) {
 }
 
 // Signing in requires being on the allowlist, and only a platform admin can put
-// anybody on it. With nobody configured, an install is not merely limited — it
+// anybody on it. With nobody configured, an install is not merely limited - it
 // is sealed: no portal, no way to grant access, and no hint as to why. That is
 // worth refusing to start over, because the alternative is discovering it as a
 // login page that rejects everyone including you.
 if (config.access.platformAdminIds.length === 0) {
   throw new Error(
     'PLATFORM_ADMIN_IDS is empty, so nobody could reach the portal or be let in. ' +
-      'Set it to your Discord user id — enable Developer Mode in Discord, then ' +
+      'Set it to your Discord user id - enable Developer Mode in Discord, then ' +
       'right-click your own name and Copy User ID.',
   );
 }

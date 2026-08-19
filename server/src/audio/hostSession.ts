@@ -8,7 +8,7 @@ const log = createLogger('host');
 /**
  * A track the host device can serve, as reported by its folder scan.
  *
- * `frames` is the decoded length in sample frames and is authoritative — it is
+ * `frames` is the decoded length in sample frames and is authoritative - it is
  * what the ring sizes its requests against, so it comes from the device that
  * actually decoded the file rather than being derived from a duration that has
  * been rounded to milliseconds somewhere along the way.
@@ -46,7 +46,7 @@ export class HostSession extends EventEmitter {
   private send: ((need: AudioNeed) => void) | null = null;
 
   private tracks = new Map<string, HostTrack>();
-  /** Live readers by source key — `deck:A`, `pad:3`. */
+  /** Live readers by source key - `deck:A`, `pad:3`. */
   private readers = new Map<string, RemoteWindowReader>();
 
   get hosted(): boolean {
@@ -79,7 +79,7 @@ export class HostSession extends EventEmitter {
   /**
    * A console offers to serve this rig's audio.
    *
-   * An existing host is not displaced — whoever got there first keeps it, and
+   * An existing host is not displaced - whoever got there first keeps it, and
    * the newcomer is told so. Taking the mix away from a device that is actively
    * feeding it, because somebody else opened a browser tab, is not a thing that
    * should be able to happen by accident.
@@ -132,7 +132,7 @@ export class HostSession extends EventEmitter {
   }
 
   /**
-   * The host is gone — disconnected, navigated away, or released deliberately.
+   * The host is gone - disconnected, navigated away, or released deliberately.
    *
    * The readers are left in place rather than torn down. They will simply stop
    * being answered, which the sources turn into a fade; tearing them down would
@@ -146,7 +146,7 @@ export class HostSession extends EventEmitter {
     this.userId = null;
     this.userName = null;
     this.send = null;
-    log.warn(`${who ?? 'the host'} stopped hosting — decks will run dry`);
+    log.warn(`${who ?? 'the host'} stopped hosting - decks will run dry`);
     this.emit('lost');
     this.emit('change');
     return true;

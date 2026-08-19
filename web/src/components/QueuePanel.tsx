@@ -9,7 +9,7 @@ import type { DjClient } from '../socket';
  *
  * The queue is rig state, not a personal playlist: everyone sees the same list,
  * and anyone signed in can add to it whether or not they hold the decks. That
- * is deliberate — a room full of people who can queue a track but not touch the
+ * is deliberate - a room full of people who can queue a track but not touch the
  * mixer is most of what a shared DJ rig is for. Rearranging or dropping
  * somebody else's track needs the decks, the same way editing their upload
  * needs to be them or an admin.
@@ -109,7 +109,7 @@ export function QueuePanel({ queue, media, me, locked, send }: Props) {
       {queue.items.length === 0 ? (
         <p className="queue-empty">
           Nothing lined up. Drag a track here from the pool, or use its <strong>queue</strong>{' '}
-          button — you do not need the decks to do it.
+          button - you do not need the decks to do it.
         </p>
       ) : (
         <ol className="queue-list">

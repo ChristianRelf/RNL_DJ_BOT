@@ -13,7 +13,7 @@ export type RequestOutcome = 'granted' | 'queued' | 'already-holder' | 'already-
  * Any number of DJs can be signed in and watching, but exactly one holds
  * control at a time. Others queue; the lock hands over automatically when the
  * holder releases, disconnects (after a grace period) or goes idle *while
- * somebody is waiting*. An idle holder with an empty queue keeps the decks —
+ * somebody is waiting*. An idle holder with an empty queue keeps the decks -
  * there is nobody to hand them to, and silently dropping control mid-set would
  * be worse than holding it.
  */
@@ -94,7 +94,7 @@ export class ControlLock extends EventEmitter {
     return true;
   }
 
-  /** Admin override — seizes the lock regardless of who holds it. */
+  /** Admin override - seizes the lock regardless of who holds it. */
   take(user: SessionUser): void {
     if (this.holder && this.holder.id !== user.id) {
       log.warn(`${user.displayName} force-took control from ${this.holder.name}`);

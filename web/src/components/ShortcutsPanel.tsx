@@ -2,7 +2,7 @@
  * The keyboard and gesture reference, as a widget.
  *
  * The same lines live in the console footer, but the footer is easy to miss and
- * disappears on a short window — this is for anyone who wants it on screen
+ * disappears on a short window - this is for anyone who wants it on screen
  * while they learn the desk.
  */
 

@@ -8,7 +8,7 @@ import type { MidiRuntime } from '../lib/useMidi';
  *
  * Learn is the only workflow that survives contact with real hardware: pick the
  * thing on screen, then move the thing on the controller. Everything else here
- * exists to explain what happened afterwards — what is bound to what, and how a
+ * exists to explain what happened afterwards - what is bound to what, and how a
  * control that is not where the software is behaves when you first touch it.
  */
 
@@ -46,7 +46,7 @@ export function MidiPanel({ midi }: { midi: MidiRuntime }) {
         </header>
         <p className="panel-note">
           This browser has no Web MIDI. Chrome, Edge and Opera have it; Safari and Firefox do not
-          without a flag. The console works the same without it — MIDI only ever sends the commands
+          without a flag. The console works the same without it - MIDI only ever sends the commands
           the on-screen controls already send.
         </p>
       </section>
@@ -197,7 +197,7 @@ export function MidiPanel({ midi }: { midi: MidiRuntime }) {
       </div>
 
       <p className="panel-note">
-        Mappings live in this browser, like the layout — plugging the same controller into another
+        Mappings live in this browser, like the layout - plugging the same controller into another
         machine means mapping it again. A bound control sends exactly what the on-screen one sends,
         so the control lock still applies: no control, no MIDI.
       </p>

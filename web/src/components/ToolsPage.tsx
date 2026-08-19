@@ -164,7 +164,7 @@ function UrlImport({ enabled, api }: { enabled: boolean; api: string }) {
       ) : null}
 
       <p className="tool-note">
-        Fetches a direct link to an audio file — a promo pool download, your own storage, a
+        Fetches a direct link to an audio file - a promo pool download, your own storage, a
         royalty-free library. YouTube links are handed to yt-dlp on the server and pulled in as
         audio; a playlist link takes the one track, not the list behind it. Every other site that
         serves a web page rather than a file is refused, as is anything pointing back at your own
@@ -225,7 +225,7 @@ function ChannelStatus({
         Discord shows this under the channel name in the sidebar, so the server can see the decks
         are live without opening anything. Written when the bot joins and cleared when it leaves.
         Leave it blank for the default wording. The bot needs the Set Voice Channel Status
-        permission in that channel — without it the caption is skipped and the rig plays on.
+        permission in that channel - without it the caption is skipped and the rig plays on.
       </p>
     </>
   );
@@ -285,7 +285,7 @@ function Announce({
       )}
 
       <p className="tool-note">
-        Posts the title to a text channel each time a track takes over the mix — the deck winning
+        Posts the title to a text channel each time a track takes over the mix - the deck winning
         the crossfader with its fader up, not simply whatever is loaded. A track has to hold the
         room for six seconds before it counts, so a long blend announces the record that won it
         rather than both in turn. Only Discord webhook URLs are accepted, and mentions in a track
@@ -298,7 +298,7 @@ function Announce({
 /* -------------------------------------------------------------- timecode */
 
 function Timecode({ tools, api }: { tools: ToolsState; api: string }) {
-  // Never touch window during render — it is not always there.
+  // Never touch window during render - it is not always there.
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   const url = `${origin}${api}/timecode?key=${tools.timecodeKey}`;
   return (
@@ -312,7 +312,7 @@ function Timecode({ tools, api }: { tools: ToolsState; api: string }) {
       </label>
       <p className="tool-note">
         Poll this for deck positions, titles, tempo and crossfader position. Whoever holds the URL
-        can read it — external systems cannot sign in with Discord — so treat it as a password.
+        can read it - external systems cannot sign in with Discord - so treat it as a password.
         Switching the tool off and on again issues a new key and kills the old one.
       </p>
     </>
@@ -395,7 +395,7 @@ function Osc({
       </div>
 
       <p className="tool-note">
-        UDP, unicast only — a broadcast or multicast target is refused, since OSC is
+        UDP, unicast only - a broadcast or multicast target is refused, since OSC is
         unauthenticated and this sends continuously. Point it at a Pure Data patch, a lighting
         desk, or anything else that speaks OSC.
       </p>
@@ -432,14 +432,14 @@ function Requests({ slug }: { slug: string }) {
       </label>
 
       <p className="tool-note">
-        Anyone in the Discord server can open this and ask for a track — they do not need a DJ
+        Anyone in the Discord server can open this and ask for a track - they do not need a DJ
         role, and members who have never seen the console sign in with Discord the same way you
         did. They can search what is in the library and pick a record, or just type what they are
         after; nothing they send touches the decks until somebody accepts it.
       </p>
       <p className="tool-note">
         What comes in shows up on the <strong>Requests</strong> panel. If it is not on your
-        console, it is in the tray — hit ARRANGE and drag it out.
+        console, it is in the tray - hit ARRANGE and drag it out.
       </p>
     </>
   );
@@ -462,7 +462,7 @@ export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPagePro
           <h1>Tools</h1>
           <p>
             Extras for this rig. Anything that opens a port or reaches off the machine is off until
-            somebody turns it on, and every setting is shared — everyone on the decks gets the same
+            somebody turns it on, and every setting is shared - everyone on the decks gets the same
             tools.
           </p>
         </div>

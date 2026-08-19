@@ -22,8 +22,8 @@ export interface DjClient {
   /**
    * The live socket, for the audio channel.
    *
-   * Exposed because hosting is not a command — it does not go through `send`,
-   * it answers requests the server makes — so the library hook needs the socket
+   * Exposed because hosting is not a command - it does not go through `send`,
+   * it answers requests the server makes - so the library hook needs the socket
    * itself rather than the command surface built on top of it.
    */
   socket: Socket | null;
@@ -153,7 +153,7 @@ export function useDj(guildId: string | null): DjClient {
 
 /**
  * Identifies which control a throttled message belongs to, so two controls
- * touched inside the same window can't overwrite each other's final value —
+ * touched inside the same window can't overwrite each other's final value -
  * a dropped final value leaves the control sitting where the server thinks it
  * is rather than where you left it.
  */

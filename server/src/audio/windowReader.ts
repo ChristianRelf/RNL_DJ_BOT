@@ -6,7 +6,7 @@ export const BYTES_PER_SAMPLE_FRAME = CHANNELS * 2;
 
 /**
  * Whether `fs.readSync` into an `Int16Array`'s backing store already lands in
- * host order. On a little-endian host — every machine this runs on — reading
+ * host order. On a little-endian host - every machine this runs on - reading
  * s16le straight into the typed array is free, which is what keeps the
  * de-interleave loop reading aligned 16-bit words instead of assembling them a
  * byte at a time. Big-endian hosts pay one native `swap16` per read.
@@ -35,14 +35,14 @@ export interface WindowReader {
    * actually written.
    *
    * `fromFrame` and `frames` are already clamped inside the source by the
-   * caller, so a short return means the bytes are not here *yet* — an underrun,
+   * caller, so a short return means the bytes are not here *yet* - an underrun,
    * not the end of the file.
    */
   read(fromFrame: number, frames: number, into: Int16Array): number;
 
   /**
    * Playback is heading towards this span. May start a fetch; must not block
-   * and must not be required for correctness — `read` is still the only thing
+   * and must not be required for correctness - `read` is still the only thing
    * that actually delivers bytes.
    */
   prefetch(fromFrame: number, frames: number): void;

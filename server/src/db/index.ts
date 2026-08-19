@@ -9,14 +9,14 @@ const log = createLogger('db');
 /**
  * The database.
  *
- * SQLite through `node:sqlite` — part of the runtime, so there is no dependency
+ * SQLite through `node:sqlite` - part of the runtime, so there is no dependency
  * to audit and no native module to rebuild when the base image moves. It
  * replaces a single JSON document that was rewritten whole on every change,
  * which was fine for one guild and is not fine for twenty: two rigs saving in
  * the same tick would have raced over one file, and the last writer would have
  * quietly dropped the other's set.
  *
- * Rows that nothing is ever queried by — a media item, a queue entry — are kept
+ * Rows that nothing is ever queried by - a media item, a queue entry - are kept
  * as JSON in one column. The shapes are already defined by the wire protocol and
  * already validated, and fifteen columns that only ever move as a unit would be
  * a schema to migrate rather than a thing to look things up by.

@@ -8,7 +8,7 @@ export function formatTime(ms: number): string {
 
 /**
  * Like formatTime, but grows an hours field rather than counting past 60
- * minutes — a queue two hours deep should not read as "120:00".
+ * minutes - a queue two hours deep should not read as "120:00".
  */
 export function formatSpan(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) ms = 0;

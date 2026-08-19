@@ -20,7 +20,7 @@ const log = createLogger('realtime');
  *
  * `onAny` funnels everything else into the command path, which is where
  * permissions and the control lock are enforced. These carry no authority over
- * the mix — they answer requests the server made — so they are handled on their
+ * the mix - they answer requests the server made - so they are handled on their
  * own and must not reach `execute`, which would rightly refuse them as unknown
  * commands.
  */
@@ -48,7 +48,7 @@ interface SocketData {
 
 /** Everyone connected to one rig. State never crosses between them. */
 const room = (guildId: string) => `guild:${guildId}`;
-/** One person, in one rig — a toast meant for them and nobody else. */
+/** One person, in one rig - a toast meant for them and nobody else. */
 const userRoom = (guildId: string, userId: string) => `guild:${guildId}:user:${userId}`;
 
 export function createRealtime(httpServer: HttpServer): IOServer {
@@ -58,7 +58,7 @@ export function createRealtime(httpServer: HttpServer): IOServer {
     pingInterval: 20_000,
     pingTimeout: 25_000,
     // A quarter-second audio chunk is 48 KB, but the ceiling has to clear a
-    // whole folder scan in one message as well — twenty thousand tracks of
+    // whole folder scan in one message as well - twenty thousand tracks of
     // title and path. Still small enough to be a real limit.
     maxHttpBufferSize: 8e6,
   });
@@ -118,7 +118,7 @@ export function createRealtime(httpServer: HttpServer): IOServer {
         respond({ ok: true });
       } catch (err) {
         const message =
-          err instanceof CommandError ? err.message : 'That did not work — check the logs.';
+          err instanceof CommandError ? err.message : 'That did not work - check the logs.';
         if (!(err instanceof CommandError)) log.error(`command ${event} failed:`, err);
         respond({ ok: false, error: message });
         socket.emit('toast', { level: 'error', message } satisfies Toast);
@@ -182,7 +182,7 @@ function wireHost(socket: Socket, rig: Rig, user: SessionUser): void {
     rig.host.release(socket.id);
   });
 
-  // The hot one: a few of these a second per playing deck. No ack — the ring
+  // The hot one: a few of these a second per playing deck. No ack - the ring
   // either takes the chunk or does not, and a chunk that arrives too late to be
   // useful is dropped rather than reported, because by then the deck has
   // already faded and asked again.
@@ -193,7 +193,7 @@ function wireHost(socket: Socket, rig: Rig, user: SessionUser): void {
   });
 
   // Not ready yet, usually because the track is still being decoded. Answering
-  // matters as much as sending audio — see RemoteWindowReader.decline.
+  // matters as much as sending audio - see RemoteWindowReader.decline.
   socket.on('audio:none', (payload: unknown) => {
     const parsed = audioNoneSchema.safeParse(payload ?? {});
     if (!parsed.success) return;

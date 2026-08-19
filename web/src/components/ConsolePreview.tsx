@@ -3,7 +3,7 @@
  *
  * Deliberately an illustration rather than a screenshot: it never goes stale,
  * costs nothing to ship, and does not need a rig running to render. What it is
- * *not* allowed to be is a different product — so it mirrors the real console
+ * *not* allowed to be is a different product - so it mirrors the real console
  * panel for panel, in the same grid, with the same chrome: top bar, media pool,
  * two decks, the mixer, the pads and the queue.
  *
@@ -178,7 +178,7 @@ export function ConsolePreview() {
       role="img"
       aria-label="Illustration of the deck console: media pool, two decks, the mixer, sample pads and the queue"
     >
-      {/* Top bar — the real one carries the mark, the voice controls and who
+      {/* Top bar - the real one carries the mark, the voice controls and who
           is holding the decks. */}
       <div className="pv-topbar">
         <img className="pv-mark" src="/deckLogo.png" alt="" />

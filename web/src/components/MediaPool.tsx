@@ -13,8 +13,8 @@ const TAG_MAX_COUNT = 12;
 /**
  * Title, tempo and tags for one track.
  *
- * The pool could only ever rename a track, which left the tempo — the thing
- * sync and beat loops depend on — unreachable unless detection happened to get
+ * The pool could only ever rename a track, which left the tempo - the thing
+ * sync and beat loops depend on - unreachable unless detection happened to get
  * it right.
  */
 function TrackEditor({
@@ -107,7 +107,7 @@ function TrackEditor({
             className="track-input mono"
             value={bpm}
             inputMode="decimal"
-            placeholder="—"
+            placeholder="-"
             onChange={(event) => setBpm(event.target.value)}
           />
         </label>
@@ -193,7 +193,7 @@ export function MediaPool({ media, user, locked, send, api }: MediaPoolProps) {
       };
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          // The item is already in the pool as "processing" — drop the row.
+          // The item is already in the pool as "processing" - drop the row.
           setUploads((prev) => prev.filter((u) => u.id !== id));
         } else {
           let message = `Upload failed (${xhr.status})`;

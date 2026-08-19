@@ -54,7 +54,7 @@ export function importLegacyDb(): void {
   try {
     legacy = JSON.parse(fs.readFileSync(file, 'utf8')) as LegacyDb;
   } catch (err) {
-    log.error(`could not read db.json: ${(err as Error).message} — leaving it alone`);
+    log.error(`could not read db.json: ${(err as Error).message} - leaving it alone`);
     return;
   }
 

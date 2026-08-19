@@ -20,7 +20,7 @@ const ACCESS_CACHE_TTL_MS = 60_000;
  *
  * `dj` is the ordinary session: the allowlist let them in, and every rig they
  * open decides for itself whether they may drive it. `listener` is issued to
- * somebody who is *not* on the allowlist and arrived at a rig's request page —
+ * somebody who is *not* on the allowlist and arrived at a rig's request page -
  * a member of the Discord server with no DJ role, who can ask for a track and
  * do nothing else. The two are told apart in the token rather than by what is
  * asked of them, so a listener cookie cannot be pointed at the console by
@@ -52,7 +52,7 @@ export interface AccessResult {
  * Runs the platform: the portal, the allowlist, the bot pool, every rig.
  *
  * Configured by id rather than stored, so it holds even against an empty
- * database — there has to be someone who can let the first person in.
+ * database - there has to be someone who can let the first person in.
  */
 export function isPlatformAdmin(userId: string): boolean {
   return config.access.platformAdminIds.includes(userId);
@@ -70,7 +70,7 @@ export function maySignIn(userId: string): boolean {
 
 /** Keyed by guild as well as user: the same person is not the same thing in two servers. */
 const accessCache = new Map<string, { at: number; result: AccessResult }>();
-/** The same, for plain membership — a different question with a different answer. */
+/** The same, for plain membership - a different question with a different answer. */
 const memberCache = new Map<string, { at: number; result: MemberResult }>();
 
 export function authorizeUrl(state: string): string {
@@ -79,7 +79,7 @@ export function authorizeUrl(state: string): string {
     redirect_uri: redirectUri,
     response_type: 'code',
     // Just `identify`. Setting a rig up goes through Discord's own bot-invite
-    // flow, which hands back the guild it was added to — so there is never a
+    // flow, which hands back the guild it was added to - so there is never a
     // need to list somebody's servers, or to hold a token that could.
     scope: 'identify',
     state,
@@ -150,7 +150,7 @@ export async function exchangeCode(code: string): Promise<ExchangeResult> {
  * Membership + role gate for one guild.
  *
  * The auth application's token is the source of truth, never the bot currently
- * playing — swapping the playback bot must not change who is allowed in.
+ * playing - swapping the playback bot must not change who is allowed in.
  *
  * Roles are read from the rig's own record rather than from the environment,
  * because "the DJ role" means a different id in every server.
@@ -226,7 +226,7 @@ export async function checkAccess(
  * The request page's gate. Deliberately not `checkAccess` with a flag: that
  * function answers "may this person drive this rig", and quietly widening it to
  * mean two things is how a DJ-role check stops being one. Suspended rigs are
- * refused here as well — a rig somebody has turned off should not still be
+ * refused here as well - a rig somebody has turned off should not still be
  * taking requests.
  */
 export async function checkMember(
@@ -312,8 +312,8 @@ export function clearSession(res: Response): void {
  * The OAuth state, and where to land afterwards.
  *
  * Both in the one cookie because they have the same lifetime and the same
- * one reader. The return path never crosses Discord — it is not in the state
- * parameter — so it cannot be set by whoever sends somebody the login link.
+ * one reader. The return path never crosses Discord - it is not in the state
+ * parameter - so it cannot be set by whoever sends somebody the login link.
  */
 export function setStateCookie(res: Response, state: string, next?: string): void {
   const value = next ? `${state}:${Buffer.from(next).toString('base64url')}` : state;
@@ -329,7 +329,7 @@ export function setStateCookie(res: Response, state: string, next?: string): voi
 
 /**
  * Splits the state cookie back up. The path is only ever handed back as a
- * same-site path — anything that is not one is dropped rather than corrected,
+ * same-site path - anything that is not one is dropped rather than corrected,
  * so a mangled cookie sends somebody to the front door instead of somewhere
  * off the site.
  */
@@ -367,13 +367,13 @@ export function readSessionToken(
  *
  * `isAdmin` is deliberately not carried here any more. It used to be baked in
  * at sign-in, which was true of a rig that served one guild and is a lie in a
- * process that serves twenty — a token cannot say "admin" without saying where.
+ * process that serves twenty - a token cannot say "admin" without saying where.
  * It is resolved per connection instead, against the guild being connected to.
  */
 export function verifySession(token: string | null | undefined): SessionUser | null {
   const session = readSession(token);
   // Only a DJ session is a session as far as the rest of the server is
-  // concerned. Every console path — the socket handshake, every rig route —
+  // concerned. Every console path - the socket handshake, every rig route -
   // asks this one question, so a listener token is refused by all of them
   // without any of them having to know that listeners exist.
   return session && session.scope === 'dj' ? session.user : null;
@@ -400,7 +400,7 @@ export function readSession(token: string | null | undefined): SessionRecord | n
         isAdmin: false,
         // Read from configuration rather than trusted from the token, so adding
         // or removing a platform admin takes effect without waiting for sessions
-        // to expire — in both directions.
+        // to expire - in both directions.
         isPlatformAdmin: isPlatformAdmin(payload.id),
       },
     };

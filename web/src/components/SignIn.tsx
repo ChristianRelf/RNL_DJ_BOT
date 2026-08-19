@@ -73,7 +73,7 @@ export function SignIn({ error, checkSession }: SignInProps) {
         </div>
 
         <p className="signin-note">
-          Sign-in happens at Discord — no new account, and we never see your password. You need the
+          Sign-in happens at Discord - no new account, and we never see your password. You need the
           DJ role to reach the decks.
         </p>
 

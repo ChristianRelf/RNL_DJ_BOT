@@ -65,7 +65,7 @@ export class Pad {
 
   trigger(): void {
     if (!this.source) return;
-    // Retrigger from the top — the 5 ms envelope ramp hides the discontinuity.
+    // Retrigger from the top - the 5 ms envelope ramp hides the discontinuity.
     this.position = 0;
     this.playing = true;
   }

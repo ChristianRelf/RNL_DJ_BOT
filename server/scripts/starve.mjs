@@ -3,7 +3,7 @@
  *
  *   npm run build -w server && npm run starve -w server
  *
- * A `FileWindowReader` never comes up short — the page cache does not run out —
+ * A `FileWindowReader` never comes up short - the page cache does not run out -
  * so the whole underrun path is unreachable from local disk and would sit
  * untested until the first time a deck was fed over a socket and dropped out in
  * front of a room. This drives it directly through a reader that can be choked
@@ -72,7 +72,7 @@ function check(name, ok, detail = '') {
   console.log(`  ${ok ? 'ok  ' : 'FAIL'}   ${name}${detail ? `  ${detail}` : ''}`);
 }
 
-console.log('\nsource underrun — fading out and back rather than dropping out\n');
+console.log('\nsource underrun - fading out and back rather than dropping out\n');
 
 // Only the first second is servable, so the head runs off the end of the
 // supply about a second in with plenty of file left behind it.

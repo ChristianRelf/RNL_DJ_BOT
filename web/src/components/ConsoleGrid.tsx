@@ -31,13 +31,13 @@ import {
  * Twelve columns of equal width and a row of a fixed height: everything snaps
  * to that lattice, which is what makes a hand-arranged console line up rather
  * than nearly line up. Tiles carry an explicit cell, so two of them can never
- * occupy the same space — a drag that would overlap pushes the tile underneath
+ * occupy the same space - a drag that would overlap pushes the tile underneath
  * down instead, and the preview shows exactly where everything lands before the
  * pointer is released.
  *
  * A tile is a window onto its tool, not a crop of it: the body scrolls when the
  * tile is shorter than its panel, says so, and "fit" measures the panel and
- * sizes the tile to it exactly — so nothing is ever cut off with no way to
+ * sizes the tile to it exactly - so nothing is ever cut off with no way to
  * reach it.
  */
 
@@ -93,7 +93,7 @@ export function ConsoleGrid({
   /**
    * The same preview, for the drop to commit from. Pointer moves are not
    * discrete events, so React is free to leave the last one uncommitted when
-   * the button comes up in the same frame — and dropping a tile a cell away
+   * the button comes up in the same frame - and dropping a tile a cell away
    * from where it was last shown would be its own kind of wrong.
    */
   const previewRef = useRef<Layout | null>(null);

@@ -67,7 +67,7 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
         tracksRef.current = next;
         setTracks(next);
         // A decode corrects the length the scan estimated off file metadata, and
-        // the server's ring sizes its requests against that number — so a
+        // the server's ring sizes its requests against that number - so a
         // correction has to travel, not just be remembered locally.
         socketRef.current?.emit('host:tracks', { tracks: next });
       },
@@ -123,7 +123,7 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
   }, [socket]);
 
   // A granted folder is offered as soon as there is a socket to offer it to,
-  // and again on every reconnect — the server tracks the host by socket id, so
+  // and again on every reconnect - the server tracks the host by socket id, so
   // after a drop it does not know this console has a library at all.
   useEffect(() => {
     if (!socket || status !== 'granted' || !handleRef.current) return;
@@ -166,7 +166,7 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
         }
         // Saying "not yet" matters as much as sending audio. The server caps
         // requests in flight, so an unanswered one is a request it goes on
-        // believing is coming — and after a few of those it stops asking.
+        // believing is coming - and after a few of those it stops asking.
         socket.emit('audio:none', {
           sourceKey: need.sourceKey,
           fromFrame: need.fromFrame,

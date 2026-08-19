@@ -2,7 +2,7 @@ import { SAMPLE_RATE } from '../protocol';
 import type { DeckEq } from '../protocol';
 
 /**
- * Direct-form-I biquad. One instance per channel — the coefficients are shared
+ * Direct-form-I biquad. One instance per channel - the coefficients are shared
  * but the delay line must not be.
  */
 export class Biquad {
@@ -36,8 +36,8 @@ export class Biquad {
 
   /**
    * Starts the filter as if it had been fed `x` since the beginning of time,
-   * rather than silence. A filter picked up mid-signal — after a seek, or when
-   * one is switched into a running path — otherwise has to climb out of zero,
+   * rather than silence. A filter picked up mid-signal - after a seek, or when
+   * one is switched into a running path - otherwise has to climb out of zero,
    * and that climb is a click. Only meaningful for filters with unity gain at
    * DC, which is every one this file makes.
    */
@@ -188,8 +188,8 @@ const CEILING = 0.97;
 /**
  * Feed-forward peak limiter on the master bus.
  *
- * No lookahead — the broadcast path is already latency-sensitive and a 20 ms
- * frame is not the place to add more — so the attack is fast enough to catch a
+ * No lookahead - the broadcast path is already latency-sensitive and a 20 ms
+ * frame is not the place to add more - so the attack is fast enough to catch a
  * transient within a couple of samples and the soft clipper stays behind it as
  * the backstop for whatever slips through.
  */

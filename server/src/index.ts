@@ -1,6 +1,6 @@
 /**
  * Entry point. The real server is loaded dynamically so that configuration
- * errors — which are thrown while the config module is first evaluated — are
+ * errors - which are thrown while the config module is first evaluated - are
  * reported as a readable message instead of a stack trace.
  */
 async function boot(): Promise<void> {

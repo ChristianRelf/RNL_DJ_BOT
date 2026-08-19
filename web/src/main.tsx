@@ -18,7 +18,7 @@ if (!container) throw new Error('Missing #root element');
 
 /**
  * The public pages branch here rather than inside App so they never open a
- * socket or wait on a session — they have to work before you sign in. The
+ * socket or wait on a session - they have to work before you sign in. The
  * server's SPA fallback already serves index.html for these paths.
  *
  * A console belongs to a guild and lives under /g/<slug>; everything above that
@@ -31,7 +31,7 @@ const requestSlug = parseRequestPath(path);
 
 function page() {
   // Before the console: the request page is for people who are in the Discord
-  // server and have no DJ role, so it must never mount App — that opens a
+  // server and have no DJ role, so it must never mount App - that opens a
   // socket the server would refuse them.
   if (requestSlug) return <RequestPage slug={requestSlug} />;
   if (rig) return <App slug={rig.slug} view={rig.view} />;

@@ -10,8 +10,8 @@ import { useReducedMotion, useReveal } from './beat';
 /**
  * The difference, on a crossfader.
  *
- * The whole pitch is one category distinction — a music bot queues links, a
- * booth mixes records — so it is made with the control that draws the line.
+ * The whole pitch is one category distinction - a music bot queues links, a
+ * booth mixes records - so it is made with the control that draws the line.
  * Ride the fader and the sentences change under it. Nobody has to be told what
  * a crossfader does; the page just hands them one.
  *
@@ -22,7 +22,7 @@ import { useReducedMotion, useReveal } from './beat';
 
 export type Contrast = { them: string; us: string; body: string };
 
-/** Where the fader rides in after the section arrives — mostly deck, not all. */
+/** Where the fader rides in after the section arrives - mostly deck, not all. */
 const SETTLE = 0.72;
 
 export function Crossfade({ items }: { items: readonly Contrast[] }) {

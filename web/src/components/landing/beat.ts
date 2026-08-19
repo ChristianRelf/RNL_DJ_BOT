@@ -3,15 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 /**
  * The landing page runs on a clock.
  *
- * Everything that moves out front — the shader behind the page, the meters, the
- * headline, the readouts — is locked to one tempo, because the product is a DJ
+ * Everything that moves out front - the shader behind the page, the meters, the
+ * headline, the readouts - is locked to one tempo, because the product is a DJ
  * booth and a booth that drifts out of time is not one. 124 BPM is the tempo of
  * the track in the console illustration, so the page and the picture agree.
  *
  * There is exactly one requestAnimationFrame loop for the whole page and it
  * only runs while something is subscribed. Anything that can be done in CSS is
  * done in CSS against `--beat` (below), which costs no frames at all; this hook
- * is for the handful of things that genuinely need a per-frame number — the
+ * is for the handful of things that genuinely need a per-frame number - the
  * WebGL uniforms and the live readouts.
  */
 
@@ -132,7 +132,7 @@ export function useReveal<T extends Element>(rootMargin = '0px 0px -12% 0px') {
   return [ref, shown] as const;
 }
 
-/** Like `useReveal`, but keeps tracking — for things that only act while seen. */
+/** Like `useReveal`, but keeps tracking - for things that only act while seen. */
 export function useOnScreen<T extends Element>(rootMargin = '0px') {
   const ref = useRef<T | null>(null);
   const [on, setOn] = useState(false);

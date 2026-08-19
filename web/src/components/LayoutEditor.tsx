@@ -28,8 +28,8 @@ import {
 /**
  * Edit chrome for the console.
  *
- * Everything here can also be done by dragging — that is the fast way once you
- * know it is there — but a drag is invisible, awkward on a trackpad and
+ * Everything here can also be done by dragging - that is the fast way once you
+ * know it is there - but a drag is invisible, awkward on a trackpad and
  * impossible from a keyboard, so every move and every resize is also a control
  * you can see and tab to.
  */
@@ -156,7 +156,7 @@ export function WidgetChrome({ item, overflowing, onGrab, onNudge, onFit, onHide
         className={`wchrome-btn ${overflowing ? 'is-urgent' : ''}`}
         title={
           overflowing
-            ? 'This panel is taller than its tile — fit the tile to it'
+            ? 'This panel is taller than its tile - fit the tile to it'
             : 'Fit the tile to the panel'
         }
         aria-label={`Fit ${widget.name} to its contents`}
@@ -208,7 +208,7 @@ export function LayoutPalette({
           <p>
             Drag a tool by its handle to move it, or drag its right or bottom edge to size it.
             Everything snaps to a {GRID_COLUMNS}-column grid and nothing can sit on top of anything
-            else — whatever you drop onto gets pushed down. Drag a tool out of the tray below to
+            else - whatever you drop onto gets pushed down. Drag a tool out of the tray below to
             put it wherever you like.
           </p>
         </div>
@@ -248,7 +248,7 @@ export function LayoutPalette({
 
       {hidden.length > 0 ? (
         <div className="palette-tray">
-          <span className="tool-label">Not on the console — drag one in, or click to add</span>
+          <span className="tool-label">Not on the console - drag one in, or click to add</span>
           {WIDGET_GROUPS.map((group) => {
             const inGroup = hidden.filter((placed) => spec(placed.id).group === group.id);
             if (inGroup.length === 0) return null;

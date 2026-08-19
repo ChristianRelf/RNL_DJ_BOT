@@ -3,13 +3,13 @@ import { config } from './config';
 
 /**
  * Encryption for the few secrets that arrive at runtime rather than from the
- * environment — currently the bot tokens an owner adds from the console.
+ * environment - currently the bot tokens an owner adds from the console.
  *
  * A bot token is a password for a Discord account: anyone holding one can speak
  * as that bot anywhere it has been invited. It has to be kept because the rig
  * needs to log in with it again after a restart, so the next best thing is that
  * a copy of db.json on its own is not enough to use it. The key is derived from
- * SESSION_SECRET, which already has to be long, secret and stable — rotating it
+ * SESSION_SECRET, which already has to be long, secret and stable - rotating it
  * signs everyone out *and* invalidates the stored tokens, which is the right
  * blast radius for a secret that has leaked.
  *
@@ -40,7 +40,7 @@ export function seal(plaintext: string): string {
 }
 
 /**
- * Recovers a sealed secret, or null if it cannot be read — a rotated
+ * Recovers a sealed secret, or null if it cannot be read - a rotated
  * SESSION_SECRET, a hand-edited database, or a value written by a future
  * format. Callers treat that as "this bot needs its token entering again"
  * rather than as a crash.

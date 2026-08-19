@@ -10,8 +10,8 @@ import type { DjClient } from '../socket';
  * The full mixer.
  *
  * The compact Mixer panel is the strip you reach for mid-mix: trim, EQ, filter,
- * fader. This one is the rest of the desk — sends, pan, mutes, the master EQ,
- * the output stage and the routing — laid out in pages so a console that has it
+ * fader. This one is the rest of the desk - sends, pan, mutes, the master EQ,
+ * the output stage and the routing - laid out in pages so a console that has it
  * open does not have to give up half its grid to knobs nobody is touching.
  */
 
@@ -349,7 +349,7 @@ export function MixerAdvanced({ decks, mixer, locked, send, throttled }: Props) 
             </div>
             <p className="panel-note">
               With the limiter off the soft clipper is still there as a backstop, but the output
-              will colour before it stops — which is sometimes what you want and mostly not.
+              will colour before it stops - which is sometimes what you want and mostly not.
             </p>
           </div>
         </div>

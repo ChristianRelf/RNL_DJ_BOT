@@ -18,7 +18,7 @@ const LABEL: Record<VoiceState['status'], string> = {
 /**
  * Broadcast status, big enough to read from across a room.
  *
- * Joining a channel stays in the top bar — this is the at-a-glance answer to
+ * Joining a channel stays in the top bar - this is the at-a-glance answer to
  * "are we live, and is anyone listening", for a booth screen.
  */
 export function OnAir({ voice, locked, send }: OnAirProps) {

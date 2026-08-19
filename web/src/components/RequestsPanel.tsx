@@ -13,7 +13,7 @@ import type { DjClient } from '../socket';
  * a button that would fail.
  *
  * Acting on any of it needs the decks. Anyone signed in can queue a track
- * themselves — answering the room on the rig's behalf is a different thing, and
+ * themselves - answering the room on the rig's behalf is a different thing, and
  * it belongs to whoever is driving.
  */
 
@@ -49,7 +49,7 @@ export function RequestsPanel({ requests, locked, send }: Props) {
       {pending.length === 0 && handled.length === 0 ? (
         <p className="queue-empty">
           Nobody has asked for anything. Requests come in from{' '}
-          <strong>/&lt;rig&gt;/request</strong> — switch them on, and share the link, from the
+          <strong>/&lt;rig&gt;/request</strong> - switch them on, and share the link, from the
           tools page.
         </p>
       ) : null}
@@ -99,7 +99,7 @@ export function RequestsPanel({ requests, locked, send }: Props) {
                   title={
                     entry.mediaId
                       ? 'Turn it down'
-                      : 'Turn it down — or find it in the pool and queue it yourself'
+                      : 'Turn it down - or find it in the pool and queue it yourself'
                   }
                   aria-label={`Decline ${entry.text}`}
                   onClick={() => void send('requests:decline', { id: entry.id })}

@@ -71,7 +71,7 @@ function check(name, ok, detail = '') {
   console.log(`  ${ok ? 'ok  ' : 'FAIL'}   ${name}${detail ? `  ${detail}` : ''}`);
 }
 
-console.log('\nstreaming a deck off a remote host — sample accuracy, wrap, seeks\n');
+console.log('\nstreaming a deck off a remote host - sample accuracy, wrap, seeks\n');
 
 const host = new FakeHost();
 const reader = new RemoteWindowReader(TOTAL_FRAMES, 'deck:A', 'track-1', (n) => host.need(n));

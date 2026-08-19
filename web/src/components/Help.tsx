@@ -5,7 +5,7 @@ import { SitePage } from './SiteNav';
 /**
  * The help centre.
  *
- * Read off the console itself — the gestures come from controls.tsx, the
+ * Read off the console itself - the gestures come from controls.tsx, the
  * shortcuts from App.tsx, the handover rules from control.ts, and the slash
  * commands from discord/commands.ts. Keep it in step with those.
  *
@@ -43,7 +43,7 @@ interface Article {
 const GESTURES = [
   ['Drag up or down', 'Move any knob or fader.'],
   ['Right-click', 'Reset a control to its default.'],
-  ['Right-drag or shift-drag', 'Fine adjustment — a fifth of the normal travel.'],
+  ['Right-drag or shift-drag', 'Fine adjustment - a fifth of the normal travel.'],
   ['Scroll over a control', 'Nudge it a step at a time. Hold shift for finer steps.'],
   ['Double-click', 'Also resets, if you would rather.'],
   ['Arrow keys', 'Step a focused control. Home resets it.'],
@@ -91,7 +91,7 @@ const ARTICLES: Article[] = [
     body: (
       <>
         <p>
-          deck is run for you — there is nothing to install and no server of yours it goes on.
+          deck is run for you - there is nothing to install and no server of yours it goes on.
           Access opens in batches, so a room joins the <a href="/home/access">waitlist</a> and we
           come back on Discord when a spot is ready.
         </p>
@@ -109,7 +109,7 @@ const ARTICLES: Article[] = [
     keywords: 'login discord oauth account password role denied cannot sign in',
     body: (
       <p>
-        Sign in with Discord. You need to be in the server and hold the DJ role — there is no
+        Sign in with Discord. You need to be in the server and hold the DJ role - there is no
         separate account and no password. Once you are in you can see the whole console straight
         away, but everything is read-only until you take control.
       </p>
@@ -123,8 +123,8 @@ const ARTICLES: Article[] = [
     body: (
       <>
         <p>
-          Only one person drives at a time. Everyone else watches the same live state — faders
-          moving, meters bouncing, tracks loading — so a handover is seamless.
+          Only one person drives at a time. Everyone else watches the same live state - faders
+          moving, meters bouncing, tracks loading - so a handover is seamless.
         </p>
         <ul className="doc-list">
           <li>
@@ -139,7 +139,7 @@ const ARTICLES: Article[] = [
           </li>
           <li>
             If the holder goes idle for three minutes <em>while somebody is waiting</em>, control
-            passes automatically. With an empty queue an idle holder keeps the decks — you will
+            passes automatically. With an empty queue an idle holder keeps the decks - you will
             never get bumped just for letting a long track run.
           </li>
           <li>
@@ -176,7 +176,7 @@ const ARTICLES: Article[] = [
           where the playhead is.
         </li>
         <li>
-          <strong>Loops</strong> — set in and out by hand, or hit a beat division to drop a loop of
+          <strong>Loops</strong> - set in and out by hand, or hit a beat division to drop a loop of
           that length from where you are. Halve and double from there.
         </li>
         <li>
@@ -184,7 +184,7 @@ const ARTICLES: Article[] = [
           track with no tempo it falls back to seconds.
         </li>
         <li>
-          <strong>Pitch</strong> runs from half to double speed, turntable style — the tempo readout
+          <strong>Pitch</strong> runs from half to double speed, turntable style - the tempo readout
           shows what the room actually hears.
         </li>
         <li>
@@ -207,13 +207,13 @@ const ARTICLES: Article[] = [
         </p>
         <ul className="doc-list">
           <li>
-            <strong>ONE</strong> — fires and runs to the end.
+            <strong>ONE</strong> - fires and runs to the end.
           </li>
           <li>
-            <strong>LOOP</strong> — keeps going until you hit it again.
+            <strong>LOOP</strong> - keeps going until you hit it again.
           </li>
           <li>
-            <strong>HOLD</strong> — plays only while you hold it down.
+            <strong>HOLD</strong> - plays only while you hold it down.
           </li>
         </ul>
       </>
@@ -231,7 +231,7 @@ const ARTICLES: Article[] = [
           the master without moving the fader, and it survives a reconnect.
         </li>
         <li>
-          <strong>EQ</strong> is a three-band isolator — a full cut is a real kill, not a dip. Click
+          <strong>EQ</strong> is a three-band isolator - a full cut is a real kill, not a dip. Click
           a band's label to kill it outright and click again to bring it back.
         </li>
         <li>
@@ -257,7 +257,7 @@ const ARTICLES: Article[] = [
     body: (
       <>
         <p>
-          A second, bigger mixer you can put on the console beside the small one — or instead of it.
+          A second, bigger mixer you can put on the console beside the small one - or instead of it.
           It is the same desk, with the rest of the channel exposed: three pages, so a tile holding
           it does not have to be the size of a wall.
         </p>
@@ -270,7 +270,7 @@ const ARTICLES: Article[] = [
             <strong>Master</strong> has a three-band isolator across the whole output, a{' '}
             <strong>mono</strong> switch for club rigs and phone speakers, and a{' '}
             <strong>limiter</strong> with a gain-reduction readout. Turning the limiter off leaves
-            the soft clipper as the backstop — the output will colour before it stops.
+            the soft clipper as the backstop - the output will colour before it stops.
           </li>
           <li>
             <strong>Routing</strong> holds the crossfader curve: fully anticlockwise is the
@@ -288,7 +288,7 @@ const ARTICLES: Article[] = [
     body: (
       <>
         <p>
-          One send effect at a time — echo, reverb or flanger — on a bus both decks feed through
+          One send effect at a time - echo, reverb or flanger - on a bus both decks feed through
           their send knobs. The send is taken post-fader, so an echo thrown at the end of a track
           rides the fade out rather than dying with it.
         </p>
@@ -298,7 +298,7 @@ const ARTICLES: Article[] = [
             bus is silent no matter where the sends are.
           </li>
           <li>
-            <strong>Time</strong> can be set in beats off whichever deck is playing — the sync
+            <strong>Time</strong> can be set in beats off whichever deck is playing - the sync
             buttons read the deck's tempo and its pitch fader, so a dotted eighth stays a dotted
             eighth after you pitch the track.
           </li>
@@ -315,7 +315,7 @@ const ARTICLES: Article[] = [
     body: (
       <>
         <p>
-          If your browser has Web MIDI — Chrome, Edge and Opera do — you can drive the console from
+          If your browser has Web MIDI - Chrome, Edge and Opera do - you can drive the console from
           a controller. Put the MIDI tool on the console, switch it on, pick a control and move the
           thing on your hardware.
         </p>
@@ -370,7 +370,7 @@ const ARTICLES: Article[] = [
         <ul className="doc-list">
           <li>
             <strong>Anyone signed in can add to it</strong>, with or without the decks. Lining a
-            track up does not change what the room is hearing, so it does not need the lock — which
+            track up does not change what the room is hearing, so it does not need the lock - which
             is the point of a shared queue.
           </li>
           <li>
@@ -383,7 +383,7 @@ const ARTICLES: Article[] = [
           </li>
           <li>
             <strong>Auto</strong> loads and plays the next one whenever a deck runs out. Off by
-            default — a deck going quiet is sometimes exactly what you meant.
+            default - a deck going quiet is sometimes exactly what you meant.
           </li>
           <li>
             An entry whose track has been deleted from the pool is skipped rather than jamming the
@@ -497,7 +497,7 @@ const ARTICLES: Article[] = [
       <>
         <p>
           The console is a twelve-column grid and every tool sits in a cell of it. Hit{' '}
-          <strong>arrange</strong> in the top bar to move things about — the rig keeps playing while
+          <strong>arrange</strong> in the top bar to move things about - the rig keeps playing while
           you do.
         </p>
         <ul className="doc-list">
@@ -656,7 +656,7 @@ const ARTICLES: Article[] = [
     body: (
       <ul className="doc-list">
         <li>
-          Check the bot is actually in a voice channel — the bar at the top says{' '}
+          Check the bot is actually in a voice channel - the bar at the top says{' '}
           <strong>on air</strong> and names the channel when it is.
         </li>
         <li>
@@ -664,7 +664,7 @@ const ARTICLES: Article[] = [
           loud it is.
         </li>
         <li>
-          Check the channel is not muted, and that no EQ band is killed — a killed band shows in
+          Check the channel is not muted, and that no EQ band is killed - a killed band shows in
           orange with its label lit.
         </li>
         <li>
@@ -681,7 +681,7 @@ const ARTICLES: Article[] = [
     keywords: 'read only locked cannot touch greyed disabled view only control',
     body: (
       <p>
-        Somebody else has the decks, so the console is read-only for you — that is the lock doing its
+        Somebody else has the decks, so the console is read-only for you - that is the lock doing its
         job. <strong>Request control</strong> and they will see you waiting; if they go idle for
         three minutes it passes to you automatically. Queueing tracks still works while you wait.
       </p>
@@ -696,7 +696,7 @@ const ARTICLES: Article[] = [
       <p>
         Every upload is decoded once on the way in, and a file that will not decode shows as{' '}
         <strong>failed</strong> in the pool with the reason. Most often it is a format that is not
-        really audio — a video container, or a file that did not finish downloading. Re-export it as
+        really audio - a video container, or a file that did not finish downloading. Re-export it as
         MP3, WAV or FLAC and try again. If it says <strong>decoding</strong> for more than a minute
         or two on a normal-length track, tell us.
       </p>
@@ -718,7 +718,7 @@ const ARTICLES: Article[] = [
           for this site in your browser's site settings.
         </li>
         <li>
-          Anything else using the controller exclusively — another DJ application, a DAW — can hold
+          Anything else using the controller exclusively - another DJ application, a DAW - can hold
           the port open. Close it and hit refresh in the MIDI tool.
         </li>
       </ul>
@@ -731,7 +731,7 @@ const ARTICLES: Article[] = [
     keywords: 'layout broken reset default arrangement grid narrow phone stacked',
     body: (
       <p>
-        Open <strong>arrange</strong> and hit <strong>reset</strong> — that puts the default console
+        Open <strong>arrange</strong> and hit <strong>reset</strong> - that puts the default console
         back without touching anything anyone else sees. On a narrow screen the grid stacks into one
         column on purpose and arranging is switched off, because a twelve-column arrangement on a
         phone would be a lie.
@@ -807,7 +807,7 @@ export function Help() {
 
         <section className="doc-next">
           <p>
-            Still stuck? <a href={`mailto:${EMAIL}?subject=deck%20—%20help`}>Email us</a> with the
+            Still stuck? <a href={`mailto:${EMAIL}?subject=deck%20-%20help`}>Email us</a> with the
             rig name, browser and what happened immediately before the problem.
           </p>
         </section>
@@ -878,7 +878,7 @@ export function Help() {
       {results.length === 0 ? (
         <p className="help-empty">
           Nothing here matches “{query}”. Try a different word, or{' '}
-          <a href={`mailto:${EMAIL}?subject=deck%20—%20help`}>ask us</a> — a question nobody can
+          <a href={`mailto:${EMAIL}?subject=deck%20-%20help`}>ask us</a> - a question nobody can
           find the answer to is our problem, not yours.
         </p>
       ) : (
@@ -902,8 +902,8 @@ export function Help() {
 
       <section className="doc-next">
         <p>
-          Still stuck? <a href={`mailto:${EMAIL}?subject=deck%20—%20help`}>Email us</a> and say what
-          you were doing when it went wrong — that is usually enough to spot it.
+          Still stuck? <a href={`mailto:${EMAIL}?subject=deck%20-%20help`}>Email us</a> and say what
+          you were doing when it went wrong - that is usually enough to spot it.
         </p>
       </section>
     </SitePage>

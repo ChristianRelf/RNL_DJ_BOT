@@ -81,7 +81,7 @@ function toneToNoise(signal, freq) {
 }
 
 const N = 4096;
-console.log('resampler quality — signal to everything-that-is-not-the-signal\n');
+console.log('resampler quality - signal to everything-that-is-not-the-signal\n');
 console.log('  source     rate    linear (was)      cubic (now)     improvement');
 
 const cases = [
@@ -119,8 +119,8 @@ for (const { freq, rate } of cases) {
   const gain = cub - lin;
   if (gain < worstGain) worstGain = gain;
   // The invariant worth asserting. How much better cubic is depends on where
-  // the content sits against Nyquist — a 15 kHz tone dropped an octave is hard
-  // for any four-tap kernel — but it must never come out worse.
+  // the content sits against Nyquist - a 15 kHz tone dropped an octave is hard
+  // for any four-tap kernel - but it must never come out worse.
   if (gain < 0) regressed = true;
   console.log(
     `  ${String(freq).padStart(6)}Hz  ${rate.toFixed(2)}   ` +
@@ -184,7 +184,7 @@ for (const { freq, rate } of cases) {
   if (worst >= limit) process.exitCode = 1;
 }
 
-console.log(`\n  cubic is better everywhere: ${regressed ? 'NO — a case regressed' : 'yes'}`);
+console.log(`\n  cubic is better everywhere: ${regressed ? 'NO - a case regressed' : 'yes'}`);
 console.log(`  smallest improvement across the set: ${worstGain.toFixed(1)} dB`);
 if (regressed) process.exitCode = 1;
 

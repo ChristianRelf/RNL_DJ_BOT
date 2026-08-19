@@ -29,7 +29,7 @@ export function MixerPanel({ decks, mixer, locked, send, throttled }: MixerPanel
   // Kill is a console-side convenience built on the plain EQ command the engine
   // already takes, so it needs somewhere to remember what the band was sitting
   // at before it was slammed to zero. Mute is a real deck setting, so it does
-  // not — and it survives a reconnect, which the old parked-gain trick did not.
+  // not - and it survives a reconnect, which the old parked-gain trick did not.
   const parked = useRef<Record<string, number>>({});
 
   const toggleKill = (id: DeckId, band: 'low' | 'mid' | 'high', value: number) => {

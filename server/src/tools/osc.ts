@@ -14,13 +14,13 @@ const BACKOFF_MS = 5_000;
  * Minimal OSC 1.0 encoding.
  *
  * The protocol is small enough that writing it beats taking a dependency: an
- * address string, a comma-prefixed type tag, then the arguments — every part
+ * address string, a comma-prefixed type tag, then the arguments - every part
  * padded with NULs to a four-byte boundary.
  */
 /**
  * An OSC string is its characters, then at least one NUL, then however many
  * more NULs it takes to reach a four-byte boundary. A string whose length is
- * already a multiple of four therefore gains a whole extra block — getting that
+ * already a multiple of four therefore gains a whole extra block - getting that
  * case wrong produces messages that receivers quietly drop.
  */
 function oscString(value: string): Buffer {
@@ -44,7 +44,7 @@ export function encode(address: string, args: OscArg[] = []): Buffer {
       tags.push('f');
       parts.push(buffer);
     } else if (typeof arg === 'boolean') {
-      // OSC booleans carry no payload — the tag is the value.
+      // OSC booleans carry no payload - the tag is the value.
       tags.push(arg ? 'T' : 'F');
     } else {
       tags.push('s');
@@ -91,7 +91,7 @@ export class OscSender {
   start(snapshot: () => EngineState, host: string, port: number): void {
     this.stop();
     if (!isUnicast(host)) {
-      log.warn(`refusing to send to "${host}" — unicast addresses only`);
+      log.warn(`refusing to send to "${host}" - unicast addresses only`);
       return;
     }
     this.snapshot = snapshot;
@@ -135,7 +135,7 @@ export class OscSender {
 export function isUnicast(host: string): boolean {
   if (!host) return false;
   const version = net.isIP(host);
-  if (version === 0) return true; // a hostname — nothing to inspect here
+  if (version === 0) return true; // a hostname - nothing to inspect here
   if (version === 6) return host !== '::' && !host.toLowerCase().startsWith('ff');
   const octets = host.split('.').map(Number);
   if (octets.length !== 4 || octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
@@ -147,4 +147,4 @@ export function isUnicast(host: string): boolean {
   return true;
 }
 
-/** Instantiated per rig — one UDP socket and one timer each. */
+/** Instantiated per rig - one UDP socket and one timer each. */

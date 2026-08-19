@@ -10,7 +10,7 @@ const log = createLogger('nowplaying');
  *
  * Two tools share one watcher because they answer the same question and it is
  * not a cheap one: what the channel is actually hearing is not "whichever deck
- * is playing" — it is the deck winning the crossfader, with its own fader up
+ * is playing" - it is the deck winning the crossfader, with its own fader up
  * and its mute off. Working that out twice would be two chances to disagree.
  *
  * It polls a state snapshot rather than hooking the broadcast path. The mix
@@ -40,7 +40,7 @@ interface Playing {
 /**
  * What the voice channel is hearing, or null if that is nothing worth naming.
  *
- * The crossfader law is the mixer's own, minus the curve — the curve changes
+ * The crossfader law is the mixer's own, minus the curve - the curve changes
  * where the travel bites, not which side of it is louder, and this only has to
  * pick a winner.
  */
@@ -56,7 +56,7 @@ function audible(state: EngineState): Playing | null {
     if (!deck.playing || deck.muted || !deck.mediaId) continue;
     const level = deck.gain * across[id];
     // Below this the deck is on its way out of the mix, or parked with the
-    // fader down — either way it is not what the room would say is playing.
+    // fader down - either way it is not what the room would say is playing.
     if (level < 0.06 || level <= bestLevel) continue;
     bestLevel = level;
     best = { mediaId: deck.mediaId, title: deck.title ?? 'Untitled', deck: id };
@@ -130,7 +130,7 @@ export class NowPlaying {
     this.settled = key;
 
     if (this.presence) this.setActivity(playing);
-    // Silence is not an announcement — the channel does not need telling that
+    // Silence is not an announcement - the channel does not need telling that
     // a set ended three seconds ago.
     if (this.webhook && playing) void this.announce(playing);
   }
@@ -177,4 +177,4 @@ export class NowPlaying {
   }
 }
 
-/** Instantiated per rig — one poll timer and one settled track each. */
+/** Instantiated per rig - one poll timer and one settled track each. */

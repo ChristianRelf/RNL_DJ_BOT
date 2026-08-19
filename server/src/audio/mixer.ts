@@ -58,7 +58,7 @@ export class FrameTimer {
     return [view[n >> 1], view[Math.min(n - 1, Math.floor(n * 0.95))]];
   }
 
-  /** The worst frame since the last reset — the one that would have dropped. */
+  /** The worst frame since the last reset - the one that would have dropped. */
   get max(): number {
     return this.highest;
   }
@@ -80,7 +80,7 @@ export type MixerPatch = Partial<Omit<MixerState, 'masterEq' | 'fx'>> & {
 };
 
 export interface MixerEvents {
-  /** A deck ran off the end of its track — state needs rebroadcasting. */
+  /** A deck ran off the end of its track - state needs rebroadcasting. */
   trackEnded: (deck: DeckId) => void;
 }
 
@@ -88,7 +88,7 @@ export interface MixerEvents {
  * The realtime mix graph.
  *
  * Everything is float internally and converted to s16le once at the output, in
- * 20 ms blocks — exactly one Opus frame. Rendering is pull-driven by the voice
+ * 20 ms blocks - exactly one Opus frame. Rendering is pull-driven by the voice
  * player when connected (which keeps the packet cadence honest) and by a local
  * timer when not, so transport positions stay truthful while previewing.
  */
@@ -143,7 +143,7 @@ export class Mixer extends EventEmitter {
    * Dither state.
    *
    * Rounding to 16 bits leaves an error that correlates with the signal, and
-   * correlated error is not noise — on a long fade it is a granular, grainy
+   * correlated error is not noise - on a long fade it is a granular, grainy
    * tail rather than a smooth one. A triangular dither decorrelates it, trading
    * that for a couple of dB of flat, unchanging hiss at -90 dBFS.
    *
@@ -153,7 +153,7 @@ export class Mixer extends EventEmitter {
    * before the encoder, which is why it is here at all.
    *
    * Each channel's dither is the difference between successive uniforms, which
-   * is triangular *and* high-passed — the noise it does add sits up where the
+   * is triangular *and* high-passed - the noise it does add sits up where the
    * ear is least sensitive rather than spread flat.
    */
   private rng = 0x9e3779b9;
@@ -298,7 +298,7 @@ export class Mixer extends EventEmitter {
     const [targetA, targetB] = this.crossfadeGains();
 
     // The send is taken post-fader, so pulling a channel down takes its tail
-    // with it — the way a send works on the hardware this is imitating.
+    // with it - the way a send works on the hardware this is imitating.
     const sendA = this.decks.A.fxSend;
     const sendB = this.decks.B.fxSend;
     const feeding = sendA > 0.0005 || sendB > 0.0005;
@@ -457,7 +457,7 @@ export class Mixer extends EventEmitter {
   /**
    * Crossfader law. At curve 0 this is the constant-power blend a long mix
    * wants; winding it up bends the travel towards a cut, so by 1 the channel is
-   * at full level within a few millimetres — what a scratch fader does.
+   * at full level within a few millimetres - what a scratch fader does.
    */
   private crossfadeGains(): [number, number] {
     const x = clamp(this.crossfader, -1, 1);

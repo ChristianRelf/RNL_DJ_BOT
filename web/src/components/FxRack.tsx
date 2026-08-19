@@ -138,7 +138,7 @@ export function FxRack({ decks, mixer, locked, send, throttled }: Props) {
         <span className="tool-label-sm">
           {roomBeat
             ? `SYNC TO DECK ${reference?.id} · ${(60000 / roomBeat).toFixed(1)} BPM`
-            : 'SYNC — NO TEMPO ON A PLAYING DECK'}
+            : 'SYNC - NO TEMPO ON A PLAYING DECK'}
         </span>
         <div className="btn-row">
           {DIVISIONS.map((division) => {

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Menu, X } from 'lucide-react';
 
 /**
- * Shared chrome for the public pages — the pitch, the docs, the guide and the
+ * Shared chrome for the public pages - the pitch, the docs, the guide and the
  * legal pages. The console and the sign-in door deliberately do without it.
  *
  * Everything front-of-house is built from the four pieces here: the nav, the
@@ -47,7 +47,7 @@ export function SiteNav({ current }: { current?: string }) {
   return (
     <nav className={`site-nav ${lifted ? 'is-lifted' : ''} ${open ? 'is-open' : ''}`}>
       <div className="site-nav-inner">
-        {/* The mark goes to the product page, not to `/` — `/` is the sign-in
+        {/* The mark goes to the product page, not to `/` - `/` is the sign-in
             door, which is not where someone browsing wants to land. */}
         <a href="/home" className="site-nav-brand" aria-label="deck">
           <img src="/deckLogo.png" alt="deck" />
@@ -145,7 +145,7 @@ export function SiteFooter() {
       <div className="site-foot-inner">
         <div className="site-foot-brand">
           <img src="/deckLogo.png" alt="deck" />
-          <p>Two decks, a mixer and your crew — live in a Discord voice channel.</p>
+          <p>Two decks, a mixer and your crew - live in a Discord voice channel.</p>
         </div>
 
         <div className="site-foot-cols">

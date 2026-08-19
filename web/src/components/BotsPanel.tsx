@@ -8,7 +8,7 @@ import type { ActiveBot, BotSummary, SessionUser } from '../protocol';
  * Owner-only, and deliberately not part of the console's shared state: adding a
  * bot means handing the server a token, so it goes over its own HTTP endpoints
  * and nothing about it rides the broadcast every DJ receives. Tokens are
- * write-only — what comes back is a name, an application id and a fingerprint,
+ * write-only - what comes back is a name, an application id and a fingerprint,
  * which is enough to tell two bots apart and to check that the token that got
  * stored is the one you pasted.
  */
@@ -95,7 +95,7 @@ export function BotsPanel({ user, live, voiceLive, api }: Props) {
           <h2>Playback bot</h2>
           <p>
             The Discord account the room hears. <strong>deck</strong> is the default; add your own
-            bots here and switch between them without a restart. Signing in is unaffected — that
+            bots here and switch between them without a restart. Signing in is unaffected - that
             always goes through <strong>deck</strong>, whatever is playing.
           </p>
         </div>
@@ -154,7 +154,7 @@ export function BotsPanel({ user, live, voiceLive, api }: Props) {
                       disabled={busy !== null}
                       title={
                         voiceLive
-                          ? 'Switches the stream over — the bot in the channel changes'
+                          ? 'Switches the stream over - the bot in the channel changes'
                           : 'Play through this bot'
                       }
                       onClick={() =>
@@ -238,7 +238,7 @@ export function BotsPanel({ user, live, voiceLive, api }: Props) {
             <p className="tool-note">
               The application id is read from the token, so there is nothing else to copy. The bot
               has to already be in this server with <strong>Connect</strong> and{' '}
-              <strong>Speak</strong> — that is checked before anything is saved.
+              <strong>Speak</strong> - that is checked before anything is saved.
             </p>
           </div>
         ) : (
@@ -249,7 +249,7 @@ export function BotsPanel({ user, live, voiceLive, api }: Props) {
         )}
 
         <p className="tool-note">
-          Switching drops the voice connection and remakes it as the new bot — the old one leaves
+          Switching drops the voice connection and remakes it as the new bot - the old one leaves
           the channel, the new one rejoins it. The decks keep running throughout, but the room
           hears a gap, so it is not a mid-drop move. Tokens are encrypted with this rig's
           <code> SESSION_SECRET</code> before they are written to disk and are never sent back to

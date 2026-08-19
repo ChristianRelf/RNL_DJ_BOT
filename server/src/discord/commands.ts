@@ -38,7 +38,7 @@ const dj = new SlashCommandBuilder()
 /**
  * Registers /dj against whichever application is currently on air. Slash
  * commands belong to an application, not to a server, so this runs again after
- * every bot swap — otherwise the command would keep pointing at the bot that
+ * every bot swap - otherwise the command would keep pointing at the bot that
  * has just been taken off.
  */
 export async function registerCommands(rig: Rig): Promise<void> {
@@ -61,7 +61,7 @@ export async function registerCommands(rig: Rig): Promise<void> {
  *
  * Commands are registered per application, so without this a swap leaves the
  * previous bot's copy in place and the server ends up offering two identical
- * /dj commands — one of which drives nothing.
+ * /dj commands - one of which drives nothing.
  */
 export async function clearCommands(identity: {
   name: string;
@@ -139,7 +139,7 @@ async function handle(rig: Rig, interaction: ChatInputCommandInteraction): Promi
   if (sub === 'now') {
     const state = rig.state();
     const embed = new EmbedBuilder()
-      .setTitle('RNL DJ — now playing')
+      .setTitle('RNL DJ - now playing')
       .setColor(state.voice.status === 'ready' ? 0x22d3ee : 0x64748b)
       .setDescription(
         state.voice.status === 'ready'

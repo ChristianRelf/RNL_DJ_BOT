@@ -6,7 +6,7 @@
  * different controllers should not be fighting over one shared map. Everything
  * a message does ends up as an ordinary command on the socket, so a knob on a
  * controller and a knob on the screen are the same knob as far as the server is
- * concerned — and the control lock still applies.
+ * concerned - and the control lock still applies.
  *
  * Web MIDI is not in every browser, and the types are not in every TypeScript
  * lib, so the API is reached through a minimal local declaration rather than a

@@ -13,7 +13,7 @@ const ACCENT = { A: 'var(--deck-a)', B: 'var(--deck-b)' } as const;
  * What the room is actually hearing, in type you can read across a booth.
  *
  * "Loudest" is worked out the same way the engine mixes: the crossfader is
- * constant-power, so a centred fader is not half each — it is cos/sin of a
+ * constant-power, so a centred fader is not half each - it is cos/sin of a
  * quarter turn. Doing it any other way would name the wrong deck around the
  * middle of a blend.
  */

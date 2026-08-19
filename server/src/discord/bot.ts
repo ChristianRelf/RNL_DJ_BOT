@@ -15,8 +15,8 @@ const log = createLogger('discord');
 /**
  * The gateway client the rig plays through.
  *
- * Which Discord account that is can change while the server is running — an
- * owner can point the rig at a bot of their own from the console — so the
+ * Which Discord account that is can change while the server is running - an
+ * owner can point the rig at a bot of their own from the console - so the
  * client is replaceable rather than fixed. Everything that needs to listen to
  * it registers through `onClient`, which re-runs against each new client, so a
  * swap does not leave handlers attached to a destroyed connection.
@@ -47,7 +47,7 @@ export class Bot {
   constructor(readonly guildId: string) {}
 
   /**
-   * The live client. Callers hold onto the wrapper, never this — a swap
+   * The live client. Callers hold onto the wrapper, never this - a swap
    * replaces it, and a reference kept across one would point at a dead
    * connection.
    */
@@ -151,7 +151,7 @@ export class Bot {
         continue;
       }
       const voice = channel as VoiceBasedChannel;
-      // Hide channels the bot could never join — they would only ever error.
+      // Hide channels the bot could never join - they would only ever error.
       if (me && !voice.permissionsFor(me)?.has(['ViewChannel', 'Connect'])) continue;
       const humans = voice.members.filter((m) => !m.user.bot).size;
       channels.push({

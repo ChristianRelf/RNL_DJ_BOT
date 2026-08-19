@@ -101,7 +101,7 @@ export default function App({
   );
 
   // Below the stacking width the grid stops being a grid, so arranging has to
-  // stand down with it — there would be nothing to arrange.
+  // stand down with it - there would be nothing to arrange.
   useEffect(() => {
     const onResize = () => setStacked(window.innerWidth < STACK_WIDTH_PX);
     window.addEventListener('resize', onResize);
@@ -160,7 +160,7 @@ export default function App({
 
   // Resolve the session before the socket handshake so the home page does not
   // flash for users who are already signed in. Sign-in failures never land
-  // here — the OAuth callback sends those to /login with the reason.
+  // here - the OAuth callback sends those to /login with the reason.
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
       .then((res) => setSignedIn(res.ok))
@@ -244,7 +244,7 @@ export default function App({
   if (signedIn === false || dj.status === 'unauthorised') {
     // Deliberately renders rather than redirecting to /login: the socket can
     // reject a session that /api/me still accepts (a role removed mid-session),
-    // and /login bounces valid sessions back here — a redirect would loop.
+    // and /login bounces valid sessions back here - a redirect would loop.
     return <SignIn error={dj.error} />;
   }
 

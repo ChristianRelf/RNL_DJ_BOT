@@ -18,7 +18,7 @@ import {
  * The MIDI runtime.
  *
  * It lives above the console rather than inside the MIDI panel, because a
- * controller should keep working when the panel is not on the grid — taking a
+ * controller should keep working when the panel is not on the grid - taking a
  * tool off the console is a layout decision, not a routing one.
  */
 
@@ -83,7 +83,7 @@ export function useMidiRuntime(ctx: MidiContext | null): MidiRuntime {
       })
       .catch((err: Error) => {
         // A refused permission prompt lands here, as does a browser with no
-        // Web MIDI at all — both are worth saying out loud rather than leaving
+        // Web MIDI at all - both are worth saying out loud rather than leaving
         // the switch stuck on.
         setError(err.message || 'MIDI access was refused.');
         persist({ ...settingsRef.current, enabled: false });

@@ -28,7 +28,7 @@ interface GestureOptions {
   steps?: number;
   /**
    * When set, a primary-button drag jumps straight to the pointer position
-   * instead of tracking relative travel — the right behaviour for a crossfader
+   * instead of tracking relative travel - the right behaviour for a crossfader
    * you throw, the wrong one for a knob.
    */
   absolute?: (event: React.PointerEvent<HTMLDivElement>) => number;
@@ -112,7 +112,7 @@ function useValueGesture({
   };
 
   // React registers wheel listeners at the root as passive, so preventDefault
-  // only works from a listener we attach ourselves — without it the page
+  // only works from a listener we attach ourselves - without it the page
   // scrolls out from under the control being adjusted.
   const wheel = useRef(nudge);
   wheel.current = nudge;
@@ -230,7 +230,7 @@ interface KnobProps {
   /** Caption printed under the knob. Empty when a column header names it. */
   label: string;
   /**
-   * Accessible name, for knobs whose caption lives elsewhere — a row or column
+   * Accessible name, for knobs whose caption lives elsewhere - a row or column
    * header in a grid of them. Without it those knobs reach a screen reader as
    * an unnamed slider.
    */
@@ -362,7 +362,7 @@ interface FaderProps {
   max: number;
   defaultValue: number;
   disabled?: boolean;
-  /** Marks the default position on the scale — used by the pitch fader. */
+  /** Marks the default position on the scale - used by the pitch fader. */
   detent?: boolean;
   onChange: (value: number) => void;
   className?: string;
@@ -501,11 +501,11 @@ export function Slider({
 
 /* ------------------------------------------------------------------ meter */
 
-/** The stereo lanes of the meter bus — the scalars alongside them are not lanes. */
+/** The stereo lanes of the meter bus - the scalars alongside them are not lanes. */
 type MeterChannel = keyof Omit<Meters, 'clip' | 'reduction' | 'frameMs'>;
 
 /**
- * Level meter driven straight from the meter bus — it never re-renders, it
+ * Level meter driven straight from the meter bus - it never re-renders, it
  * just writes transform styles, so 15 Hz updates cost nothing.
  */
 export function Meter({
@@ -574,7 +574,7 @@ export function PeakReadout({ channel }: { channel: MeterChannel }) {
   return <span ref={node} className="peak-readout mono" />;
 }
 
-/** Clip lamp for the booth bridge — holds for a beat so brief clips register. */
+/** Clip lamp for the booth bridge - holds for a beat so brief clips register. */
 export function ClipLamp() {
   const node = useRef<HTMLSpanElement>(null);
 

@@ -7,14 +7,14 @@ import type { RequestItem, RequestPageInfo, RequestRigSummary, RequestTrack } fr
  * Asking for a track.
  *
  * The one page in the app written for the room rather than for the booth. It
- * assumes a phone, one hand, and a voice channel it was read out into — so it
+ * assumes a phone, one hand, and a voice channel it was read out into - so it
  * is one screen with one field on it, and it never opens a socket: a hundred
  * people in a channel are a hundred sockets the rig would carry for the sake of
  * a page that has nothing to stream.
  *
  * Two ways to ask, in the order they are worth trying. Searching the rig's
  * library gets a track the DJ can accept with one press, because the record is
- * already in the box. Failing that, typing what you want is still worth doing —
+ * already in the box. Failing that, typing what you want is still worth doing -
  * it just becomes a note the DJ reads rather than something they can queue.
  */
 
@@ -94,7 +94,7 @@ function SignInPrompt({ slug }: { slug: string }) {
         <h1>Ask for a track</h1>
         <p className="request-lede">
           Sign in with Discord so the booth knows who is asking. You need to be in the server the
-          decks are playing to — nothing else.
+          decks are playing to - nothing else.
         </p>
         <a
           className="site-btn is-primary request-signin"
@@ -147,7 +147,7 @@ function RequestForm({ info, reload }: { info: RequestPageInfo; reload: () => Pr
   // cannot overwrite it with stale hits.
   const searchSeq = useRef(0);
 
-  // Typing is what searches — there is no search button, because on a phone that
+  // Typing is what searches - there is no search button, because on a phone that
   // is one more thing to reach for. Debounced so a five-letter title is one
   // request rather than five.
   useEffect(() => {
@@ -265,7 +265,7 @@ function RequestForm({ info, reload }: { info: RequestPageInfo; reload: () => Pr
 
         {picked ? (
           <p className="request-picked">
-            <Check size={12} /> In their library — the DJ can queue this with one press.
+            <Check size={12} /> In their library - the DJ can queue this with one press.
           </p>
         ) : hits && hits.length > 0 ? (
           <ul className="request-hits">
@@ -283,7 +283,7 @@ function RequestForm({ info, reload }: { info: RequestPageInfo; reload: () => Pr
           </ul>
         ) : hits && hits.length === 0 && !searching ? (
           <p className="request-none">
-            Nothing in their library by that name — ask for it anyway and the DJ will see it.
+            Nothing in their library by that name - ask for it anyway and the DJ will see it.
           </p>
         ) : null}
 
@@ -291,7 +291,7 @@ function RequestForm({ info, reload }: { info: RequestPageInfo; reload: () => Pr
           <span>Anything to say with it?</span>
           <input
             className="request-input"
-            placeholder="Optional — a dedication, or when you are hoping to hear it"
+            placeholder="Optional - a dedication, or when you are hoping to hear it"
             value={note}
             maxLength={200}
             disabled={busy}
@@ -316,7 +316,7 @@ function RequestForm({ info, reload }: { info: RequestPageInfo; reload: () => Pr
         <p className="request-note">
           {remaining > 0
             ? `${remaining} more request${remaining === 1 ? '' : 's'} before you have to wait a bit.`
-            : 'That is enough for now — give the booth a chance to get through them.'}
+            : 'That is enough for now - give the booth a chance to get through them.'}
         </p>
 
         {info.mine.length > 0 ? <Mine mine={info.mine} /> : null}
@@ -352,7 +352,7 @@ function Mine({ mine }: { mine: RequestItem[] }) {
  * `/request` with no rig named.
  *
  * Passes straight through when only one rig is taking requests, which is the
- * common case — somebody in one Discord server, following one link. The chooser
+ * common case - somebody in one Discord server, following one link. The chooser
  * only appears for people who are in several.
  */
 export function RequestRigPicker() {

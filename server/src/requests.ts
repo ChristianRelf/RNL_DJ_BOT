@@ -12,7 +12,7 @@ const log = createLogger('requests');
  * Asking for a track.
  *
  * The one surface in the whole server that answers to somebody without a DJ
- * role. Everything else here — the console, the media pool, the rig routes —
+ * role. Everything else here - the console, the media pool, the rig routes -
  * asks `checkAccess`, which wants a role the room does not have; this asks
  * `checkMember`, which only wants them to be in the Discord server the rig
  * plays to. That is the entire difference, and it is why these routes live in
@@ -40,7 +40,7 @@ const hits = new Map<string, { count: number; resetAt: number }>();
 /**
  * Fixed window, per person per rig, in memory.
  *
- * Not in the database on purpose: the same reasoning as the waitlist limiter —
+ * Not in the database on purpose: the same reasoning as the waitlist limiter -
  * a restart clearing it is correct, because the limit is there to keep one
  * person from filling the booth's list in a minute, not to hold anything
  * against them for the rest of the night.
@@ -96,7 +96,7 @@ export function mountRequests(app: express.Express): void {
   /**
    * Resolves the slug and checks the caller belongs to that Discord server.
    *
-   * The rig being switched off for requests is *not* refused here — the page
+   * The rig being switched off for requests is *not* refused here - the page
    * has to be able to say "this rig is not taking requests" rather than 404,
    * which reads as a broken link. Only submitting is refused.
    */
@@ -122,7 +122,7 @@ export function mountRequests(app: express.Express): void {
     const membership = await checkMember(record.id, session.user.id, session.user.displayName);
     if (!membership.member) {
       // Deliberately the same wording whether they are not in the server or the
-      // lookup failed — neither is something the page can act on differently.
+      // lookup failed - neither is something the page can act on differently.
       res.status(403).json({ error: membership.reason ?? 'You are not in that Discord server.' });
       return;
     }
@@ -185,7 +185,7 @@ export function mountRequests(app: express.Express): void {
   /**
    * Searching the rig's library.
    *
-   * Only ever answers a query — there is no listing, and a blank search returns
+   * Only ever answers a query - there is no listing, and a blank search returns
    * nothing rather than the whole pool. Somebody who can ask for a track can
    * confirm whether a particular record is in the box, which is the point; they
    * cannot walk away with the box.
@@ -223,7 +223,7 @@ export function mountRequests(app: express.Express): void {
     }
     if (spend(key, false) <= 0) {
       return res.status(429).json({
-        error: `That is ${PER_WINDOW} requests in a row — give the booth a chance to get through them.`,
+        error: `That is ${PER_WINDOW} requests in a row - give the booth a chance to get through them.`,
       });
     }
 
@@ -248,7 +248,7 @@ export function mountRequests(app: express.Express): void {
     } catch (err) {
       if (err instanceof CommandError) return res.status(400).json({ error: err.message });
       log.error('request failed:', (err as Error).message);
-      res.status(500).json({ error: 'That did not go through — try again in a moment.' });
+      res.status(500).json({ error: 'That did not go through - try again in a moment.' });
     }
   });
 }

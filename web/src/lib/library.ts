@@ -16,7 +16,7 @@ const SAMPLE_RATE = 48000;
  * samples, which for a stereo hour is about 1.4 GB of memory in one go. Twelve
  * minutes is roughly 230 MB, which a browser will part with. Lifting this means
  * decoding incrementally through WebCodecs, which is a real piece of work and
- * deliberately not in this pass — so the limit is stated plainly rather than
+ * deliberately not in this pass - so the limit is stated plainly rather than
  * discovered as a tab crash.
  */
 export const MAX_DECODE_MINUTES = 12;
@@ -177,7 +177,7 @@ export class Library {
     const bytes = await file.arrayBuffer();
 
     // Created at the output rate, so anything at 44.1k is resampled on the way
-    // in and everything downstream — the ring, the mixer, Opus — sees one rate.
+    // in and everything downstream - the ring, the mixer, Opus - sees one rate.
     const context = new OfflineAudioContext(CHANNELS, 1, SAMPLE_RATE);
     const audio = await context.decodeAudioData(bytes);
 
@@ -224,7 +224,7 @@ export class Library {
     const frames = committed.ok && committed.frames ? committed.frames : audio.length;
 
     // The scan's duration was read off the file's metadata and is approximate.
-    // This one came from the decoder, so it replaces it — everywhere, including
+    // This one came from the decoder, so it replaces it - everywhere, including
     // on the server, whose ring sizes its requests against it.
     if (track && track.frames !== frames) {
       track.frames = frames;

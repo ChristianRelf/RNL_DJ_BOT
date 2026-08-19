@@ -16,7 +16,7 @@ import { bump, useFrame } from './beat';
  * of the document. A playhead sits fixed at 40% of the window. Scrolling drags
  * the waveform past the playhead; the part that has gone by is lit, the part
  * still to come is not. Every piece of copy on the page is a cue point on that
- * waveform, and it goes live at the moment it crosses the head — the lamp
+ * waveform, and it goes live at the moment it crosses the head - the lamp
  * lights, the transport at the bottom renames itself, and the light behind the
  * page flares.
  *
@@ -35,7 +35,7 @@ const BARS = 560;
 
 /**
  * The shape of a set: in quietly, up to a first peak, a breakdown two thirds
- * of the way through, a second peak, and out. Deterministic — it draws the
+ * of the way through, a second peak, and out. Deterministic - it draws the
  * same waveform on every visit, because it is the same track every time.
  */
 function envelope(i: number) {
@@ -92,7 +92,7 @@ export function Mix({ children }: { children: ReactNode }) {
   }, []);
 
   // One observer, one zero-height band across the window at the playhead.
-  // Whatever is crossing that line is the cue you are on — the same rule the
+  // Whatever is crossing that line is the cue you are on - the same rule the
   // lit half of the waveform is drawn by, so the two can never disagree.
   useEffect(() => {
     const root = rootRef.current;
@@ -176,7 +176,7 @@ export function Mix({ children }: { children: ReactNode }) {
 
 /**
  * One cue point. Every block on the page is one of these and they all have the
- * same anatomy — mark, number, label, statement, and whatever the cue is
+ * same anatomy - mark, number, label, statement, and whatever the cue is
  * actually about. The uniformity is the point: it is one track.
  */
 export function Cue({

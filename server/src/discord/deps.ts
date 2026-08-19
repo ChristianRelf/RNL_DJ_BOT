@@ -42,7 +42,7 @@ export function checkVoiceDependencies(): void {
 
   if (!dave) {
     log.warn(
-      '@snazzah/davey did not load — the platform binary is probably absent from ' +
+      '@snazzah/davey did not load - the platform binary is probably absent from ' +
         'this image. Rebuild with `docker compose build --no-cache` if voice fails to connect.',
     );
   }

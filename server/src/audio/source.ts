@@ -5,13 +5,13 @@ import { FileWindowReader, type WindowReader } from './windowReader';
 /**
  * Window length, in frames. Four seconds is long enough that a deck at any
  * playable rate refills roughly once a second, and small enough that ten
- * sources — two decks and eight pads — cost about 15 MB between them.
+ * sources - two decks and eight pads - cost about 15 MB between them.
  */
 const WINDOW_FRAMES = SAMPLE_RATE * 4;
 /**
  * Frames held either side of the window so the four-point interpolation kernel
  * always has its neighbours. Real audio where the file has it, and a duplicate
- * of the edge sample only at the true start and end of the file — so the only
+ * of the edge sample only at the true start and end of the file - so the only
  * place the guard is a fiction is the place the audio ends anyway.
  */
 const GUARD = 2;
@@ -24,7 +24,7 @@ const LEAD_REVERSE = 0.75;
 
 /**
  * Above this rate the source is lowpassed before it is decimated. Below it the
- * filter would do nothing audible and the deck skips the whole path — which is
+ * filter would do nothing audible and the deck skips the whole path - which is
  * every ordinary pitch move, so the common case pays nothing for this.
  */
 const AA_FROM_RATE = 1.02;
@@ -37,7 +37,7 @@ const AA_MASK = AA_FRAMES - 1;
  * back when the bytes arrive. 30 ms is long enough that neither edge clicks and
  * short enough that nobody mistakes it for a mix move.
  *
- * Unreachable with a local file — the page cache does not run out — but it is
+ * Unreachable with a local file - the page cache does not run out - but it is
  * the ordinary case for a reader fed over a socket, which is the point of it.
  */
 const STARVE_FADE_FRAMES = Math.round(SAMPLE_RATE * 0.03);
@@ -59,8 +59,8 @@ function cubic(y0: number, y1: number, y2: number, y3: number, t: number): numbe
  *
  * The bytes stay wherever the `WindowReader` keeps them and a four-second
  * window lives here as planar float. Float rather than raw bytes because the
- * mix graph is float throughout and converting per sample — four bounds-checked
- * reads for every output frame — was the single most expensive thing on the
+ * mix graph is float throughout and converting per sample - four bounds-checked
+ * reads for every output frame - was the single most expensive thing on the
  * audio path. Planar rather than interleaved because every consumer wants one
  * channel at a time, and because it is what lets a whole block be copied
  * outright when nothing needs resampling.
@@ -82,7 +82,7 @@ export class PcmSource {
    * breaks that assumption, and a shared scratch buffer under two interleaved
    * refills is a data race that would surface as one deck playing a slice of
    * the other's audio. Backed by an `Int16Array` so the de-interleave reads
-   * aligned 16-bit words rather than assembling them a byte at a time — about
+   * aligned 16-bit words rather than assembling them a byte at a time - about
    * three times quicker, and it is the hottest loop here.
    */
   private readonly readInts = new Int16Array(PLANE_FRAMES * CHANNELS);
@@ -96,8 +96,8 @@ export class PcmSource {
   private hi = 0;
   /**
    * File frame the planes hold real data up to, or Infinity when the last read
-   * was fully satisfied. Finite means the reader came up short — an underrun,
-   * not the end of the file — and it is what stops the window claiming to cover
+   * was fully satisfied. Finite means the reader came up short - an underrun,
+   * not the end of the file - and it is what stops the window claiming to cover
    * frames that never arrived.
    */
   private dataEnd = Infinity;
@@ -178,8 +178,8 @@ export class PcmSource {
     const last = Math.max(0, this.frames - WINDOW_FRAMES);
     const start = Math.min(last, Math.max(0, Math.round(target - WINDOW_FRAMES * lead)));
     // The window is already where it would land. This is the ordinary state at
-    // the end of a track — the head sits on the last frame and cannot be
-    // covered by anything — and without this it would re-read the whole window
+    // the end of a track - the head sits on the last frame and cannot be
+    // covered by anything - and without this it would re-read the whole window
     // on every block for as long as the deck stayed there.
     //
     // A window that came up short last time is the exception: it has to be
@@ -194,7 +194,7 @@ export class PcmSource {
     //
     // Only ever from planes that were filled completely, though. A short read
     // pads the rest of the window with held edge samples, and carrying those
-    // forward would hand the next window a region it believes is audio — a
+    // forward would hand the next window a region it believes is audio - a
     // recovered source would play the padding and report no underrun at all,
     // because as far as the coverage check is concerned the frames are there.
     // The re-read this costs happens once, on the refill after a dropout.
@@ -269,7 +269,7 @@ export class PcmSource {
    * It has to happen here, before the resampling, because that is the only
    * place it can: content above the new Nyquist folds down during decimation,
    * and nothing downstream can tell a folded partial from a real one. No amount
-   * of interpolation quality fixes it either — a better kernel reconstructs the
+   * of interpolation quality fixes it either - a better kernel reconstructs the
    * signal more accurately, aliases and all.
    *
    * The filter runs *continuously* over the source, picking up where the last
@@ -336,7 +336,7 @@ export class PcmSource {
    * and interpolating the rate across the block makes the read-head velocity
    * continuous across the join.
    *
-   * Writes are overwriting, not summing — callers that need to sum read into
+   * Writes are overwriting, not summing - callers that need to sum read into
    * their own scratch first.
    */
   readBlock(
@@ -365,7 +365,7 @@ export class PcmSource {
         // Either the head has run off the end of the file, or the reader has
         // not delivered these frames yet. The first is silence by rights; the
         // second is an underrun, and a step to zero would click on every
-        // dropout — so the last sample rendered is held and decayed instead.
+        // dropout - so the last sample rendered is held and decayed instead.
         this.starved = true;
         let g = this.starveGain;
         const hl = this.lastL;

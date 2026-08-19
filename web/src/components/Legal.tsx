@@ -8,7 +8,7 @@ import { SitePage } from './SiteNav';
  * restating them: the general terms, the code of conduct and the cookie notice
  * are linked and incorporated, and what is written here is only what is
  * specific to this app. The data-handling sections are read off the
- * implementation — the OAuth scope, the cookie, and the files that get kept —
+ * implementation - the OAuth scope, the cookie, and the files that get kept -
  * so keep them in step if any of that changes.
  */
 
@@ -57,7 +57,7 @@ function Terms() {
 
       <h2>What this covers</h2>
       <p>
-        These terms cover the decks — the web control surface and the bot that plays audio into a
+        These terms cover the decks - the web control surface and the bot that plays audio into a
         Discord voice channel. Using either means you accept them.
       </p>
 
@@ -80,7 +80,7 @@ function Terms() {
       <p>
         One person holds control at a time. Control is handed over by request, or released
         automatically after a period of inactivity. While you hold it, what you play is broadcast
-        live to everyone in the voice channel — treat it as a public performance.
+        live to everyone in the voice channel - treat it as a public performance.
       </p>
       <p>
         Do not take control by technical means, and hand it over when asked if someone else is
@@ -90,7 +90,7 @@ function Terms() {
       <h2>What you upload</h2>
       <p>
         You keep ownership of anything you upload. By adding a file to the media pool you give us
-        permission to store it, convert it for playback, and play it through the decks — that is
+        permission to store it, convert it for playback, and play it through the decks - that is
         the only thing we do with it.
       </p>
       <p>
@@ -105,7 +105,7 @@ function Terms() {
         <li>Do not broadcast unlawful content, or content that breaches the Code of Conduct.</li>
         <li>Do not use the decks to harass anyone.</li>
         <li>
-          Do not interfere with the service — no flooding it with commands, no attempting to
+          Do not interfere with the service - no flooding it with commands, no attempting to
           bypass the access controls, no disrupting another operator's set.
         </li>
         <li>Do not upload anything you do not have the right to play.</li>
@@ -150,7 +150,7 @@ function Privacy() {
 
       <h2>What this covers</h2>
       <p>
-        This covers the decks — the web control surface and the bot that plays audio into a Discord
+        This covers the decks - the web control surface and the bot that plays audio into a Discord
         voice channel. It does not cover Discord sign-in on the main site, or the account-linking
         bot, which have their own policies.
       </p>
@@ -181,7 +181,7 @@ function Privacy() {
           along with the Discord ID and display name of whoever uploaded it, and when.
         </li>
         <li>
-          The state of the console — mixer and pad settings, and the last voice channel that was
+          The state of the console - mixer and pad settings, and the last voice channel that was
           joined.
         </li>
         <li>Server logs, which may record sign-ins and errors.</li>
@@ -196,8 +196,8 @@ function Privacy() {
 
       <h2>Who can see it</h2>
       <p>
-        Anyone signed in can see the media pool — the title of each track and the display name of
-        whoever uploaded it — and can see who is connected and who holds control.
+        Anyone signed in can see the media pool - the title of each track and the display name of
+        whoever uploaded it - and can see who is connected and who holds control.
       </p>
       <p>
         Outside that, data goes to Discord (for authentication and to deliver the audio) and our

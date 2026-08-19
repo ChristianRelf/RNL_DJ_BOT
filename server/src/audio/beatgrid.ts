@@ -17,8 +17,8 @@ const MIN_BPM = 70;
 const MAX_BPM = 180;
 /**
  * How tightly the detected beats have to agree with a single steady grid before
- * the grid is worth keeping. A missing grid is honest — the console falls back
- * to tapping — but a grid that is subtly wrong is worse than none, because
+ * the grid is worth keeping. A missing grid is honest - the console falls back
+ * to tapping - but a grid that is subtly wrong is worse than none, because
  * everything downstream will believe it.
  */
 const MIN_CONFIDENCE = 0.35;
@@ -29,7 +29,7 @@ const ANALYSIS_RATE = 22050;
 /**
  * Finds the beat grid of a decoded track.
  *
- * Detection is aubio's job rather than ours — onset detection done properly is
+ * Detection is aubio's job rather than ours - onset detection done properly is
  * a research problem, and there is a well-tested binary for it. What is done
  * here is the part aubio does not do: turning a list of beat times, which is
  * noisy and has gaps in quiet passages, into one tempo and one offset that a
@@ -103,7 +103,7 @@ function toAnalysisWav(pcmFile: string, wavFile: string): Promise<void> {
 /**
  * Beat times in seconds, or null when aubio is not installed.
  *
- * An absent optional binary is a missing feature, not a fault — the track still
+ * An absent optional binary is a missing feature, not a fault - the track still
  * imports and still plays, it just has no grid until somebody installs aubio
  * and asks for it again.
  */
@@ -131,7 +131,7 @@ function runAubio(wavFile: string): Promise<number[] | null> {
       finish(() => {
         if (err.code === 'ENOENT') {
           log.info(
-            `aubio not installed (looked for "${config.bin.aubio}") — ` +
+            `aubio not installed (looked for "${config.bin.aubio}") - ` +
               'tracks import without a beat grid. Install aubio or set AUBIO_PATH.',
           );
           resolve(null);
@@ -180,7 +180,7 @@ function median(values: number[]): number {
  * How well a set of beat times agrees with a grid of the given period, and
  * where that grid sits.
  *
- * Each beat is a point on a circle — its position within one period, as an
+ * Each beat is a point on a circle - its position within one period, as an
  * angle. Beats that agree cluster, and the mean of the unit vectors points at
  * the offset they agree on. Its *length* falls out as the confidence: near 1
  * when everything lines up, near 0 when the times are scattered, with no
@@ -206,7 +206,7 @@ function circularFit(beats: number[], period: number): { offsetMs: number; stren
  * The period from the raw intervals is close but not close enough: 0.1 BPM out
  * at 128 accumulates a third of a beat over six minutes, which is the
  * difference between a grid that holds a mix together and one that slides off
- * it. So the period is refined against the whole track — the value that makes
+ * it. So the period is refined against the whole track - the value that makes
  * every beat agree best is the one that will still be right at the end.
  */
 export function fitGrid(beatsMs: number[]): BeatGrid | null {
@@ -247,7 +247,7 @@ export function fitGrid(beatsMs: number[]): BeatGrid | null {
   }
 
   // Now fold, for reporting. A grid at half or double the tempo is not wrong
-  // about where the beats are, only about which of them to call a beat — and
+  // about where the beats are, only about which of them to call a beat - and
   // the offset stays valid either way, since doubling the period keeps every
   // other beat and halving it adds beats between the ones already there.
   let period = best.period;

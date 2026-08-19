@@ -69,7 +69,7 @@ export function isPublicAddress(address: string): boolean {
     if (lower === '::' || lower === '::1') return false;
     if (lower.startsWith('fe80') || lower.startsWith('fc') || lower.startsWith('fd')) return false;
     if (lower.startsWith('ff')) return false; // multicast
-    // ::ffff:10.0.0.1 and friends — judge the address they actually mean.
+    // ::ffff:10.0.0.1 and friends - judge the address they actually mean.
     const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
     if (mapped) return isPublicAddress(mapped[1]);
     return true;
@@ -236,7 +236,7 @@ async function fetchViaExtractor(url: URL): Promise<FetchedFile> {
  * Downloads a link to a temp path for the normal ingest path.
  *
  * Two routes in: a direct link to an audio file is fetched here, and the hosts
- * in `EXTRACTOR_HOSTS` — YouTube and its variants — are handed to yt-dlp,
+ * in `EXTRACTOR_HOSTS` - YouTube and its variants - are handed to yt-dlp,
  * which is the only way to get a file out of a page. Everything else is
  * refused rather than guessed at.
  *
@@ -269,7 +269,7 @@ export async function fetchAudio(rawUrl: string): Promise<FetchedFile> {
       await assertPublicHost(url.hostname);
 
       // Redirects are followed by hand so each new host is checked before it is
-      // contacted — `redirect: 'follow'` would jump to an internal address
+      // contacted - `redirect: 'follow'` would jump to an internal address
       // without ever asking.
       const hopResponse = await fetch(url, {
         redirect: 'manual',
@@ -316,7 +316,7 @@ export async function fetchAudio(rawUrl: string): Promise<FetchedFile> {
     try {
       for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
         written += chunk.byteLength;
-        // Content-length is a claim, not a promise — enforce the cap against
+        // Content-length is a claim, not a promise - enforce the cap against
         // what actually arrives.
         if (written > limit) {
           throw new ImportError(`That file is larger than the ${limit / 1048576} MB limit.`);

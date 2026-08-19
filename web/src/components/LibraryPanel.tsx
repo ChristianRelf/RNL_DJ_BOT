@@ -32,7 +32,7 @@ export function LibraryPanel({ library, host, meId }: LibraryPanelProps) {
           <h2 className="panel-title">Music folder</h2>
         </header>
         <p className="panel-empty">
-          This browser cannot keep a folder connected. Chrome or Edge can — open the console
+          This browser cannot keep a folder connected. Chrome or Edge can - open the console
           there to host the library.
           {someoneElse && ` ${host.userName} is hosting, so the decks still work here.`}
         </p>
@@ -65,7 +65,7 @@ export function LibraryPanel({ library, host, meId }: LibraryPanelProps) {
       {library.status === 'none' && (
         <>
           <p className="panel-empty">
-            Deck plays straight off your machine — nothing is uploaded. Pick the folder your
+            Deck plays straight off your machine - nothing is uploaded. Pick the folder your
             music lives in.
           </p>
           <button type="button" className="btn btn-primary" onClick={library.connect}>

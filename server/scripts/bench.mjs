@@ -5,7 +5,7 @@
  *
  * The voice player pulls a frame every 20 ms; a late frame is a dropout the
  * room hears. So the only number that matters here is how much of that 20 ms
- * one frame actually costs, under the worst load the console can produce —
+ * one frame actually costs, under the worst load the console can produce -
  * both decks playing off pitch and all eight pads firing.
  *
  * Run it before and after anything that touches the audio path. It is the
@@ -55,7 +55,7 @@ function run(mixer, frames) {
   for (let i = 0; i < frames; i++) mixer.renderFrame();
 }
 
-console.log(`mix graph bench — ${FRAMES} frames per case, ${FRAME_MS}ms budget each`);
+console.log(`mix graph bench - ${FRAMES} frames per case, ${FRAME_MS}ms budget each`);
 console.log(`  node ${process.version} on ${os.platform()} ${os.arch()}, ${os.cpus()[0]?.model ?? '?'}`);
 console.log();
 
@@ -129,7 +129,7 @@ try {
   console.log(
     p95 < FRAME_MS * 0.5
       ? `  headroom: p95 is ${((p95 / FRAME_MS) * 100).toFixed(1)}% of budget under full load.`
-      : `  WARNING: p95 is ${((p95 / FRAME_MS) * 100).toFixed(1)}% of budget — little room left.`,
+      : `  WARNING: p95 is ${((p95 / FRAME_MS) * 100).toFixed(1)}% of budget - little room left.`,
   );
 } finally {
   mixer.destroy();

@@ -4,7 +4,7 @@
  *   npm run build -w server && npm run tenancy -w server
  *
  * The audio graph was always instance-scoped, so the risk in going multi-guild
- * was never the mixer — it was the data layer that replaced one JSON document
+ * was never the mixer - it was the data layer that replaced one JSON document
  * with a shared database. A missing `WHERE guild_id` does not throw; it quietly
  * shows one server another server's library, and puts one set's queue on
  * somebody else's decks.
@@ -72,7 +72,7 @@ function check(name, ok, detail = '') {
   console.log(`  ${ok ? 'ok  ' : 'FAIL'}   ${name}${detail ? `  ${detail}` : ''}`);
 }
 
-console.log('\nmulti-tenancy — isolation between rigs, and the import that seeds one\n');
+console.log('\nmulti-tenancy - isolation between rigs, and the import that seeds one\n');
 
 db();
 importLegacyDb();
@@ -142,7 +142,7 @@ storeB.db.pads[3] = { mediaId: 'track-b', gain: 0.5, mode: 'gate' };
 storeB.save();
 await storeB.flush();
 
-// Reloaded from disk rather than trusted from memory — the whole question is
+// Reloaded from disk rather than trusted from memory - the whole question is
 // what the database actually holds, not what each store thinks it does.
 const reloadA = new GuildStore(A);
 reloadA.load();

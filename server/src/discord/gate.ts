@@ -8,12 +8,12 @@ const log = createLogger('gate');
  *
  * These deliberately do not go through the gateway client. That client is
  * whichever playback bot is currently on air, and a rig can be pointed at a
- * different Discord account mid-set — who is allowed to sign in must not depend
+ * different Discord account mid-set - who is allowed to sign in must not depend
  * on which account happens to be speaking. So the gate talks REST with the
  * token from the environment, which is the one bot that is in every server this
  * runs for, and it does not change.
  *
- * No privileged intents are involved — a single-member fetch is a plain REST
+ * No privileged intents are involved - a single-member fetch is a plain REST
  * call any bot in the guild can make.
  */
 
@@ -30,7 +30,7 @@ export interface GuildMemberInfo {
  * "They are not in the guild" and "we could not find out" are different
  * answers, and telling somebody they are not a member when the truth is that
  * the gate's own token cannot read the server sends them looking in entirely
- * the wrong place. Both still fail closed — they just say so differently.
+ * the wrong place. Both still fail closed - they just say so differently.
  */
 export type MemberLookup =
   | { kind: 'member'; member: GuildMemberInfo }
@@ -43,7 +43,7 @@ interface RawMember {
   user?: { id: string; username: string; global_name: string | null };
 }
 
-/** Each guild's owner, cached — it changes about once a lifetime. */
+/** Each guild's owner, cached - it changes about once a lifetime. */
 const owners = new Map<string, { id: string | null; at: number }>();
 const OWNER_TTL_MS = 60 * 60 * 1000;
 
@@ -77,7 +77,7 @@ export async function member(guildId: string, userId: string): Promise<MemberLoo
 
     if (res.status === 401 || res.status === 403) {
       log.error(
-        `membership lookup refused (HTTP ${res.status}). deck cannot read guild ${guildId} — ` +
+        `membership lookup refused (HTTP ${res.status}). deck cannot read guild ${guildId} - ` +
           'it has probably been removed from that server. Re-invite it, or delete the rig.',
       );
       return {
@@ -115,7 +115,7 @@ export async function member(guildId: string, userId: string): Promise<MemberLoo
  * Startup check: says plainly whether deck can actually see a guild, rather
  * than leaving it to be discovered by the first person who cannot log in.
  *
- * Nearly always true now that onboarding invites the bot itself — but a bot can
+ * Nearly always true now that onboarding invites the bot itself - but a bot can
  * be kicked from a server without anybody telling the rig, and that is exactly
  * the case worth naming in a log rather than in a support message.
  */
@@ -129,7 +129,7 @@ export async function verifyAuthAccess(guildId: string): Promise<boolean> {
     }
     log.error(
       `the sign-in gate cannot read guild ${guildId} (HTTP ${res.status}). deck is not in that ` +
-        'server, so nobody there will be able to sign in — re-invite it, or delete the rig.',
+        'server, so nobody there will be able to sign in - re-invite it, or delete the rig.',
     );
   } catch (err) {
     log.error('sign-in gate check failed:', (err as Error).message);

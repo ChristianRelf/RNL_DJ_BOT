@@ -1,9 +1,9 @@
-# RNL DJ — Caddy site blocks for deck.ronation.live and its portal.
+# RNL DJ - Caddy site blocks for deck.ronation.live and its portal.
 #
 # These go into whichever Caddyfile is already serving this box. Caddy will not
 # present a certificate for a hostname it has no site block for, and a browser
 # meeting that reports ERR_SSL_PROTOCOL_ERROR rather than anything about the
-# name being unknown — so a missing block looks like a broken certificate.
+# name being unknown - so a missing block looks like a broken certificate.
 #
 # Caddy runs in a container here, alongside the app, both attached to the shared
 # `edge` network. That is why the upstream is the container name and not

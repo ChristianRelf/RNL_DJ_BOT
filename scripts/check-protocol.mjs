@@ -2,7 +2,7 @@
  * Guards the protocol mirror.
  *
  * `server/src/protocol.ts` and `web/src/protocol.ts` are the same file, kept in
- * step by hand — the server has no business importing from the web workspace
+ * step by hand - the server has no business importing from the web workspace
  * and the web build has no business pulling in the server's. Both compile
  * cleanly when they drift, and the failure shows up at runtime as a field the
  * other side silently ignores.
@@ -21,7 +21,7 @@ const [a, b] = files.map((file) => {
   try {
     return fs.readFileSync(path.join(root, file), 'utf8');
   } catch (err) {
-    console.error(`check-protocol: cannot read ${file} — ${err.message}`);
+    console.error(`check-protocol: cannot read ${file} - ${err.message}`);
     process.exit(2);
   }
 });
@@ -41,5 +41,5 @@ console.error(`    ${files[1]}: ${right[line] ?? '(end of file)'}`);
 if (left.length !== right.length) {
   console.error(`  lengths differ: ${left.length} vs ${right.length} lines`);
 }
-console.error('  Copy whichever is correct over the other — they are one file in two places.');
+console.error('  Copy whichever is correct over the other - they are one file in two places.');
 process.exit(1);

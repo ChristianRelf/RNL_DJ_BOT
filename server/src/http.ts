@@ -51,7 +51,7 @@ const WAITLIST_LIMIT = 5000;
 /**
  * Attempts allowed from one address per hour. Counted against every request
  * rather than every stored entry, so it is set high enough that somebody
- * mistyping their address a few times never meets it — the honeypot and the
+ * mistyping their address a few times never meets it - the honeypot and the
  * duplicate check are what actually stop a script.
  */
 const WAITLIST_PER_HOUR = 12;
@@ -60,7 +60,7 @@ const waitlistHits = new Map<string, { count: number; resetAt: number }>();
 
 /**
  * A plain fixed-window limiter. In memory rather than in the database because
- * a restart clearing it is the right behaviour — the limit exists to stop a
+ * a restart clearing it is the right behaviour - the limit exists to stop a
  * script, not to punish anyone across days.
  */
 function withinRate(address: string): boolean {
@@ -83,8 +83,8 @@ function mediaFilePath(item: MediaItem): string {
 }
 
 /**
- * Bot failures are mostly the operator's to fix — a bad token, a bot that has
- * not been invited — so those are reported as they came. Anything else is
+ * Bot failures are mostly the operator's to fix - a bad token, a bot that has
+ * not been invited - so those are reported as they came. Anything else is
  * logged and reduced to a generic message rather than risking a token or an
  * internal path in the response.
  */
@@ -94,7 +94,7 @@ function sendBotError(res: Response, err: unknown): void {
     return;
   }
   log.error('bot management failed:', (err as Error).message);
-  res.status(500).json({ error: 'That did not work — check the server log.' });
+  res.status(500).json({ error: 'That did not work - check the server log.' });
 }
 
 declare module 'express-serve-static-core' {
@@ -112,7 +112,7 @@ export function createApp(): express.Express {
 
   /**
    * The portal answers on its own hostname, but it is the same bundle and the
-   * same session — so rather than a second build, the portal host simply lands
+   * same session - so rather than a second build, the portal host simply lands
    * on the portal route. It stays reachable at /portal on the main host too,
    * which is what makes it work on localhost where there is no second name.
    */
@@ -141,7 +141,7 @@ export function createApp(): express.Express {
   // ------------------------------------------------------------- auth ---
 
   /**
-   * `next` is where to land afterwards — the request page uses it, because
+   * `next` is where to land afterwards - the request page uses it, because
    * somebody who followed a link to ask for a track should end up back at that
    * rig's page and not at a console they cannot open. Only same-site paths are
    * kept; anything else is dropped and they go to the front door.
@@ -162,7 +162,7 @@ export function createApp(): express.Express {
     // button that failed instead of on the marketing page.
     if (error) return res.redirect(`/login?error=${encodeURIComponent(error)}`);
     if (!code || !state || !expected || state !== expected) {
-      return res.redirect('/login?error=' + encodeURIComponent('Login state mismatch — try again.'));
+      return res.redirect('/login?error=' + encodeURIComponent('Login state mismatch - try again.'));
     }
 
     try {
@@ -184,7 +184,7 @@ export function createApp(): express.Express {
         // Except for the request page, which is for the room rather than for
         // the booth: anybody in the Discord server may ask for a track. They
         // get a listener session, which every other route in the server refuses
-        // — the rig then checks they are actually in that guild.
+        // - the rig then checks they are actually in that guild.
         if (next && REQUEST_PATH.test(next)) {
           issueSession(res, user, 'listener');
           log.info(`${user.displayName} signed in to ask for a track`);
@@ -250,7 +250,7 @@ export function createApp(): express.Express {
    * and a ceiling on the list as a whole.
    *
    * What comes back is deliberately the same whether the entry was stored or
-   * quietly dropped — a form that reports "you are already on the list" is a
+   * quietly dropped - a form that reports "you are already on the list" is a
    * way to ask whether an address is.
    */
   app.post('/api/waitlist', express.json({ limit: '32kb' }), (req, res) => {
@@ -262,7 +262,7 @@ export function createApp(): express.Express {
     if (text(body.website, 80)) return res.json({ ok: true });
 
     if (!withinRate(req.ip ?? 'unknown')) {
-      return res.status(429).json({ error: 'Too many requests — try again later.' });
+      return res.status(429).json({ error: 'Too many requests - try again later.' });
     }
 
     const entry = {
@@ -369,7 +369,7 @@ export function createApp(): express.Express {
    * Everything below here belongs to one rig.
    *
    * The guild is resolved and the caller's access to it re-checked on every
-   * request rather than trusted from the session — losing a DJ role has to take
+   * request rather than trusted from the session - losing a DJ role has to take
    * effect on the next request, not whenever the token happens to expire.
    */
   async function withRig(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -463,7 +463,7 @@ export function createApp(): express.Express {
     } catch (err) {
       if (fetched) await fs.promises.unlink(fetched.tempPath).catch(() => undefined);
       const message =
-        err instanceof ImportError ? err.message : 'That import failed — check the logs.';
+        err instanceof ImportError ? err.message : 'That import failed - check the logs.';
       if (!(err instanceof ImportError)) log.error('import failed:', err);
       res.status(400).json({ error: message });
     }
@@ -473,7 +473,7 @@ export function createApp(): express.Express {
    * Which Discord account this rig plays through.
    *
    * On HTTP rather than the socket deliberately: the socket broadcasts state to
-   * every signed-in DJ, and this is platform-admin territory — adding a bot
+   * every signed-in DJ, and this is platform-admin territory - adding a bot
    * means handing the server a token. Tokens are never returned, only
    * fingerprints.
    */
@@ -588,7 +588,7 @@ export function createApp(): express.Express {
 
       // A hashed asset express.static did not find is gone, not a route. Falling
       // through to index.html answers a stylesheet or module request with HTML,
-      // which the browser refuses on the MIME mismatch — the page renders
+      // which the browser refuses on the MIME mismatch - the page renders
       // unstyled, or blank, with nothing but 200s in the network log. A browser
       // holding index.html from an earlier build asks for exactly these, so let
       // it have the 404 and fetch the shell again.
@@ -601,7 +601,7 @@ export function createApp(): express.Express {
       });
     });
   } else {
-    log.warn(`web build not found at ${webDist} — run "npm run build -w web"`);
+    log.warn(`web build not found at ${webDist} - run "npm run build -w web"`);
     app.get('/', (_req, res) => {
       res.status(503).send('Web UI has not been built yet. Run: npm run build -w web');
     });
@@ -620,7 +620,7 @@ export function createApp(): express.Express {
     // A body past the JSON limit is the sender's to fix, and saying so beats
     // the 500 it would otherwise fall through to.
     if (err?.type === 'entity.too.large') {
-      res.status(413).json({ error: 'That was too long — shorten it and try again.' });
+      res.status(413).json({ error: 'That was too long - shorten it and try again.' });
       return;
     }
     log.error('unhandled http error:', err?.message ?? err);

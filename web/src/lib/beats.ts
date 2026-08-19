@@ -1,8 +1,8 @@
 /**
  * Tempo maths for the deck tools.
  *
- * Loop points and cue points are stored in *source* milliseconds — the deck
- * advances its read head by `rate` frames per output frame — so a beat is
+ * Loop points and cue points are stored in *source* milliseconds - the deck
+ * advances its read head by `rate` frames per output frame - so a beat is
  * always 60000 / bpm here, regardless of where the pitch fader sits. Only the
  * tempo the room hears is rate-dependent.
  */

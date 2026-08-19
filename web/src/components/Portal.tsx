@@ -20,7 +20,7 @@ import type { ActiveBot } from '../protocol';
  *
  * Everything here is platform-level: which rigs exist, who is allowed to sign
  * in at all, which Discord accounts can be played through. None of it is a
- * thing a guild admin can reach — a guild admin runs one server's decks, and
+ * thing a guild admin can reach - a guild admin runs one server's decks, and
  * this runs the platform those servers are on.
  */
 
@@ -108,7 +108,7 @@ export function Portal() {
   useEffect(() => {
     void load();
     // Rigs start, stop and go on air without anybody clicking anything here, so
-    // this refreshes on its own. Slowly — it is a status page, not a meter.
+    // this refreshes on its own. Slowly - it is a status page, not a meter.
     const timer = setInterval(() => void load(), 10_000);
     return () => clearInterval(timer);
   }, [load]);
@@ -390,7 +390,7 @@ function Allowlist({
         <UserPlus size={13} /> Who can sign in <span className="portal-count mono">{entries.length}</span>
       </h2>
       <p className="portal-hint">
-        A Discord user id. Being on this list is what lets somebody log in at all — which rigs
+        A Discord user id. Being on this list is what lets somebody log in at all - which rigs
         they can open is still up to each server&rsquo;s roles.
       </p>
 
@@ -405,7 +405,7 @@ function Allowlist({
         />
         <input
           className="input"
-          placeholder="note — who is this?"
+          placeholder="note - who is this?"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
@@ -422,7 +422,7 @@ function Allowlist({
           {entries.map((entry) => (
             <li key={entry.discordId} className="portal-allow">
               <span className="mono portal-allow-id">{entry.discordId}</span>
-              <span className="portal-allow-note">{entry.note || '—'}</span>
+              <span className="portal-allow-note">{entry.note || '-'}</span>
               <span className="mono portal-dim">{ago(entry.addedAt)}</span>
               <button
                 type="button"

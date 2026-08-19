@@ -15,7 +15,7 @@ const ACCENT: Record<DeckId, string> = { A: 'var(--deck-a)', B: 'var(--deck-b)' 
 /**
  * Both decks' transport in one strip.
  *
- * For layouts that hide the full deck panels — a performance screen, or a
+ * For layouts that hide the full deck panels - a performance screen, or a
  * second operator who only needs to start and stop things.
  */
 export function Transport({ decks, locked, send }: TransportProps) {

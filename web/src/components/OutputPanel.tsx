@@ -23,7 +23,7 @@ const FLOOR_DB = -48;
 const SCALE_DB = [-48, -24, -12, -6, 0];
 
 /**
- * The meter bridge. Everything here is read-only — it answers "what is actually
+ * The meter bridge. Everything here is read-only - it answers "what is actually
  * going out to the room" without making you read it off the mixer strips.
  */
 export function OutputPanel({ mixer, voice }: OutputPanelProps) {

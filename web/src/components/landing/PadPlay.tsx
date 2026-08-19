@@ -6,13 +6,13 @@ import { bump, useOnScreen } from './beat';
  *
  * Every other landing page describes what a button feels like. This one lets
  * you hit it. The voices are synthesised on the spot with a handful of
- * oscillators — there is no audio to download, nothing autoplays, and the
+ * oscillators - there is no audio to download, nothing autoplays, and the
  * context is not even created until the first pad is pressed, which is the
  * gesture browsers want anyway.
  *
  * These are toys, and the copy beside them says so: the real pads on the
  * console fire the samples you uploaded. What is honest here is the shape of
- * the thing — eight pads, one press, immediate.
+ * the thing - eight pads, one press, immediate.
  */
 
 type Voice = 'kick' | 'clap' | 'hat' | 'sub' | 'stab' | 'chord' | 'rise' | 'stop';
@@ -179,7 +179,7 @@ export function PadPlay() {
     timer.current = window.setTimeout(() => setLit(null), 190);
   }, []);
 
-  // 1–8 fire the pads, exactly as they do on the console — but only while the
+  // 1–8 fire the pads, exactly as they do on the console - but only while the
   // pads are on screen, so the keys are never quietly stolen from the page.
   useEffect(() => {
     if (!visible) return;
@@ -233,8 +233,8 @@ export function PadPlay() {
 
       <p className="padplay-note">
         {heard
-          ? 'That is the shape of it — press, sound, no delay. On the console the eight pads fire your own samples, one-shot, looped or held.'
-          : 'Hit one. Sound comes out of your speakers, not the voice channel — the eight pads on the real console fire your own samples.'}
+          ? 'That is the shape of it - press, sound, no delay. On the console the eight pads fire your own samples, one-shot, looped or held.'
+          : 'Hit one. Sound comes out of your speakers, not the voice channel - the eight pads on the real console fire your own samples.'}
       </p>
     </div>
   );

@@ -4,8 +4,8 @@
  *   npm run build -w server && npm run beats -w server
  *
  * Detection itself is aubio's job. What is tested here is the part this repo
- * owns: turning a noisy list of beat times — with gaps, extra beats and jitter,
- * which is what a real detector produces — into one tempo and one offset that
+ * owns: turning a noisy list of beat times - with gaps, extra beats and jitter,
+ * which is what a real detector produces - into one tempo and one offset that
  * still line up with the music six minutes later.
  *
  * No aubio needed. The input to `fitGrid` is a list of numbers, so the fitting
@@ -13,7 +13,7 @@
  */
 // The module reaches for ffmpeg and aubio paths out of the config, and the
 // config refuses to load without a real environment. The fitting itself is
-// pure — a list of numbers in, a grid out — so a stub environment is enough to
+// pure - a list of numbers in, a grid out - so a stub environment is enough to
 // get at it, and is the honest way to say this test needs neither binary.
 process.env.DISCORD_GUILD_ID ??= '0';
 process.env.DISCORD_BOT_TOKEN ??= 'x';
