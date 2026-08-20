@@ -30,6 +30,7 @@ import { createLogger } from './logger';
 import { mountOnboarding } from './onboard';
 import { mountRequests } from './requests';
 import { DECK_IDS, type SessionUser } from './protocol';
+import { confirmUpload, getCloudMedia, listCloudMedia, playbackUrl, prepareUpload, removeCloudMedia, spacesEnabled } from './cloudMedia';
 
 const log = createLogger('http');
 
@@ -126,6 +127,7 @@ export function createApp(): express.Express {
         hosted: rig.host.hosted,
       })),
       uptime: process.uptime(),
+      spaces: { enabled: spacesEnabled, cdn: config.spaces.publicCdn },
     });
   });
 
@@ -470,6 +472,49 @@ export function createApp(): express.Express {
 
   guild.get('/media', (req, res) => {
     res.json({ media: (req.rig as Rig).store.listMedia() });
+  });
+
+  guild.get('/cloud', (req, res) => {
+    const rig = req.rig as Rig;
+    res.json({ enabled: spacesEnabled, cdn: config.spaces.publicCdn, media: listCloudMedia(rig.guildId) });
+  });
+
+  guild.post('/cloud/upload', express.json({ limit: '8kb' }), async (req, res) => {
+    if (!spacesEnabled) return res.status(503).json({ error: 'The cloud library is not configured.' });
+    const name = String(req.body?.name ?? '').trim().slice(0, 240);
+    const sizeBytes = Number(req.body?.sizeBytes);
+    const contentType = String(req.body?.contentType ?? 'application/octet-stream').trim().slice(0, 120);
+    if (!name || !Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > config.spaces.maxObjectBytes) {
+      return res.status(400).json({ error: `Choose a file no larger than ${Math.round(config.spaces.maxObjectBytes / 1048576)} MB.` });
+    }
+    if (!/^(audio|video)\//.test(contentType)) return res.status(400).json({ error: 'Only audio or video media can be stored.' });
+    try {
+      res.json(await prepareUpload((req.rig as Rig).guildId, (req.user as SessionUser).id, name, sizeBytes, contentType));
+    } catch (err) { log.error('cloud upload preparation failed:', err); res.status(502).json({ error: 'Could not prepare cloud storage.' }); }
+  });
+
+  guild.post('/cloud/:id/complete', async (req, res) => {
+    const item = getCloudMedia((req.rig as Rig).guildId, req.params.id);
+    if (!item) return res.status(404).json({ error: 'No such cloud media.' });
+    if (item.createdBy !== (req.user as SessionUser).id && !(req.user as SessionUser).isAdmin) return res.status(403).json({ error: 'That upload is not yours.' });
+    try { res.json({ item: await confirmUpload(item) }); }
+    catch (err) { res.status(400).json({ error: (err as Error).message }); }
+  });
+
+  guild.get('/cloud/:id/url', async (req, res) => {
+    const item = getCloudMedia((req.rig as Rig).guildId, req.params.id);
+    if (!item) return res.status(404).json({ error: 'No such cloud media.' });
+    try { res.json({ url: await playbackUrl(item), expiresIn: config.spaces.publicCdn ? null : 3600 }); }
+    catch (err) { res.status(400).json({ error: (err as Error).message }); }
+  });
+
+  guild.delete('/cloud/:id', async (req, res) => {
+    const item = getCloudMedia((req.rig as Rig).guildId, req.params.id);
+    if (!item) return res.status(404).json({ error: 'No such cloud media.' });
+    const user = req.user as SessionUser;
+    if (item.createdBy !== user.id && !user.isAdmin) return res.status(403).json({ error: 'That file is not yours to remove.' });
+    try { await removeCloudMedia(item); res.json({ ok: true }); }
+    catch (err) { log.error('cloud delete failed:', err); res.status(502).json({ error: 'Could not remove that cloud file.' }); }
   });
 
   guild.get('/invites', (req, res) => {

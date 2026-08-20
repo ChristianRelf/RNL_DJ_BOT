@@ -1,0 +1,12 @@
+<CORSConfiguration>
+  <CORSRule>
+    <!-- Replace this with the exact Deck origin before applying. -->
+    <AllowedOrigin>https://deck.ronation.live</AllowedOrigin>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <MaxAgeSeconds>3600</MaxAgeSeconds>
+  </CORSRule>
+</CORSConfiguration>

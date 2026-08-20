@@ -16,7 +16,7 @@ them is touching the decks at a time, with a hand-over queue for the rest.
 ```text
  your machine                          server (Node)                    Discord
  ┌───────────────────────────┐   ws    ┌──────────────────────────┐    ┌─────────┐
- │ music folder (read-only)  │◀──────▶ │ Rig per guild            │    │  voice  │
+ │ music folder (read-only)  │◀──────▶ │ Rig per guild           │    │  voice  │
  │ decoded cache (OPFS)      │  audio  │  control lock            │───▶│ channel │
  │ decks · mixer · fx · pads │  state  │  mix graph (48k stereo)  │opus│         │
  └───────────────────────────┘ +meters │  8 s ring per deck       │    └─────────┘
@@ -200,6 +200,28 @@ no effect, and the reload is `docker exec <caddy-container> caddy reload --confi
 Checks the container is running, is attached to the proxy network, answers on
 `127.0.0.1:7403`, and is reachable at the public URL - and names the fix for
 whichever step fails.
+
+### DigitalOcean Spaces and CDN
+
+Spaces is optional. When configured, Deck issues short-lived S3-compatible PUT
+URLs so browsers upload directly to the Space; media does not pass through or
+remain on the Droplet. Objects are isolated under `rigs/<guild-id>/<uuid>`.
+
+1. Create a Standard Storage Space, preferably in the same region as the Droplet.
+2. Create a Spaces access key and fill the `SPACES_*` variables in `.env`.
+3. Replace the origin in `deploy/spaces-cors.xml`, then apply it with:
+
+   ```sh
+   s3cmd setcors deploy/spaces-cors.xml s3://YOUR_SPACE
+   ```
+
+Private mode is the default. Downloads use one-hour presigned origin URLs. DigitalOcean
+does not cache presigned requests at its CDN. To use Spaces as a real CDN, enable a CDN
+endpoint, set `SPACES_CDN_URL`, and explicitly set `SPACES_PUBLIC_CDN=true`. That marks
+objects public-read: their random URL is difficult to guess, but anyone who receives it
+can fetch it. Do not enable that mode for a library that must remain access-controlled.
+
+The `/api/health` response reports whether Spaces and public-CDN mode are active.
 
 ## Configuration
 

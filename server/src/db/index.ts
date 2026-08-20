@@ -131,6 +131,19 @@ CREATE TABLE IF NOT EXISTS guild_members (
   PRIMARY KEY (guild_id, discord_id)
 );
 
+CREATE TABLE IF NOT EXISTS cloud_media (
+  id            TEXT PRIMARY KEY,
+  guild_id      TEXT NOT NULL,
+  object_key    TEXT NOT NULL UNIQUE,
+  name          TEXT NOT NULL,
+  size_bytes    INTEGER NOT NULL,
+  content_type  TEXT NOT NULL,
+  created_by    TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'pending'
+);
+CREATE INDEX IF NOT EXISTS cloud_media_by_guild ON cloud_media (guild_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS waitlist (
   id        TEXT PRIMARY KEY,
   discord   TEXT NOT NULL,

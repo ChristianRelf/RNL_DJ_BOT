@@ -137,7 +137,7 @@ export function deleteGuild(id: string): void {
   const database = db();
   database.exec('BEGIN');
   try {
-    for (const table of ['media', 'queue', 'pads', 'guild_bots', 'guild_members', 'invites']) {
+    for (const table of ['media', 'queue', 'pads', 'guild_bots', 'guild_members', 'invites', 'cloud_media']) {
       database.prepare(`DELETE FROM ${table} WHERE guild_id = ?`).run(id);
     }
     database.prepare('DELETE FROM guilds WHERE id = ?').run(id);

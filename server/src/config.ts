@@ -27,6 +27,12 @@ function num(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function bool(name: string, fallback = false): boolean {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (!raw) return fallback;
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
 const dataDir = path.resolve(process.env.DATA_DIR ?? './data');
 
 /**
@@ -101,6 +107,16 @@ export const config = {
     dbFile: path.join(dataDir, 'db.json'),
     webDist: path.resolve(__dirname, '../../web/dist'),
   },
+  spaces: {
+    endpoint: (process.env.SPACES_ENDPOINT ?? '').replace(/\/+$/, ''),
+    region: (process.env.SPACES_REGION ?? '').trim(),
+    bucket: (process.env.SPACES_BUCKET ?? '').trim(),
+    accessKeyId: (process.env.SPACES_ACCESS_KEY_ID ?? '').trim(),
+    secretAccessKey: (process.env.SPACES_SECRET_ACCESS_KEY ?? '').trim(),
+    cdnUrl: (process.env.SPACES_CDN_URL ?? '').replace(/\/+$/, ''),
+    publicCdn: bool('SPACES_PUBLIC_CDN'),
+    maxObjectBytes: Math.round(num('SPACES_MAX_OBJECT_MB', 500) * 1024 * 1024),
+  },
   /**
    * External binaries the rig shells out to. None of them are on the realtime
    * path - ffmpeg decodes at upload time, yt-dlp only runs when someone pastes
@@ -142,6 +158,18 @@ if (config.access.platformAdminIds.length === 0) {
       'Set it to your Discord user id - enable Developer Mode in Discord, then ' +
       'right-click your own name and Copy User ID.',
   );
+}
+
+{
+  const values = [config.spaces.endpoint, config.spaces.region, config.spaces.bucket,
+    config.spaces.accessKeyId, config.spaces.secretAccessKey];
+  const configured = values.filter(Boolean).length;
+  if (configured !== 0 && configured !== values.length) {
+    throw new Error('Spaces is partly configured. Set SPACES_ENDPOINT, SPACES_REGION, SPACES_BUCKET, SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY together.');
+  }
+  if (config.spaces.publicCdn && !config.spaces.cdnUrl) {
+    throw new Error('SPACES_PUBLIC_CDN requires SPACES_CDN_URL.');
+  }
 }
 
 // A scheme-less PUBLIC_URL still boots but breaks OAuth (Discord rejects a
