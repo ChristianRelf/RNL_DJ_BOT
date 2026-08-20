@@ -14,7 +14,7 @@ import { SitePage } from './SiteNav';
 
 const SITE = 'https://ronation.live';
 const EMAIL = 'hello@ronation.live';
-const UPDATED = '25 July 2026';
+const UPDATED = '20 August 2026';
 
 export function Legal({ page }: { page: 'terms' | 'privacy' }) {
   return (
@@ -58,7 +58,16 @@ function Terms() {
       <h2>What this covers</h2>
       <p>
         These terms cover the decks - the web control surface and the bot that plays audio into a
-        Discord voice channel. Using either means you accept them.
+        Discord voice channel - including a rig, its request page and the owner portal. Using any
+        part of Deck means you accept these terms. If you do not accept them, do not use it.
+      </p>
+
+      <h2>Eligibility and accounts</h2>
+      <p>
+        You must be at least 13 and old enough to use Discord where you live. Use your own Discord
+        account and do not impersonate somebody else, share access, or use another account to get
+        around a suspension or role restriction. Discord is responsible for its accounts; we do
+        not create or recover them.
       </p>
 
       <h2>Our relationship with Discord</h2>
@@ -71,9 +80,18 @@ function Terms() {
 
       <h2>Who can use the decks</h2>
       <p>
-        You need a Discord account, membership of the associated Discord server, and the DJ role.
-        You must be at least 13, in line with Discord's own minimum age. Access is granted by the
-        server's administrators and can be changed or withdrawn by them at any time.
+        Access is deliberately limited. You need a permitted Discord account, membership of the
+        associated server and any DJ role configured for that rig. Server administrators decide
+        their own roles; RO. Nation LIVE controls platform admission and the owner portal. Either
+        can change or withdraw the access they control.
+      </p>
+
+      <h2>Administrators and the owner portal</h2>
+      <p>
+        Administrative access is a privilege, not a permanent entitlement. Use it only to run the
+        rigs and communities you are responsible for. Do not inspect, copy, disclose or use member,
+        waitlist, bot or operational data for another purpose. Bot tokens are credentials: enter
+        only tokens you are authorised to manage and never expose one to another person.
       </p>
 
       <h2>Control of the decks</h2>
@@ -98,6 +116,20 @@ function Terms() {
         to it, or are otherwise permitted to play it publicly in this setting, and that doing so
         does not infringe anyone else's rights.
       </p>
+      <p>
+        You keep ownership of your music and metadata. You give us the limited permission needed
+        to receive live audio chunks, mix them, transmit the result to Discord and display the
+        associated track information to authorised users. That permission ends when the material
+        is no longer needed to provide the service, except for metadata we are entitled to retain.
+      </p>
+
+      <h2>Requests and information you submit</h2>
+      <p>
+        A listener may submit a track request and an applicant may join the access waitlist. You
+        remain responsible for what you type. Do not submit unlawful, abusive, misleading or
+        malicious material, somebody else's private information, or anything you are not entitled
+        to send. We may reject or remove submissions that break these terms.
+      </p>
 
       <h2>How you must use it</h2>
       <ul>
@@ -108,7 +140,18 @@ function Terms() {
           bypass the access controls, no disrupting another operator's set.
         </li>
         <li>Do not play anything you do not have the right to play.</li>
+        <li>Do not scrape, crawl or bulk-download the service, or automate requests or commands.</li>
+        <li>Do not probe, attack, reverse-engineer or try to reach another rig, portal or account.</li>
+        <li>Do not introduce malware, unsafe links or credentials that are not yours to use.</li>
       </ul>
+
+      <h2>Platform limits and third-party services</h2>
+      <p>
+        Deck depends on Discord, browsers, networks, hosting and audio codecs we do not control.
+        Features may be unavailable on some devices, and Discord can change permissions, voice
+        behaviour or APIs. You are responsible for a suitable device, browser, connection and
+        lawful source library, and for keeping your own files backed up.
+      </p>
 
       <h2>Losing access</h2>
       <p>
@@ -123,6 +166,31 @@ function Terms() {
         The limitations of liability in the{' '}
         <a href={`${SITE}/legal/terms`}>site Terms of Service</a> apply here.
       </p>
+
+      <h2>Liability</h2>
+      <p>
+        To the fullest extent the law allows, RO. Nation LIVE is not liable for indirect or
+        consequential loss arising from Deck - including a lost set, unavailable rig, dropped
+        stream, browser storage being cleared, Discord outage or lost metadata. Nothing here
+        excludes or limits liability that cannot lawfully be excluded or limited.
+      </p>
+
+      <h2>Which law applies</h2>
+      <p>
+        As with the site terms, these terms and disputes arising from Deck are governed by the law
+        of England and Wales, and the courts of England and Wales have exclusive jurisdiction. If
+        you live elsewhere, you keep any mandatory consumer protection your local law gives you.
+        Please contact us first so we have a fair chance to resolve a problem informally.
+      </p>
+
+      <h2>The rest of the agreement</h2>
+      <ul>
+        <li>These terms sit alongside the site Terms, Privacy Policy and Code of Conduct.</li>
+        <li>If part of these terms cannot be enforced, the rest remains in effect.</li>
+        <li>Delay in enforcing a term does not waive it.</li>
+        <li>You cannot transfer your rights under these terms to another person.</li>
+        <li>No person who is not a party to these terms may enforce them.</li>
+      </ul>
 
       <h2>Changes</h2>
       <p>
@@ -154,6 +222,21 @@ function Privacy() {
         bot, which have their own policies.
       </p>
 
+      <h2>Who is responsible</h2>
+      <p>
+        RO. Nation LIVE operates Deck and is responsible for the information held by the platform.
+        A Discord server's administrators control membership and role choices inside their own
+        community, but they do not receive ownership of your data. Contact details are at the end
+        of this policy.
+      </p>
+
+      <h2>Age</h2>
+      <p>
+        Deck is for people aged 13 and over. We cannot independently verify age. If we learn that
+        an account belongs to somebody under 13, we will remove its access and delete associated
+        personal information where we can.
+      </p>
+
       <h2>How signing in works</h2>
       <p>
         Sign-in happens at Discord. We never see or hold your password. Discord asks you to approve
@@ -175,14 +258,48 @@ function Privacy() {
       <h2>What we store</h2>
       <ul>
         <li>
+          Your Discord user ID, username, display name, avatar URL, server nickname, relevant roles
+          and administrator status.
+        </li>
+        <li>
+          Access records: the platform allowlist, who granted access and when, and access-waitlist
+          details you submit, including Discord handle, email, community, size and message.
+        </li>
+        <li>
           Track metadata supplied by the hosting browser: title, duration, file size, tempo, tags
           and a content identifier. Audio files and decoded audio are not retained server-side.
         </li>
         <li>
-          The state of the console - mixer and pad settings, and the last voice channel that was
-          joined.
+          Rig and console state: server and channel identifiers, access roles, control and queue
+          state, requests, mixer and pad settings, cue points, and the last
+          voice channel joined.
         </li>
-        <li>Server logs, which may record sign-ins and errors.</li>
+        <li>
+          Playback-bot details entered by a platform administrator. Tokens are encrypted at rest;
+          browsers receive only safe identifiers and fingerprints, never the stored token.
+        </li>
+        <li>
+          Ordinary server logs, which may include an IP address, browser user-agent, timestamps,
+          sign-ins, requests and errors, kept for security and debugging.
+        </li>
+      </ul>
+
+      <h2>What stays in your browser</h2>
+      <p>
+        With your permission, Deck stores the chosen folder handle, scan metadata, your console
+        layout and decoded audio cache in browser-managed storage. These remain on that device and
+        can be removed through browser site-data controls. The browser may clear them under its own
+        storage rules. Connecting a folder grants read-only access; Deck does not rename or delete
+        the source files.
+      </p>
+
+      <h2>What we do not collect</h2>
+      <ul>
+        <li>Your Discord password, direct messages or message history.</li>
+        <li>Your Discord email address through sign-in.</li>
+        <li>Card, bank or payment details.</li>
+        <li>Advertising identifiers or third-party analytics tracking.</li>
+        <li>Permanent server copies of source music files or decoded audio.</li>
       </ul>
 
       <h2>What it is used for</h2>
@@ -191,11 +308,24 @@ function Privacy() {
         show who holds control of the decks, and to associate track metadata with the host. Audio
         chunks are used only for live playback.
       </p>
+      <ul>
+        <li>Authenticating you and checking platform, server and role-based access.</li>
+        <li>Operating rigs, queues, requests, handovers and live Discord playback.</li>
+        <li>Showing authorised users who is connected and what the rig is doing.</li>
+        <li>Running the waitlist, onboarding communities and administering playback bots.</li>
+        <li>Preventing abuse, investigating failures and protecting the service.</li>
+      </ul>
 
       <h2>Who can see it</h2>
       <p>
         Anyone signed in can see the browser library catalogue and can see who is connected and
         who holds control. They cannot download the host's source files.
+      </p>
+      <p>
+        Users of a rig can see its shared operational state, track catalogue, requests and connected
+        operators. Guild administrators may manage that rig. Platform administrators can manage
+        every rig, the allowlist, waitlist and bot pool because they operate the service. Waitlist
+        details and bot controls are not exposed on ordinary rig pages.
       </p>
       <p>
         Outside that, data goes to Discord (for authentication and to deliver the audio) and our
@@ -207,6 +337,14 @@ function Privacy() {
         Audio you play is mixed and streamed live into a Discord voice channel. We do not record
         the broadcast. What Discord does with audio passing through its service is covered by
         Discord's own privacy policy.
+      </p>
+
+      <h2>Where information is stored</h2>
+      <p>
+        Server-held data lives in our service database and logs with our hosting provider. It may
+        be processed in a country different from yours. Browser-held folder access and cached
+        audio stay on the device whose browser created them. Live audio necessarily passes through
+        our server and Discord to reach the voice channel.
       </p>
 
       <h2>Cookies</h2>
@@ -223,11 +361,15 @@ function Privacy() {
       </p>
 
       <h2>How long we keep it</h2>
-      <p>
-        Track metadata is kept until it is removed or the rig is deleted. Browser-cached audio is
-        controlled by that browser's storage. Your session ends after 7 days, or as soon as you
-        sign out. Server logs are kept briefly.
-      </p>
+      <ul>
+        <li>Sessions last up to 7 days or until you sign out.</li>
+        <li>Waitlist entries remain until reviewed, dismissed or deleted on request.</li>
+        <li>Allowlist records remain while access is granted or needed for administration.</li>
+        <li>Rig state and track metadata remain until removed or the rig is deleted.</li>
+        <li>Bot credentials remain until a platform administrator removes the bot.</li>
+        <li>Browser-held data remains until you or the browser clears it.</li>
+        <li>Server logs are kept briefly, then discarded.</li>
+      </ul>
 
       <h2>Your choices</h2>
       <p>
@@ -235,8 +377,22 @@ function Privacy() {
         entry. This never deletes the source file on the host device. Signing out clears your session.
       </p>
       <p>
+        You may ask for a copy of personal information we hold, ask us to correct it, object to its
+        use, or ask for deletion. Some operational or security records may need to be retained where
+        the law permits or requires it, and we cannot remove information already made anonymous.
+        If you cannot sign in to make a request, email us and we will verify your identity another way.
+      </p>
+      <p>
         To get a copy of your data, correct it, or have it deleted, see{' '}
         <a href={`${SITE}/legal/data-requests`}>Data &amp; Privacy Requests</a>.
+      </p>
+
+      <h2>Security</h2>
+      <p>
+        Sessions use signed, HTTP-only cookies. Access is rechecked against Discord membership and
+        roles, sensitive portal routes require platform-administrator status, and bot tokens are
+        encrypted before storage and never returned to the browser. No system is perfectly secure;
+        if you find a vulnerability, report it privately so we can investigate it.
       </p>
 
       <h2>Changes</h2>

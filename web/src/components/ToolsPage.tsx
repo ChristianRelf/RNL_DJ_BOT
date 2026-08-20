@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Copy } from 'lucide-react';
 import type { ClientCommands, EngineState, SessionUser, ToolsState } from '../protocol';
 import type { DjClient } from '../socket';
+import { InvitePanel } from './InvitePanel';
 
 interface ToolsPageProps {
   /** This rig's API prefix. */
@@ -370,7 +371,7 @@ function Requests({ slug }: { slug: string }) {
 
 /* ------------------------------------------------------------------ page */
 
-export function ToolsPage({ state, locked, send, api, slug }: ToolsPageProps) {
+export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPageProps) {
   const tools = state.tools;
   const set = (patch: ClientCommands['tools:set']) => void send('tools:set', patch);
 
@@ -398,6 +399,7 @@ export function ToolsPage({ state, locked, send, api, slug }: ToolsPageProps) {
       ) : null}
 
       <div className="tools-list">
+        {user.isAdmin ? <InvitePanel api={`${api}/invites`} /> : null}
         <Tool
           name="Timecode feed"
           summary="Publishes deck positions over HTTP for lighting, stream overlays and video."

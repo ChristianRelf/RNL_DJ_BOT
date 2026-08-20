@@ -110,6 +110,27 @@ CREATE TABLE IF NOT EXISTS allowlist (
   added_at      INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS invites (
+  id          TEXT PRIMARY KEY,
+  token_hash  TEXT NOT NULL UNIQUE,
+  guild_id    TEXT,
+  note        TEXT NOT NULL DEFAULT '',
+  created_by  TEXT NOT NULL,
+  created_at  INTEGER NOT NULL,
+  expires_at  INTEGER NOT NULL,
+  used_by     TEXT,
+  used_at     INTEGER
+);
+CREATE INDEX IF NOT EXISTS invites_by_guild ON invites (guild_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS guild_members (
+  guild_id    TEXT NOT NULL,
+  discord_id  TEXT NOT NULL,
+  invited_by  TEXT NOT NULL,
+  invited_at  INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, discord_id)
+);
+
 CREATE TABLE IF NOT EXISTS waitlist (
   id        TEXT PRIMARY KEY,
   discord   TEXT NOT NULL,

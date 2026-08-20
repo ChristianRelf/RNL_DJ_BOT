@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { db } from './index';
 import { DEFAULT_MIXER, DEFAULT_TOOLS, type GuildRecord, type PersistedBot, type WaitlistEntry } from '../store';
 
@@ -136,7 +137,7 @@ export function deleteGuild(id: string): void {
   const database = db();
   database.exec('BEGIN');
   try {
-    for (const table of ['media', 'queue', 'pads', 'guild_bots']) {
+    for (const table of ['media', 'queue', 'pads', 'guild_bots', 'guild_members', 'invites']) {
       database.prepare(`DELETE FROM ${table} WHERE guild_id = ?`).run(id);
     }
     database.prepare('DELETE FROM guilds WHERE id = ?').run(id);
@@ -284,6 +285,78 @@ export function allow(entry: {
 
 export function disallow(discordId: string): void {
   db().prepare('DELETE FROM allowlist WHERE discord_id = ?').run(discordId);
+}
+
+/* --------------------------------------------------------------- invites */
+
+export interface InviteEntry {
+  id: string;
+  guildId: string | null;
+  note: string;
+  createdBy: string;
+  createdAt: number;
+  expiresAt: number;
+  usedBy: string | null;
+  usedAt: number | null;
+}
+
+const inviteHash = (token: string) => crypto.createHash('sha256').update(token).digest('hex');
+
+function toInvite(row: any): InviteEntry {
+  return { id: row.id, guildId: row.guild_id ?? null, note: row.note, createdBy: row.created_by,
+    createdAt: row.created_at, expiresAt: row.expires_at, usedBy: row.used_by ?? null, usedAt: row.used_at ?? null };
+}
+
+export function createInvite(entry: { guildId?: string | null; note?: string; createdBy: string; expiresAt: number }): { invite: InviteEntry; token: string } {
+  const token = crypto.randomBytes(24).toString('base64url');
+  const id = crypto.randomUUID();
+  db().prepare(`INSERT INTO invites (id, token_hash, guild_id, note, created_by, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(id, inviteHash(token), entry.guildId ?? null, entry.note ?? '', entry.createdBy, Date.now(), entry.expiresAt);
+  return { invite: getInviteByToken(token) as InviteEntry, token };
+}
+
+export function listInvites(guildId?: string | null): InviteEntry[] {
+  const rows = guildId === undefined
+    ? db().prepare('SELECT * FROM invites ORDER BY created_at DESC').all()
+    : guildId === null
+      ? db().prepare('SELECT * FROM invites WHERE guild_id IS NULL ORDER BY created_at DESC').all()
+      : db().prepare('SELECT * FROM invites WHERE guild_id = ? ORDER BY created_at DESC').all(guildId);
+  return (rows as any[]).map(toInvite);
+}
+
+export function getInviteByToken(token: string): InviteEntry | null {
+  const row = db().prepare('SELECT * FROM invites WHERE token_hash = ?').get(inviteHash(token));
+  return row ? toInvite(row) : null;
+}
+
+export function revokeInvite(id: string): void { db().prepare('DELETE FROM invites WHERE id = ?').run(id); }
+
+export function redeemInvite(token: string, discordId: string): InviteEntry | null {
+  const database = db();
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    const row = database.prepare('SELECT * FROM invites WHERE token_hash = ?').get(inviteHash(token)) as any;
+    if (!row || row.used_at || row.expires_at <= Date.now()) { database.exec('ROLLBACK'); return null; }
+    const usedAt = Date.now();
+    database.prepare('UPDATE invites SET used_by = ?, used_at = ? WHERE id = ?').run(discordId, usedAt, row.id);
+    if (row.guild_id) database.prepare(`INSERT INTO guild_members (guild_id, discord_id, invited_by, invited_at)
+      VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`).run(row.guild_id, discordId, row.created_by, usedAt);
+    database.exec('COMMIT');
+    return { ...toInvite(row), usedBy: discordId, usedAt };
+  } catch (err) { database.exec('ROLLBACK'); throw err; }
+}
+
+export function isGuildMemberInvited(guildId: string, discordId: string): boolean {
+  return Boolean(db().prepare('SELECT 1 FROM guild_members WHERE guild_id = ? AND discord_id = ?').get(guildId, discordId));
+}
+
+export function listGuildMembers(guildId: string): Array<{ discordId: string; invitedBy: string; invitedAt: number }> {
+  return (db().prepare('SELECT discord_id, invited_by, invited_at FROM guild_members WHERE guild_id = ? ORDER BY invited_at DESC').all(guildId) as any[])
+    .map((row) => ({ discordId: row.discord_id, invitedBy: row.invited_by, invitedAt: row.invited_at }));
+}
+
+export function removeGuildMember(guildId: string, discordId: string): void {
+  db().prepare('DELETE FROM guild_members WHERE guild_id = ? AND discord_id = ?').run(guildId, discordId);
 }
 
 /* ------------------------------------------------------------- waitlist */

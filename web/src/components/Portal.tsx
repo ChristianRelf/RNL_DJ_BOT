@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { ActiveBot } from '../protocol';
 import { BotsPanel } from './BotsPanel';
+import { InvitePanel } from './InvitePanel';
 
 /**
  * The owner portal.
@@ -188,11 +189,27 @@ export function Portal() {
       <div className="portal-grid">
         <Rigs guilds={data.guilds} busy={busy} run={run} />
         <Allowlist entries={data.allowlist} busy={busy} run={run} />
+        <PortalInvites guilds={data.guilds} />
         <Waitlist entries={data.waitlist} busy={busy} run={run} />
         <PortalBots guilds={data.guilds} />
       </div>
     </div>
   );
+}
+
+function PortalInvites({ guilds }: { guilds: PortalGuild[] }) {
+  const [scope, setScope] = useState('platform');
+  const guildId = scope === 'platform' ? null : scope;
+  return <section className="portal-panel">
+    <h2 className="portal-panel-title"><UserPlus size={13} /> Invite access</h2>
+    <p className="portal-hint">Send a one-use link instead of collecting somebody&rsquo;s Discord ID.</p>
+    <label className="tool-field"><span>Access to grant</span><select className="input" value={scope} onChange={(e) => setScope(e.target.value)}>
+      <option value="platform">Deck platform</option>
+      {guilds.map((guild) => <option key={guild.id} value={guild.id}>{guild.name} — DJ access</option>)}
+    </select></label>
+    <InvitePanel api="/api/portal/invites" guildId={guildId} title={guildId ? 'Create rig invitation' : 'Create platform invitation'}
+      description={guildId ? 'The recipient gets access to this rig after Discord confirms they are a server member. No admin powers are granted.' : 'The recipient can sign in to Deck. Their Discord roles still decide which rigs they can open.'} />
+  </section>;
 }
 
 function Summary({ label, value, detail, tone }: { label: string; value: number; detail: string; tone?: 'live' | 'attention' }) {

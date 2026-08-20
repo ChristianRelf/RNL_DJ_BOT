@@ -11,6 +11,7 @@ import { Onboard } from './components/Onboard';
 import { RequestPage, RequestRigPicker } from './components/RequestPage';
 import { parseRigPath, parseRequestPath } from './lib/rigs';
 import { Legal } from './components/Legal';
+import { InviteAccept } from './components/InviteAccept';
 import './styles.css';
 
 const container = document.getElementById('root');
@@ -30,6 +31,8 @@ const rig = parseRigPath(path);
 const requestSlug = parseRequestPath(path);
 
 function page() {
+  const inviteToken = path.match(/^\/invite\/([a-z0-9_-]+)$/i)?.[1];
+  if (inviteToken) return <InviteAccept token={inviteToken} />;
   // Before the console: the request page is for people who are in the Discord
   // server and have no DJ role, so it must never mount App - that opens a
   // socket the server would refuse them.

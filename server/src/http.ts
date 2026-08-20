@@ -12,6 +12,7 @@ import {
   cookieNames,
   exchangeCode,
   issueSession,
+  invalidateAccess,
   isPlatformAdmin,
   maySignIn,
   newState,
@@ -39,6 +40,7 @@ const log = createLogger('http');
  * is the line between a listener session and a DJ one.
  */
 const REQUEST_PATH = /^\/(?:g\/)?[a-z0-9-]+\/request$|^\/request$/;
+const INVITE_PATH = /^\/invite\/([A-Za-z0-9_-]{20,80})$/;
 
 /** The most people who can be waiting at once, as a backstop against a flood. */
 const WAITLIST_LIMIT = 5000;
@@ -167,6 +169,19 @@ export function createApp(): express.Express {
         isPlatformAdmin: isPlatformAdmin(profile.id),
       };
 
+      // An invite is redeemed only after Discord has identified the recipient.
+      // It admits them to the platform and may additionally grant one rig.
+      const inviteToken = next?.match(INVITE_PATH)?.[1];
+      if (inviteToken) {
+        const invite = platform.redeemInvite(inviteToken, user.id);
+        if (!invite) return res.redirect('/login?error=' + encodeURIComponent('That invite has expired or was already used.'));
+        platform.allow({ discordId: user.id, note: invite.note || 'Accepted an invite', canOnboard: false, addedBy: invite.createdBy });
+        if (invite.guildId) invalidateAccess(invite.guildId, user.id);
+        issueSession(res, user);
+        const guild = invite.guildId ? platform.getGuild(invite.guildId) : null;
+        return res.redirect(guild ? `/g/${guild.slug}/deck` : '/rigs');
+      }
+
       // The allowlist is the whole of the gate at this point. Which rigs they
       // can reach is a question for each rig, asked when they open one.
       if (!maySignIn(profile.id)) {
@@ -202,6 +217,15 @@ export function createApp(): express.Express {
   app.get('/api/me', (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
     res.json({ user: req.user, publicUrl: config.http.publicUrl });
+  });
+
+  app.get('/api/invites/:token', (req, res) => {
+    const invite = platform.getInviteByToken(req.params.token);
+    if (!invite || invite.usedAt || invite.expiresAt <= Date.now()) {
+      return res.status(404).json({ error: 'That invite has expired or was already used.' });
+    }
+    const guild = invite.guildId ? platform.getGuild(invite.guildId) : null;
+    res.json({ invite: { note: invite.note, expiresAt: invite.expiresAt, guild: guild ? { name: guild.name, slug: guild.slug } : null } });
   });
 
   /** Which rigs this person can actually open, for the picker after sign-in. */
@@ -295,6 +319,7 @@ export function createApp(): express.Express {
       }),
       allowlist: platform.listAllowed(),
       waitlist: platform.listWaitlist(),
+      invites: platform.listInvites(),
       bots: platform.listBots().map((bot) => ({
         id: bot.id,
         name: bot.name,
@@ -334,6 +359,23 @@ export function createApp(): express.Express {
   app.delete('/api/portal/waitlist/:id', requirePlatformAdmin, (req, res) => {
     platform.removeWaitlist(req.params.id);
     res.json({ waitlist: platform.listWaitlist() });
+  });
+
+  app.post('/api/portal/invites', requirePlatformAdmin, json, (req, res) => {
+    const guildId = typeof req.body?.guildId === 'string' && platform.getGuild(req.body.guildId) ? req.body.guildId : null;
+    const days = Math.min(30, Math.max(1, Number(req.body?.days) || 7));
+    const created = platform.createInvite({ guildId, note: String(req.body?.note ?? '').trim().slice(0, 160),
+      createdBy: (req.user as SessionUser).id, expiresAt: Date.now() + days * 86400000 });
+    res.json({ invite: created.invite, url: `${config.http.publicUrl}/invite/${created.token}` });
+  });
+
+  app.get('/api/portal/invites', requirePlatformAdmin, (_req, res) => {
+    res.json({ invites: platform.listInvites() });
+  });
+
+  app.delete('/api/portal/invites/:id', requirePlatformAdmin, (req, res) => {
+    platform.revokeInvite(req.params.id);
+    res.json({ ok: true });
   });
 
   const portalRig = async (id: string): Promise<Rig | null> => rigs.ensure(id);
@@ -428,6 +470,42 @@ export function createApp(): express.Express {
 
   guild.get('/media', (req, res) => {
     res.json({ media: (req.rig as Rig).store.listMedia() });
+  });
+
+  guild.get('/invites', (req, res) => {
+    const user = req.user as SessionUser;
+    if (!user.isAdmin) return res.status(403).json({ error: 'Only a rig owner or admin can invite DJs.' });
+    const rig = req.rig as Rig;
+    res.json({ invites: platform.listInvites(rig.guildId), members: platform.listGuildMembers(rig.guildId) });
+  });
+
+  guild.post('/invites', json, (req, res) => {
+    const user = req.user as SessionUser;
+    if (!user.isAdmin) return res.status(403).json({ error: 'Only a rig owner or admin can invite DJs.' });
+    const rig = req.rig as Rig;
+    const days = Math.min(30, Math.max(1, Number(req.body?.days) || 7));
+    const created = platform.createInvite({ guildId: rig.guildId, note: String(req.body?.note ?? '').trim().slice(0, 160),
+      createdBy: user.id, expiresAt: Date.now() + days * 86400000 });
+    res.json({ invite: created.invite, url: `${config.http.publicUrl}/invite/${created.token}` });
+  });
+
+  guild.delete('/invites/:id', (req, res) => {
+    const user = req.user as SessionUser;
+    if (!user.isAdmin) return res.status(403).json({ error: 'Only a rig owner or admin can revoke invitations.' });
+    const rig = req.rig as Rig;
+    const invite = platform.listInvites(rig.guildId).find((entry) => entry.id === req.params.id);
+    if (!invite) return res.status(404).json({ error: 'No such invitation.' });
+    platform.revokeInvite(invite.id);
+    res.json({ ok: true });
+  });
+
+  guild.delete('/members/:id', (req, res) => {
+    const user = req.user as SessionUser;
+    if (!user.isAdmin) return res.status(403).json({ error: 'Only a rig owner or admin can remove invited DJs.' });
+    const rig = req.rig as Rig;
+    platform.removeGuildMember(rig.guildId, req.params.id);
+    invalidateAccess(rig.guildId, req.params.id);
+    res.json({ ok: true });
   });
 
   /**

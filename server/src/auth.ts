@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { config, redirectUri } from './config';
 import { member } from './discord/gate';
-import { getGuild, isAllowed } from './db/platform';
+import { getGuild, isAllowed, isGuildMemberInvited } from './db/platform';
 import { createLogger } from './logger';
 import type { SessionUser } from './protocol';
 
@@ -207,12 +207,13 @@ export async function checkAccess(
       guild.adminRoleIds.some((id) => roleIds.has(id));
     const hasDjRole =
       guild.djRoleIds.length === 0 || guild.djRoleIds.some((id) => roleIds.has(id));
+    const hasInvitation = isGuildMemberInvited(guildId, userId);
 
     result = {
-      allowed: isAdmin || hasDjRole,
+      allowed: isAdmin || hasDjRole || hasInvitation,
       isAdmin,
       displayName: found.displayName || fallbackName,
-      reason: isAdmin || hasDjRole ? undefined : 'You do not have a DJ role in that server.',
+      reason: isAdmin || hasDjRole || hasInvitation ? undefined : 'You do not have a DJ role in that server.',
     };
   }
 
