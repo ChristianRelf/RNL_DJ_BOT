@@ -198,7 +198,7 @@ export function SiteFooter() {
 
       <div className="site-foot-base">
         <p>
-          &copy; {year} RO. Nation LIVE &middot;{' '}
+          &copy; {year} RO. Nation LIVE &middot; All rights Reserved
         </p>
       </div>
     </footer>
