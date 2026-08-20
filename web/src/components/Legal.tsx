@@ -87,17 +87,16 @@ function Terms() {
         scheduled to play.
       </p>
 
-      <h2>What you upload</h2>
+      <h2>Your music</h2>
       <p>
-        You keep ownership of anything you upload. By adding a file to the media pool you give us
-        permission to store it, convert it for playback, and play it through the decks - that is
-        the only thing we do with it.
+        Music stays in the folder you choose on your device. The browser may cache decoded audio
+        locally and sends short-lived audio chunks to the decks while you host the library; the
+        service does not retain the source files or decoded audio on the server.
       </p>
       <p>
-        You are responsible for what you upload. By adding a file you confirm you hold the rights
+        You are responsible for what you play. By making a file available you confirm you hold the rights
         to it, or are otherwise permitted to play it publicly in this setting, and that doing so
-        does not infringe anyone else's rights. If you believe something in the pool infringes your
-        rights, contact us at <a href={`mailto:${EMAIL}`}>{EMAIL}</a> and we will remove it.
+        does not infringe anyone else's rights.
       </p>
 
       <h2>How you must use it</h2>
@@ -108,20 +107,20 @@ function Terms() {
           Do not interfere with the service - no flooding it with commands, no attempting to
           bypass the access controls, no disrupting another operator's set.
         </li>
-        <li>Do not upload anything you do not have the right to play.</li>
+        <li>Do not play anything you do not have the right to play.</li>
       </ul>
 
       <h2>Losing access</h2>
       <p>
         Access can be suspended or removed at any time, with or without notice, including for
-        breaching these terms or the Code of Conduct. Uploads may be removed at the same time.
+        breaching these terms or the Code of Conduct. Stored track metadata may be removed at the same time.
       </p>
 
       <h2>No warranty</h2>
       <p>
         The decks are provided as-is, with no guarantee of availability. They may be taken offline
-        for maintenance, or permanently, without notice, and uploaded files may be lost. Keep your
-        own copy of anything you care about. The limitations of liability in the{' '}
+        for maintenance, or permanently, without notice. Keep your own music library backed up.
+        The limitations of liability in the{' '}
         <a href={`${SITE}/legal/terms`}>site Terms of Service</a> apply here.
       </p>
 
@@ -175,10 +174,9 @@ function Privacy() {
 
       <h2>What we store</h2>
       <ul>
-        <li>Audio files you upload, and a decoded copy used for playback.</li>
         <li>
-          For each upload: its title, original filename, duration, file size, tempo and any tags,
-          along with the Discord ID and display name of whoever uploaded it, and when.
+          Track metadata supplied by the hosting browser: title, duration, file size, tempo, tags
+          and a content identifier. Audio files and decoded audio are not retained server-side.
         </li>
         <li>
           The state of the console - mixer and pad settings, and the last voice channel that was
@@ -190,14 +188,14 @@ function Privacy() {
       <h2>What it is used for</h2>
       <p>
         Your Discord identity is used to check you are allowed in, to show who is connected, to
-        show who holds control of the decks, and to record who uploaded what. Uploaded audio is
-        used to play it. That is all.
+        show who holds control of the decks, and to associate track metadata with the host. Audio
+        chunks are used only for live playback.
       </p>
 
       <h2>Who can see it</h2>
       <p>
-        Anyone signed in can see the media pool - the title of each track and the display name of
-        whoever uploaded it - and can see who is connected and who holds control.
+        Anyone signed in can see the browser library catalogue and can see who is connected and
+        who holds control. They cannot download the host's source files.
       </p>
       <p>
         Outside that, data goes to Discord (for authentication and to deliver the audio) and our
@@ -226,15 +224,15 @@ function Privacy() {
 
       <h2>How long we keep it</h2>
       <p>
-        Uploads are kept until you or an administrator delete them. Deleting an upload removes the
-        file and its decoded copy from the server. Your session ends after 7 days, or as soon as
-        you sign out. Server logs are kept briefly.
+        Track metadata is kept until it is removed or the rig is deleted. Browser-cached audio is
+        controlled by that browser's storage. Your session ends after 7 days, or as soon as you
+        sign out. Server logs are kept briefly.
       </p>
 
       <h2>Your choices</h2>
       <p>
-        You can delete anything you uploaded from the media pool at any time; administrators can
-        delete any upload. Signing out clears your session.
+        You can forget track metadata from the browser library; administrators can remove any
+        entry. This never deletes the source file on the host device. Signing out clears your session.
       </p>
       <p>
         To get a copy of your data, correct it, or have it deleted, see{' '}

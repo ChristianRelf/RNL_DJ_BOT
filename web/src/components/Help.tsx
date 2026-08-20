@@ -341,17 +341,18 @@ const ARTICLES: Article[] = [
   {
     id: 'uploads',
     category: 'library',
-    title: 'Loading and uploading tracks',
-    keywords: 'upload files mp3 wav flac drag drop pre-listen headphone audition tags bpm rename',
+    title: 'Loading tracks from your browser',
+    keywords: 'files mp3 wav flac folder browser local storage tags bpm rename',
     body: (
       <>
         <p>
-          Drag files onto the media pool to upload them. Waveforms and tempo are worked out for you
-          while you carry on. From there, drag a track onto a deck or a sample pad.
+          Connect a local music folder from the Library panel. The browser scans and caches the
+          tracks locally; audio is streamed to the active decks only while that browser is hosting.
+          Use the Browser library panel to search, queue or drag a track onto a deck or sample pad.
         </p>
         <p>
-          The headphone button pre-listens <strong>in your own browser only</strong>. It never goes
-          to air, so you can audition something mid-set.
+          Audio files are never uploaded to or retained by the server. Keep the hosting tab open
+          while the room needs the folder.
         </p>
       </>
     ),
@@ -596,33 +597,6 @@ const ARTICLES: Article[] = [
           The active track is based on the audible mix, not simply the most recently loaded deck. A
           track must hold the room for several seconds before an announcement is sent, which avoids
           duplicate posts during a blend. Track titles are sent without allowing Discord mentions.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: 'url-import',
-    category: 'tools',
-    title: 'Importing audio from a URL',
-    summary: 'Bring a direct audio download or supported video link into the media pool.',
-    keywords: 'url import youtube direct link audio download promo pool yt-dlp licence tools',
-    body: (
-      <>
-        <p>
-          URL import is an optional tool for material you are authorised to use. It accepts direct
-          audio downloads and can extract audio from supported video links when the server has the
-          required downloader installed.
-        </p>
-        <ol className="doc-steps">
-          <li>Enable <strong>Import from URL</strong> on the Tools page.</li>
-          <li>Paste the direct download or supported media URL.</li>
-          <li>Select <strong>Import</strong> and wait for the new media-pool entry.</li>
-          <li>Check the title, analysis and audio before loading it during a live set.</li>
-        </ol>
-        <p>
-          Ordinary web pages, internal network addresses and unsafe redirects are refused. Playlist
-          links import one item rather than an entire playlist. The feature does not verify music
-          rights; the operator remains responsible for permission to download and play the material.
         </p>
       </>
     ),

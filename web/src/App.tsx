@@ -270,7 +270,7 @@ export default function App({
 
   /** Every widget the console can show, built once and placed by the layout. */
   const widgets: Record<WidgetId, ReactNode> = {
-    pool: <MediaPool media={dj.media} user={me} locked={locked} send={dj.send} api={api} />,
+    pool: <MediaPool media={dj.media} user={me} locked={locked} send={dj.send} />,
     queue: (
       <QueuePanel
         queue={state.queue}

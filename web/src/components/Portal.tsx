@@ -14,6 +14,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import type { ActiveBot } from '../protocol';
+import { BotsPanel } from './BotsPanel';
 
 /**
  * The owner portal.
@@ -188,7 +189,7 @@ export function Portal() {
         <Rigs guilds={data.guilds} busy={busy} run={run} />
         <Allowlist entries={data.allowlist} busy={busy} run={run} />
         <Waitlist entries={data.waitlist} busy={busy} run={run} />
-        <Bots bots={data.bots} />
+        <PortalBots guilds={data.guilds} />
       </div>
     </div>
   );
@@ -512,29 +513,34 @@ function Waitlist({
 
 /* ------------------------------------------------------------------ bots */
 
-function Bots({ bots }: { bots: Array<{ id: string; name: string; tag: string | null; fingerprint: string }> }) {
+function PortalBots({ guilds }: { guilds: PortalGuild[] }) {
+  const [guildId, setGuildId] = useState(guilds[0]?.id ?? '');
+  const guild = guilds.find((entry) => entry.id === guildId) ?? guilds[0];
+
+  if (!guild) {
+    return <section className="portal-panel"><p className="panel-empty">Create a rig before adding a playback bot.</p></section>;
+  }
+
   return (
     <section className="portal-panel">
       <h2 className="portal-panel-title">
-        <BotIcon size={13} /> Playback bots <span className="portal-count mono">{bots.length}</span>
+        <BotIcon size={13} /> Playback bot control
       </h2>
       <p className="portal-hint">
-        Shared across every rig. Added from a rig&rsquo;s tools page, where the token can be
-        checked against the server it is meant to play in.
+        Add, remove and switch bot accounts here. Tokens never appear on a rig&rsquo;s normal tools page.
       </p>
-
-      {bots.length === 0 ? (
-        <p className="panel-empty">Only the default bot from the environment.</p>
-      ) : (
-        <ul className="portal-list">
-          {bots.map((bot) => (
-            <li key={bot.id} className="portal-bot">
-              <span>{bot.name}</span>
-              <span className="mono portal-dim">{bot.tag ?? bot.fingerprint}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <label className="tool-field">
+        <span>Rig</span>
+        <select className="input" value={guild.id} onChange={(event) => setGuildId(event.target.value)}>
+          {guilds.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+        </select>
+      </label>
+      <BotsPanel
+        key={guild.id}
+        api={`/api/portal/rigs/${guild.id}`}
+        live={guild.bot}
+        voiceLive={guild.voice?.status === 'ready'}
+      />
     </section>
   );
 }

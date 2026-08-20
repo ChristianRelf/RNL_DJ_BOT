@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
-import multer from 'multer';
 import {
   attachUser,
   authorizeUrl,
@@ -29,15 +28,10 @@ import * as platform from './db/platform';
 import { createLogger } from './logger';
 import { mountOnboarding } from './onboard';
 import { mountRequests } from './requests';
-import { fetchAudio, ImportError } from './tools/importUrl';
-import { DECK_IDS, type MediaItem, type SessionUser } from './protocol';
+import { DECK_IDS, type SessionUser } from './protocol';
 
 const log = createLogger('http');
 
-const upload = multer({
-  dest: config.paths.tmpDir,
-  limits: { fileSize: config.http.maxUploadBytes, files: 8 },
-});
 
 /**
  * The pages somebody who is not on the allowlist is allowed to be sent to after
@@ -75,11 +69,6 @@ function withinRate(address: string): boolean {
   if (hit.count >= WAITLIST_PER_HOUR) return false;
   hit.count++;
   return true;
-}
-
-function mediaFilePath(item: MediaItem): string {
-  const ext = path.extname(item.originalName).slice(0, 12) || '.bin';
-  return path.join(config.paths.mediaDir, `${item.id}${ext}`);
 }
 
 /**
@@ -347,6 +336,44 @@ export function createApp(): express.Express {
     res.json({ waitlist: platform.listWaitlist() });
   });
 
+  const portalRig = async (id: string): Promise<Rig | null> => rigs.ensure(id);
+
+  app.get('/api/portal/rigs/:id/bots', requirePlatformAdmin, async (req, res) => {
+    const rig = await portalRig(req.params.id);
+    if (!rig) return res.status(404).json({ error: 'No such rig.' });
+    res.json({ bots: rig.bots.list(), active: rig.bots.active() });
+  });
+
+  app.post('/api/portal/rigs/:id/bots', requirePlatformAdmin, json, async (req, res) => {
+    const rig = await portalRig(req.params.id);
+    if (!rig) return res.status(404).json({ error: 'No such rig.' });
+    try {
+      await rig.bots.add(req.user as SessionUser, {
+        name: typeof req.body?.name === 'string' ? req.body.name : undefined,
+        token: typeof req.body?.token === 'string' ? req.body.token : '',
+      });
+      res.json({ bots: rig.bots.list(), active: rig.bots.active() });
+    } catch (err) { sendBotError(res, err); }
+  });
+
+  app.post('/api/portal/rigs/:id/bots/:botId/activate', requirePlatformAdmin, async (req, res) => {
+    const rig = await portalRig(req.params.id);
+    if (!rig) return res.status(404).json({ error: 'No such rig.' });
+    try {
+      await rig.bots.activate(req.user as SessionUser, req.params.botId);
+      res.json({ bots: rig.bots.list(), active: rig.bots.active() });
+    } catch (err) { sendBotError(res, err); }
+  });
+
+  app.delete('/api/portal/rigs/:id/bots/:botId', requirePlatformAdmin, async (req, res) => {
+    const rig = await portalRig(req.params.id);
+    if (!rig) return res.status(404).json({ error: 'No such rig.' });
+    try {
+      await rig.bots.remove(req.user as SessionUser, req.params.botId);
+      res.json({ bots: rig.bots.list(), active: rig.bots.active() });
+    } catch (err) { sendBotError(res, err); }
+  });
+
   app.post('/api/portal/rigs/:id/stop', requirePlatformAdmin, async (req, res) => {
     await rigs.stop(req.params.id);
     res.json({ ok: true });
@@ -403,30 +430,6 @@ export function createApp(): express.Express {
     res.json({ media: (req.rig as Rig).store.listMedia() });
   });
 
-  guild.post('/media', upload.array('files', 8), async (req: Request, res: Response) => {
-    const rig = req.rig as Rig;
-    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-    if (files.length === 0) return res.status(400).json({ error: 'No files were uploaded.' });
-
-    const created: MediaItem[] = [];
-    for (const file of files) {
-      try {
-        created.push(
-          await rig.ingest({
-            tempPath: file.path,
-            originalName: file.originalname,
-            sizeBytes: file.size,
-            user: req.user as SessionUser,
-          }),
-        );
-      } catch (err) {
-        log.error('ingest failed:', (err as Error).message);
-        await fs.promises.unlink(file.path).catch(() => undefined);
-      }
-    }
-    res.json({ media: created });
-  });
-
   /**
    * Serves a decoded upload so a DJ can pre-listen without touching the mix.
    *
@@ -434,41 +437,6 @@ export function createApp(): express.Express {
    * played off somebody's folder is already on their machine, and the console
    * cues it locally without asking the server for it at all.
    */
-  guild.get('/media/:id/audio', (req, res) => {
-    const item = (req.rig as Rig).store.getMedia(req.params.id);
-    if (!item) return res.status(404).json({ error: 'Not found.' });
-    const filePath = mediaFilePath(item);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File is missing.' });
-    res.sendFile(filePath, { headers: { 'cache-control': 'private, max-age=3600' } });
-  });
-
-  guild.post('/media/import', express.json({ limit: '4kb' }), async (req, res) => {
-    const rig = req.rig as Rig;
-    if (!rig.store.db.tools.urlImport) {
-      return res.status(403).json({ error: 'URL import is switched off for this rig.' });
-    }
-    const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
-    if (!url) return res.status(400).json({ error: 'Give it a link to fetch.' });
-
-    let fetched: Awaited<ReturnType<typeof fetchAudio>> | null = null;
-    try {
-      fetched = await fetchAudio(url);
-      const item = await rig.ingest({
-        tempPath: fetched.tempPath,
-        originalName: fetched.originalName,
-        sizeBytes: fetched.sizeBytes,
-        user: req.user as SessionUser,
-      });
-      res.json({ media: item });
-    } catch (err) {
-      if (fetched) await fs.promises.unlink(fetched.tempPath).catch(() => undefined);
-      const message =
-        err instanceof ImportError ? err.message : 'That import failed - check the logs.';
-      if (!(err instanceof ImportError)) log.error('import failed:', err);
-      res.status(400).json({ error: message });
-    }
-  });
-
   /**
    * Which Discord account this rig plays through.
    *

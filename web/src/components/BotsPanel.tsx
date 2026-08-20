@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bot, Check, Plus, RefreshCw, Trash2, TriangleAlert } from 'lucide-react';
-import type { ActiveBot, BotSummary, SessionUser } from '../protocol';
+import type { ActiveBot, BotSummary } from '../protocol';
 
 /**
  * Which Discord account the rig plays through.
@@ -14,9 +14,8 @@ import type { ActiveBot, BotSummary, SessionUser } from '../protocol';
  */
 
 interface Props {
-  user: SessionUser;
   /** The bot the console currently believes is on air, from the rig state. */
-  live: ActiveBot;
+  live: ActiveBot | null;
   voiceLive: boolean;
   /** This rig's API prefix. */
   api: string;
@@ -29,7 +28,7 @@ async function request(path: string, init?: RequestInit): Promise<any> {
   return body;
 }
 
-export function BotsPanel({ user, live, voiceLive, api }: Props) {
+export function BotsPanel({ live, voiceLive, api }: Props) {
   const [bots, setBots] = useState<BotSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,14 +51,12 @@ export function BotsPanel({ user, live, voiceLive, api }: Props) {
   // up here without polling for it. Keyed on the id changing rather than on the
   // list disagreeing: if the two ever failed to converge, the latter would
   // refetch on every render for as long as the disagreement lasted.
-  const shown = useRef(live.id);
+  const shown = useRef(live?.id);
   useEffect(() => {
-    if (shown.current === live.id) return;
-    shown.current = live.id;
+    if (shown.current === live?.id) return;
+    shown.current = live?.id;
     load();
-  }, [live.id, load]);
-
-  if (!user.isPlatformAdmin) return null;
+  }, [live?.id, load]);
 
   const run = async (label: string, work: () => Promise<any>) => {
     setBusy(label);
@@ -107,7 +104,7 @@ export function BotsPanel({ user, live, voiceLive, api }: Props) {
 
       <div className="tool-body">
         {error ? <p className="tool-result is-bad">{error}</p> : null}
-        {live.error ? (
+        {live?.error ? (
           <p className="tool-result is-bad">
             <TriangleAlert size={12} /> {live.error}
           </p>
@@ -146,7 +143,7 @@ export function BotsPanel({ user, live, voiceLive, api }: Props) {
 
                 <span className="bot-actions">
                   {entry.active ? (
-                    <span className="bot-live mono">{live.status === 'ready' ? 'ON AIR' : live.status.toUpperCase()}</span>
+                    <span className="bot-live mono">{live?.status === 'ready' ? 'ON AIR' : (live?.status ?? 'idle').toUpperCase()}</span>
                   ) : (
                     <button
                       type="button"

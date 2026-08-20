@@ -112,8 +112,8 @@ export const WIDGETS: WidgetSpec[] = [
   },
   {
     id: 'pool',
-    name: 'Media pool',
-    hint: 'Upload, search and drag tracks out',
+    name: 'Browser library',
+    hint: 'Search and load tracks served from the connected browser folder',
     group: 'library',
     w: 3,
     h: 26,

@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Check, Copy, Download } from 'lucide-react';
-import { BotsPanel } from './BotsPanel';
-import { WaitlistPanel } from './WaitlistPanel';
+import { ArrowLeft, Check, Copy } from 'lucide-react';
 import type { ClientCommands, EngineState, SessionUser, ToolsState } from '../protocol';
 import type { DjClient } from '../socket';
 
@@ -99,81 +97,6 @@ function Tool({
       </header>
       {on && children ? <div className="tool-body">{children}</div> : null}
     </section>
-  );
-}
-
-/* ------------------------------------------------------------ url import */
-
-function UrlImport({ enabled, api }: { enabled: boolean; api: string }) {
-  const [url, setUrl] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-
-  const submit = async () => {
-    const link = url.trim();
-    if (!link || busy) return;
-    setBusy(true);
-    setResult(null);
-    try {
-      const res = await fetch(`${api}/media/import`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: link }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setResult({ ok: true, message: `Added "${body.media?.title ?? 'the file'}" to the pool.` });
-        setUrl('');
-      } else {
-        setResult({ ok: false, message: body.error ?? `Import failed (${res.status}).` });
-      }
-    } catch (err) {
-      setResult({ ok: false, message: (err as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="tool-row">
-        <input
-          className="tool-input"
-          placeholder="https://example.com/promo/track.wav"
-          value={url}
-          disabled={!enabled || busy}
-          onChange={(event) => setUrl(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') void submit();
-          }}
-        />
-        <button
-          type="button"
-          className="btn primary"
-          disabled={!enabled || busy || !url.trim()}
-          onClick={() => void submit()}
-        >
-          <Download size={13} />
-          {busy ? 'FETCHING' : 'IMPORT'}
-        </button>
-      </div>
-
-      {result ? (
-        <p className={`tool-result ${result.ok ? 'is-ok' : 'is-bad'}`}>{result.message}</p>
-      ) : null}
-
-      <p className="tool-note">
-        Fetches a direct link to an audio file - a promo pool download, your own storage, a
-        royalty-free library. YouTube links are handed to yt-dlp on the server and pulled in as
-        audio; a playlist link takes the one track, not the list behind it. Every other site that
-        serves a web page rather than a file is refused, as is anything pointing back at your own
-        network.
-      </p>
-      <p className="tool-note">
-        Nothing here checks a licence. Import what you have the right to play.
-      </p>
-    </>
   );
 }
 
@@ -447,7 +370,7 @@ function Requests({ slug }: { slug: string }) {
 
 /* ------------------------------------------------------------------ page */
 
-export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPageProps) {
+export function ToolsPage({ state, locked, send, api, slug }: ToolsPageProps) {
   const tools = state.tools;
   const set = (patch: ClientCommands['tools:set']) => void send('tools:set', patch);
 
@@ -475,13 +398,6 @@ export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPagePro
       ) : null}
 
       <div className="tools-list">
-        {user.isPlatformAdmin ? (
-          <>
-            <BotsPanel user={user} live={state.bot} voiceLive={state.voice.status === 'ready'} api={api} />
-            <WaitlistPanel />
-          </>
-        ) : null}
-
         <Tool
           name="Timecode feed"
           summary="Publishes deck positions over HTTP for lighting, stream overlays and video."
@@ -490,16 +406,6 @@ export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPagePro
           onToggle={(timecode) => set({ timecode })}
         >
           <Timecode tools={tools} api={api} />
-        </Tool>
-
-        <Tool
-          name="Import from URL"
-          summary="Pulls a direct audio link, or a YouTube link, straight into the media pool."
-          on={tools.urlImport}
-          locked={locked}
-          onToggle={(urlImport) => set({ urlImport })}
-        >
-          <UrlImport enabled={tools.urlImport} api={api} />
         </Tool>
 
         <Tool

@@ -6960,6 +6960,53 @@ kbd {
   font-size: 13px;
 }
 
+.onboard-basics {
+  margin: 1.5rem 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.onboard-basics h2 {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.onboard-basics ol {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0;
+  padding-left: 1.35rem;
+}
+
+.onboard-basics li {
+  padding-left: 0.25rem;
+}
+
+.onboard-basics li::marker {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.onboard-basics strong,
+.onboard-basics span {
+  display: block;
+}
+
+.onboard-basics strong {
+  margin-bottom: 0.2rem;
+  font-size: 0.86rem;
+}
+
+.onboard-basics span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
 .onboard-note {
   margin: 0;
   color: var(--dim);

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Headphones, ListPlus, Pencil, Square, Trash2, Upload } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ListPlus, Pencil, Trash2 } from 'lucide-react';
 import { formatBytes, formatTime, relativeTime } from '../lib/format';
 import type { ClientCommands, MediaItem, SessionUser } from '../protocol';
 import type { DjClient } from '../socket';
@@ -136,31 +136,15 @@ function TrackEditor({
 }
 
 interface MediaPoolProps {
-  /** This rig's API prefix. Uploads and pre-listen both hang off it. */
-  api: string;
   media: MediaItem[];
   user: SessionUser;
   locked: boolean;
   send: DjClient['send'];
 }
 
-interface UploadJob {
-  id: number;
-  name: string;
-  progress: number;
-  error?: string;
-}
-
-let uploadSeq = 0;
-
-export function MediaPool({ media, user, locked, send, api }: MediaPoolProps) {
+export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
   const [query, setQuery] = useState('');
-  const [uploads, setUploads] = useState<UploadJob[]>([]);
-  const [dragOver, setDragOver] = useState(false);
-  const [previewId, setPreviewId] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -173,97 +157,11 @@ export function MediaPool({ media, user, locked, send, api }: MediaPoolProps) {
     );
   }, [media, query]);
 
-  const upload = useCallback((files: FileList | File[]) => {
-    const list = Array.from(files).filter((f) => f.size > 0);
-    if (list.length === 0) return;
-
-    for (const file of list) {
-      const id = ++uploadSeq;
-      setUploads((prev) => [...prev, { id, name: file.name, progress: 0 }]);
-      const patch = (changes: Partial<UploadJob>) =>
-        setUploads((prev) => prev.map((u) => (u.id === id ? { ...u, ...changes } : u)));
-
-      const body = new FormData();
-      body.append('files', file);
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${api}/media`);
-      xhr.withCredentials = true;
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) patch({ progress: event.loaded / event.total });
-      };
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          // The item is already in the pool as "processing" - drop the row.
-          setUploads((prev) => prev.filter((u) => u.id !== id));
-        } else {
-          let message = `Upload failed (${xhr.status})`;
-          try {
-            message = JSON.parse(xhr.responseText).error ?? message;
-          } catch {
-            /* keep the status message */
-          }
-          patch({ error: message });
-        }
-      };
-      xhr.onerror = () => patch({ error: 'Network error' });
-      xhr.send(body);
-    }
-  }, []);
-
-  // One preview player, wired to whichever row asked for it.
-  useEffect(() => {
-    if (!previewId) {
-      audioRef.current?.pause();
-      return;
-    }
-    const audio = audioRef.current ?? new Audio();
-    audioRef.current = audio;
-    audio.src = `${api}/media/${previewId}/audio`;
-    audio.volume = 0.7;
-    audio.onended = () => setPreviewId(null);
-    void audio.play().catch(() => setPreviewId(null));
-    return () => {
-      audio.pause();
-    };
-  }, [previewId]);
-
-  useEffect(() => () => audioRef.current?.pause(), []);
-
   return (
-    <section
-      className={`panel pool ${dragOver ? 'is-drop' : ''}`}
-      onDragOver={(event) => {
-        if (!event.dataTransfer.types.includes('Files')) return;
-        event.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(event) => {
-        if (!event.dataTransfer.files?.length) return;
-        event.preventDefault();
-        setDragOver(false);
-        upload(event.dataTransfer.files);
-      }}
-    >
+    <section className="panel pool">
       <header className="panel-head">
-        <h2 className="panel-title">Media pool</h2>
-        <button type="button" className="btn tiny" onClick={() => inputRef.current?.click()}>
-          <Upload size={12} />
-          UPLOAD
-        </button>
+        <h2 className="panel-title">Browser library</h2>
       </header>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="audio/*,video/*,.mp3,.wav,.flac,.ogg,.m4a,.aac,.opus"
-        multiple
-        hidden
-        onChange={(event) => {
-          if (event.target.files) upload(event.target.files);
-          event.target.value = '';
-        }}
-      />
 
       <input
         className="search"
@@ -272,27 +170,10 @@ export function MediaPool({ media, user, locked, send, api }: MediaPoolProps) {
         onChange={(event) => setQuery(event.target.value)}
       />
 
-      {uploads.length > 0 ? (
-        <ul className="upload-list">
-          {uploads.map((job) => (
-            <li key={job.id} className={job.error ? 'is-error' : ''}>
-              <span className="upload-name">{job.name}</span>
-              {job.error ? (
-                <span className="upload-error">{job.error}</span>
-              ) : (
-                <span className="upload-bar">
-                  <span style={{ width: `${Math.round(job.progress * 100)}%` }} />
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
       <ul className="track-list">
         {filtered.length === 0 ? (
           <li className="empty">
-            {media.length === 0 ? 'Drop audio files here to build the pool' : 'No matches'}
+            {media.length === 0 ? 'Connect a music folder to load tracks from this browser' : 'No matches'}
           </li>
         ) : null}
 
@@ -347,16 +228,6 @@ export function MediaPool({ media, user, locked, send, api }: MediaPoolProps) {
                 <div className="track-actions">
                   <button
                     type="button"
-                    className={`btn tiny ${previewId === item.id ? 'is-active' : ''}`}
-                    disabled={item.status !== 'ready'}
-                    title="Pre-listen in your browser only, not on air"
-                    aria-label="Pre-listen"
-                    onClick={() => setPreviewId(previewId === item.id ? null : item.id)}
-                  >
-                    {previewId === item.id ? <Square size={12} /> : <Headphones size={12} />}
-                  </button>
-                  <button
-                    type="button"
                     className={`btn tiny ${editing === item.id ? 'is-active' : ''}`}
                     disabled={!mine}
                     title={
@@ -402,12 +273,10 @@ export function MediaPool({ media, user, locked, send, api }: MediaPoolProps) {
                     type="button"
                     className="btn tiny danger"
                     disabled={!mine}
-                    title={
-                      mine ? 'Delete from pool' : 'Only the uploader or an admin can delete this'
-                    }
-                    aria-label="Delete from pool"
+                    title={mine ? 'Forget track metadata' : 'Only the host or an admin can remove this'}
+                    aria-label="Forget track"
                     onClick={() => {
-                      if (confirm(`Delete "${item.title}" from the pool?`)) {
+                      if (confirm(`Forget "${item.title}"? The audio file in the browser folder is untouched.`)) {
                         void send('media:delete', { id: item.id });
                       }
                     }}

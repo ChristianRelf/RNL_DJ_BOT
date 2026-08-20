@@ -236,13 +236,47 @@ function Configure({
         </select>
       </label>
       <p className="onboard-note">
-        Taking over means pulling the decks off whoever is holding them, and deleting anyone&rsquo;s
-        tracks. The server owner can always do it.
+        Taking over means pulling the decks away from whoever currently holds control. The server
+        owner can always do it.
       </p>
 
+      <div className="onboard-basics">
+        <h2>How deck works</h2>
+        <ol>
+          <li>
+            <strong>Connect your music folder.</strong>
+            <span>
+              Choose it from the Library panel. The browser reads and caches it locally; music is
+              not uploaded to the server. Keep that browser tab open while the rig is playing.
+            </span>
+          </li>
+          <li>
+            <strong>Take control before mixing.</strong>
+            <span>
+              Everyone can watch the console, but only the person holding control can operate the
+              decks. Other DJs can request control for a clean handover.
+            </span>
+          </li>
+          <li>
+            <strong>Load two decks and blend.</strong>
+            <span>
+              Search the Browser library, load a track onto A or B, press play, then use the channel
+              faders and crossfader to decide what the room hears.
+            </span>
+          </li>
+          <li>
+            <strong>Join a Discord voice channel.</strong>
+            <span>
+              Pick a voice channel from the top bar and put the rig on air. Queueing, cueing and
+              arranging the console can all be prepared before listeners hear anything.
+            </span>
+          </li>
+        </ol>
+      </div>
+
       <p className="onboard-body onboard-next">
-        <FolderOpen size={14} /> Next, the console will ask for the folder your music lives in.
-        Nothing gets uploaded - deck plays straight off your machine.
+        <FolderOpen size={14} /> When the console opens, start with <strong>Music folder</strong>,
+        then take control. You can rearrange every panel later.
       </p>
 
       <button type="button" className="btn btn-primary btn-large" onClick={finish} disabled={saving}>
