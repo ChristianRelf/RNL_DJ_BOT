@@ -222,6 +222,9 @@ objects public-read: their random URL is difficult to guess, but anyone who rece
 can fetch it. Do not enable that mode for a library that must remain access-controlled.
 
 The `/api/health` response reports whether Spaces and public-CDN mode are active.
+Each rig has a 1 GiB cloud quota by default. Change `SPACES_GUILD_LIMIT_GB` to
+adjust it; pending uploads count against the quota so simultaneous requests
+cannot reserve more than the allowance.
 
 ## Configuration
 

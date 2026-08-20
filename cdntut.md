@@ -94,6 +94,7 @@ SPACES_SECRET_ACCESS_KEY=replace-with-secret-access-key
 SPACES_CDN_URL=
 SPACES_PUBLIC_CDN=false
 SPACES_MAX_OBJECT_MB=500
+SPACES_GUILD_LIMIT_GB=1
 ```
 
 All five connection settings are required together. Deck refuses to start if

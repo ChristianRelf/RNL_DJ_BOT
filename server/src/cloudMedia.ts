@@ -34,14 +34,34 @@ export function getCloudMedia(guildId: string, id: string): CloudMediaItem | nul
   return found ? row(found) : null;
 }
 
+export function cloudUsage(guildId: string): { usedBytes: number; limitBytes: number; remainingBytes: number } {
+  const result = db().prepare('SELECT COALESCE(SUM(size_bytes), 0) AS bytes FROM cloud_media WHERE guild_id = ?').get(guildId) as { bytes: number };
+  const usedBytes = Number(result.bytes) || 0;
+  return { usedBytes, limitBytes: config.spaces.guildLimitBytes,
+    remainingBytes: Math.max(0, config.spaces.guildLimitBytes - usedBytes) };
+}
+
 export async function prepareUpload(guildId: string, userId: string, name: string, sizeBytes: number, contentType: string) {
   if (!client) throw new Error('Cloud library is not configured.');
   const id = crypto.randomUUID();
   const extension = name.match(/\.[A-Za-z0-9]{1,8}$/)?.[0]?.toLowerCase() ?? '';
   const key = `rigs/${guildId}/${id}${extension}`;
   const createdAt = Date.now();
-  db().prepare(`INSERT INTO cloud_media (id, guild_id, object_key, name, size_bytes, content_type, created_by, created_at, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`).run(id, guildId, key, name, sizeBytes, contentType, userId, createdAt);
+  const database = db();
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    const used = database.prepare('SELECT COALESCE(SUM(size_bytes), 0) AS bytes FROM cloud_media WHERE guild_id = ?').get(guildId) as { bytes: number };
+    if ((Number(used.bytes) || 0) + sizeBytes > config.spaces.guildLimitBytes) {
+      database.exec('ROLLBACK');
+      throw new Error('This rig has reached its cloud-storage limit.');
+    }
+    database.prepare(`INSERT INTO cloud_media (id, guild_id, object_key, name, size_bytes, content_type, created_by, created_at, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`).run(id, guildId, key, name, sizeBytes, contentType, userId, createdAt);
+    database.exec('COMMIT');
+  } catch (err) {
+    try { database.exec('ROLLBACK'); } catch { /* already rolled back */ }
+    throw err;
+  }
   try {
     const command = new PutObjectCommand({ Bucket: config.spaces.bucket, Key: key, ContentType: contentType,
       ACL: config.spaces.publicCdn ? 'public-read' : 'private', Metadata: { 'rig-id': guildId, 'media-id': id } });

@@ -116,6 +116,7 @@ export const config = {
     cdnUrl: (process.env.SPACES_CDN_URL ?? '').replace(/\/+$/, ''),
     publicCdn: bool('SPACES_PUBLIC_CDN'),
     maxObjectBytes: Math.round(num('SPACES_MAX_OBJECT_MB', 500) * 1024 * 1024),
+    guildLimitBytes: Math.round(num('SPACES_GUILD_LIMIT_GB', 1) * 1024 * 1024 * 1024),
   },
   /**
    * External binaries the rig shells out to. None of them are on the realtime

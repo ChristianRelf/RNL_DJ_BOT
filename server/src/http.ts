@@ -30,7 +30,7 @@ import { createLogger } from './logger';
 import { mountOnboarding } from './onboard';
 import { mountRequests } from './requests';
 import { DECK_IDS, type SessionUser } from './protocol';
-import { confirmUpload, getCloudMedia, listCloudMedia, playbackUrl, prepareUpload, removeCloudMedia, spacesEnabled } from './cloudMedia';
+import { cloudUsage, confirmUpload, getCloudMedia, listCloudMedia, playbackUrl, prepareUpload, removeCloudMedia, spacesEnabled } from './cloudMedia';
 
 const log = createLogger('http');
 
@@ -476,7 +476,7 @@ export function createApp(): express.Express {
 
   guild.get('/cloud', (req, res) => {
     const rig = req.rig as Rig;
-    res.json({ enabled: spacesEnabled, cdn: config.spaces.publicCdn, media: listCloudMedia(rig.guildId) });
+    res.json({ enabled: spacesEnabled, cdn: config.spaces.publicCdn, media: listCloudMedia(rig.guildId), quota: cloudUsage(rig.guildId) });
   });
 
   guild.post('/cloud/upload', express.json({ limit: '8kb' }), async (req, res) => {
@@ -490,7 +490,12 @@ export function createApp(): express.Express {
     if (!/^(audio|video)\//.test(contentType)) return res.status(400).json({ error: 'Only audio or video media can be stored.' });
     try {
       res.json(await prepareUpload((req.rig as Rig).guildId, (req.user as SessionUser).id, name, sizeBytes, contentType));
-    } catch (err) { log.error('cloud upload preparation failed:', err); res.status(502).json({ error: 'Could not prepare cloud storage.' }); }
+    } catch (err) {
+      const message = (err as Error).message;
+      if (message.includes('storage limit')) return res.status(413).json({ error: message });
+      log.error('cloud upload preparation failed:', err);
+      res.status(502).json({ error: 'Could not prepare cloud storage.' });
+    }
   });
 
   guild.post('/cloud/:id/complete', async (req, res) => {
