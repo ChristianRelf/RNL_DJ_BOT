@@ -11,6 +11,7 @@ import { Onboard } from './components/Onboard';
 import { RequestPage, RequestRigPicker } from './components/RequestPage';
 import { parseRigPath, parseRequestPath } from './lib/rigs';
 import { Legal } from './components/Legal';
+import { Blog } from './components/Blog';
 import { InviteAccept } from './components/InviteAccept';
 import './styles.css';
 
@@ -30,11 +31,18 @@ const rawPath = window.location.pathname.replace(/\/+$/, '');
 const path = rawPath.toLowerCase();
 const rig = parseRigPath(path);
 const requestSlug = parseRequestPath(path);
+// Post slugs are lowercase kebab-case, so the lowercased path is safe to read.
+const blogSlug = /^\/blog\/([a-z0-9-]+)$/.exec(path)?.[1];
 
 function page() {
   // Tokens are base64url and case-sensitive, so extract from the untouched URL.
   const inviteToken = rawPath.match(/^\/invite\/([A-Za-z0-9_-]+)$/)?.[1];
   if (inviteToken) return <InviteAccept token={inviteToken} />;
+  // A post is a link people paste into a channel, so it is a real URL rather
+  // than a filter on the index - it has to survive a cold load with no session.
+  // It goes ahead of the request page because the short /<slug>/request form is
+  // also two segments deep, and would otherwise read /blog/request as a rig.
+  if (blogSlug) return <Blog slug={blogSlug} />;
   // Before the console: the request page is for people who are in the Discord
   // server and have no DJ role, so it must never mount App - that opens a
   // socket the server would refuse them.
@@ -79,6 +87,12 @@ function page() {
     case '/home/guide':
     case '/guide':
       return <Help />;
+    // The writing. /home/blog is accepted because everything else front of
+    // house sits under /home and people guess accordingly.
+    case '/blog':
+    case '/home/blog':
+    case '/writing':
+      return <Blog />;
     case '/rigs':
       return <RigPicker />;
     // Requests with no rig named. Passes through when only one is taking them.

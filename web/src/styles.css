@@ -4175,60 +4175,6 @@ kbd {
     margin-left: auto;
   }
 }
-/* --------------------------------------------------------- doc tables */
-
-/* Rare in the docs, and used where columns genuinely beat prose - the cookie
-   table. It scrolls inside itself rather than pushing the page sideways. */
-.doc-table-wrap {
-  overflow-x: auto;
-  margin: 0 0 20px;
-}
-
-.doc-table {
-  width: 100%;
-  min-width: 460px;
-  border-collapse: collapse;
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--muted);
-  text-align: left;
-}
-
-.doc-table th {
-  padding: 0 18px 8px 0;
-  border-bottom: 1px solid var(--line-strong);
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-.doc-table td {
-  padding: 14px 18px 14px 0;
-  border-bottom: 1px solid var(--line);
-  vertical-align: top;
-}
-
-.doc-table tr:last-child td {
-  border-bottom: none;
-}
-
-.doc-table th:last-child,
-.doc-table td:last-child {
-  padding-right: 0;
-}
-
-/* The cookie name is the row's handle, so it does not wrap or grey out. */
-.doc-table td:first-child {
-  color: var(--text);
-  white-space: nowrap;
-}
-
-.doc-table td:nth-child(2) {
-  width: 100%;
-}
 
 
 .doc-tabs a {
@@ -5670,6 +5616,294 @@ kbd {
   .help-article-grid, .help-related-grid { grid-template-columns: 1fr; }
   .help-reader-head h1 { font-size: 34px; }
 }
+
+/* ===========================================================================
+   THE BLOG
+   ===========================================================================
+   Two shapes: an index of cards, and a reader.
+
+   The reader borrows .doc-body for its prose, because a post and a policy are
+   the same typographic problem and having two answers to it is how a site
+   starts looking like two sites. What is here is only the parts a post has and
+   a policy does not - the meta line, the cards, and the measure.
+   ------------------------------------------------------------------------ */
+
+.blog-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 clamp(28px, 4vw, 40px);
+}
+
+.blog-filters button {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.12s linear, color 0.12s linear;
+}
+
+.blog-filters button:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.blog-filters button.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Date, topic and length. Interpuncts are decoration between three facts, so
+   they are hidden from a screen reader in the markup rather than here. */
+.blog-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* ------------------------------------------------------------ the index */
+
+/* The newest post, given the width. An index where every entry has identical
+   weight gives a reader nowhere to start. */
+.blog-lead {
+  display: block;
+  padding: clamp(24px, 4vw, 38px);
+  margin: 0 0 20px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--panel);
+  text-decoration: none;
+  transition: border-color 0.12s linear, background 0.12s linear;
+}
+
+.blog-lead:hover {
+  border-color: var(--line-strong);
+  border-left-color: var(--accent);
+  background: var(--panel-2);
+}
+
+.blog-lead h2 {
+  margin: 12px 0 0;
+  max-width: 22ch;
+  font-size: clamp(24px, 3.4vw, 34px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.blog-lead-summary {
+  margin: 14px 0 18px;
+  max-width: 62ch;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.blog-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.blog-more svg {
+  transition: transform 0.14s ease;
+}
+
+.blog-lead:hover .blog-more svg {
+  transform: translateX(3px);
+}
+
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: clamp(40px, 5vw, 60px);
+}
+
+.blog-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  text-decoration: none;
+  transition: border-color 0.12s linear, background 0.12s linear;
+}
+
+.blog-card:hover {
+  border-color: var(--line-strong);
+  background: var(--panel-2);
+}
+
+.blog-card h3 {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.blog-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+/* The meta line goes to the bottom of the card, so a row of cards with titles
+   of different lengths still lines its dates up. */
+.blog-card .blog-meta {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+/* ----------------------------------------------------------- the reader */
+
+.blog-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 28px;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.blog-back:hover {
+  color: var(--accent);
+}
+
+/* Prose measure. Wider than this and the eye loses the start of the next line
+   on a page that is several thousand words long. */
+.blog-post {
+  max-width: 720px;
+}
+
+.blog-post-head {
+  margin-bottom: 34px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--line);
+}
+
+.blog-post-head h1 {
+  margin: 10px 0 0;
+  max-width: 20ch;
+  font-size: clamp(31px, 5vw, 48px);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.blog-post-summary {
+  margin: 16px 0 18px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+/* A little more air than a policy gets - a post is read straight through
+   rather than scanned for the clause that applies. */
+.blog-post-body p {
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.blog-post-body h2 {
+  margin-top: 40px;
+  font-size: 22px;
+}
+
+.blog-post-body ul {
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.blog-post-body li {
+  margin-bottom: 12px;
+}
+
+.blog-post-body em {
+  color: var(--text);
+  font-style: italic;
+}
+
+/* --------------------------------------------------------- next and back */
+
+.blog-adjacent {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 0 clamp(32px, 4vw, 48px);
+}
+
+.blog-adjacent a {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  text-decoration: none;
+  transition: border-color 0.12s linear, background 0.12s linear;
+}
+
+.blog-adjacent a:hover {
+  border-color: var(--line-strong);
+  background: var(--panel-2);
+}
+
+/* The forward link is the one most people want, so it reads right-aligned as
+   a continuation rather than as a second option of equal weight. */
+.blog-adjacent a.is-next {
+  text-align: right;
+}
+
+.blog-adjacent-title {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .blog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-adjacent {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-adjacent a.is-next {
+    text-align: left;
+  }
+
+  .blog-post-head h1 {
+    font-size: 32px;
+  }
+}
+
 
 /* ===========================================================================
    THE LANDING PAGE

@@ -467,9 +467,7 @@ function Cookies() {
           </thead>
           <tbody>
             <tr>
-              <td>
-                <code>rnl_dj_session</code>
-              </td>
+              <td className="doc-key">rnl_dj_session</td>
               <td>
                 Keeps you signed in. A signed token holding your Discord ID, username, display name,
                 avatar URL, whether you are an administrator, and whether the session may drive a
@@ -478,9 +476,7 @@ function Cookies() {
               <td>7 days, or when you sign out</td>
             </tr>
             <tr>
-              <td>
-                <code>rnl_dj_state</code>
-              </td>
+              <td className="doc-key">rnl_dj_state</td>
               <td>
                 Protects the sign-in exchange against forgery and remembers which page to return you
                 to afterwards. Set when sign-in begins and cleared as soon as it completes.

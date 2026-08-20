@@ -14,6 +14,7 @@ import { Menu, X } from 'lucide-react';
 const LINKS = [
   { href: '/home', label: 'Product' },
   { href: '/home/help', label: 'Help centre' },
+  { href: '/blog', label: 'Writing' },
   { href: '/home/access', label: 'Get access' },
 ];
 
@@ -144,6 +145,7 @@ const FOOTER = [
     title: 'Resources',
     links: [
       { href: '/home/help', label: 'Help centre' },
+      { href: '/blog', label: 'Writing' },
       { href: '/request', label: 'Request a track' },
     ],
   },
