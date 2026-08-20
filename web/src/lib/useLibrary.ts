@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import {
   folderPickerSupported,
+  browserStorageSupported,
+  importIntoBrowserStorage,
   pickFolder,
   regrantFolder,
   restoreFolder,
@@ -13,6 +15,7 @@ import type { AudioNeedMessage } from '../protocol';
 
 export interface LibraryClient {
   supported: boolean;
+  canPickFolder: boolean;
   status: FolderStatus;
   folderName: string | null;
   tracks: ScannedTrack[];
@@ -22,6 +25,8 @@ export interface LibraryClient {
   error: string | null;
   /** Pick a folder. Must be called straight from a click. */
   connect: () => void;
+  /** Copy selected files into private browser storage and host them. */
+  importFiles: (files: FileList | File[]) => void;
   /** Re-grant a folder we already remember. Must be called straight from a click. */
   regrant: () => void;
   rescan: () => void;
@@ -52,7 +57,8 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
   /** Kept in a ref as well so the socket handler never closes over a stale list. */
   const tracksRef = useRef<ScannedTrack[]>([]);
 
-  const supported = useMemo(() => folderPickerSupported(), []);
+  const supported = useMemo(() => browserStorageSupported(), []);
+  const canPickFolder = useMemo(() => folderPickerSupported(), []);
 
   // The decoded cache is namespaced per rig, so two guilds on one machine do
   // not evict each other's tracks or collide on a track id that means different
@@ -194,6 +200,22 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
     })();
   }, [scanAndClaim]);
 
+  const importFiles = useCallback((files: FileList | File[]) => {
+    void (async () => {
+      setError(null);
+      try {
+        const handle = await importIntoBrowserStorage(files);
+        if (!handle) return;
+        handleRef.current = handle;
+        setFolderName('Browser storage');
+        setStatus('granted');
+        await scanAndClaim();
+      } catch (err) {
+        setError(`Could not add those files to browser storage: ${(err as Error).message}`);
+      }
+    })();
+  }, [scanAndClaim]);
+
   const regrant = useCallback(() => {
     void (async () => {
       const handle = handleRef.current;
@@ -215,6 +237,7 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
   return useMemo(
     () => ({
       supported,
+      canPickFolder,
       status,
       folderName,
       tracks,
@@ -223,9 +246,10 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
       decoding,
       error,
       connect,
+      importFiles,
       regrant,
       rescan,
     }),
-    [supported, status, folderName, tracks, scanning, progress, decoding, error, connect, regrant, rescan],
+    [supported, canPickFolder, status, folderName, tracks, scanning, progress, decoding, error, connect, importFiles, regrant, rescan],
   );
 }

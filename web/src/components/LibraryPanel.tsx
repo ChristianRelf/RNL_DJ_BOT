@@ -1,4 +1,5 @@
-import { AlertTriangle, FolderOpen, HardDriveDownload, RefreshCw, Radio } from 'lucide-react';
+import { useRef } from 'react';
+import { AlertTriangle, FolderOpen, HardDriveDownload, Plus, RefreshCw, Radio } from 'lucide-react';
 import type { HostState } from '../protocol';
 import type { LibraryClient } from '../lib/useLibrary';
 
@@ -22,6 +23,7 @@ function countLabel(n: number): string {
  * action here with a consequence for the room.
  */
 export function LibraryPanel({ library, host, meId }: LibraryPanelProps) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const iAmHost = host.hosted && host.userId === meId;
   const someoneElse = host.hosted && host.userId !== meId;
 
@@ -32,8 +34,7 @@ export function LibraryPanel({ library, host, meId }: LibraryPanelProps) {
           <h2 className="panel-title">Music folder</h2>
         </header>
         <p className="panel-empty">
-          This browser cannot keep a folder connected. Chrome or Edge can - open the console
-          there to host the library.
+          This browser cannot use private browser storage for a music library.
           {someoneElse && ` ${host.userName} is hosting, so the decks still work here.`}
         </p>
       </section>
@@ -42,6 +43,17 @@ export function LibraryPanel({ library, host, meId }: LibraryPanelProps) {
 
   return (
     <section className={`panel library ${iAmHost ? 'is-hosting' : ''}`}>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="audio/*,video/*,.mp3,.wav,.flac,.ogg,.m4a,.aac,.opus,.aiff,.aif,.alac"
+        multiple
+        hidden
+        onChange={(event) => {
+          if (event.target.files?.length) library.importFiles(event.target.files);
+          event.target.value = '';
+        }}
+      />
       <header className="panel-head">
         <h2 className="panel-title">Music folder</h2>
         {iAmHost && (
@@ -65,12 +77,17 @@ export function LibraryPanel({ library, host, meId }: LibraryPanelProps) {
       {library.status === 'none' && (
         <>
           <p className="panel-empty">
-            Deck plays straight off your machine - nothing is uploaded. Pick the folder your
-            music lives in.
+            Add music to private browser storage, or connect an existing folder. Nothing is
+            uploaded to the server.
           </p>
-          <button type="button" className="btn btn-primary" onClick={library.connect}>
-            <FolderOpen size={13} /> Choose music folder
-          </button>
+          <div className="library-actions">
+            <button type="button" className="btn btn-primary" onClick={() => fileInput.current?.click()}>
+              <Plus size={13} /> Add music
+            </button>
+            {library.canPickFolder ? <button type="button" className="btn" onClick={library.connect}>
+              <FolderOpen size={13} /> Connect folder
+            </button> : null}
+          </div>
         </>
       )}
 
@@ -101,6 +118,9 @@ export function LibraryPanel({ library, host, meId }: LibraryPanelProps) {
           )}
 
           <div className="library-actions">
+            <button type="button" className="btn btn-primary" onClick={() => fileInput.current?.click()}>
+              <Plus size={13} /> Add music
+            </button>
             <button
               type="button"
               className="btn"
@@ -109,9 +129,9 @@ export function LibraryPanel({ library, host, meId }: LibraryPanelProps) {
             >
               <RefreshCw size={13} /> Rescan
             </button>
-            <button type="button" className="btn" onClick={library.connect}>
+            {library.canPickFolder ? <button type="button" className="btn" onClick={library.connect}>
               Change folder
-            </button>
+            </button> : null}
           </div>
 
           {iAmHost && (

@@ -86,6 +86,10 @@ export function folderPickerSupported(): boolean {
   return typeof (globalThis as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function';
 }
 
+export function browserStorageSupported(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function';
+}
+
 type PermissionMode = { mode: 'read' };
 type WithPermissions = FileSystemDirectoryHandle & {
   queryPermission?: (d: PermissionMode) => Promise<PermissionState>;
@@ -104,12 +108,14 @@ export async function restoreFolder(): Promise<{
   status: FolderStatus;
   handle: FileSystemDirectoryHandle | null;
 }> {
-  if (!folderPickerSupported()) return { status: 'unsupported', handle: null };
+  if (!browserStorageSupported()) return { status: 'unsupported', handle: null };
 
   const handle = await idbGet<WithPermissions>(STORE, HANDLE_KEY).catch(() => undefined);
   if (!handle) return { status: 'none', handle: null };
 
-  const state = (await handle.queryPermission?.({ mode: 'read' })) ?? 'prompt';
+  // OPFS handles do not expose permission methods: access is already scoped to
+  // this origin, so the absence of queryPermission means granted.
+  const state = (await handle.queryPermission?.({ mode: 'read' })) ?? 'granted';
   if (state === 'granted') return { status: 'granted', handle };
   return { status: 'needs-permission', handle };
 }
@@ -139,6 +145,31 @@ export async function pickFolder(): Promise<FileSystemDirectoryHandle | null> {
     // The picker throws on cancel, which is not an error worth reporting.
     return null;
   }
+}
+
+/**
+ * Copies files into origin-private browser storage and returns that directory
+ * as a normal library source. No request is sent to the server.
+ */
+export async function importIntoBrowserStorage(files: FileList | File[]): Promise<FileSystemDirectoryHandle | null> {
+  if (!browserStorageSupported()) return null;
+  const selected = Array.from(files).filter((file) => file.size > 0);
+  if (!selected.length) return null;
+
+  const root = await navigator.storage.getDirectory();
+  const deck = await root.getDirectoryHandle('deck', { create: true });
+  const imported = await deck.getDirectoryHandle('music', { create: true });
+
+  for (const file of selected) {
+    const safeName = file.name.replace(/[\\/\0]/g, '_').slice(0, 240) || 'track';
+    const handle = await imported.getFileHandle(safeName, { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(file);
+    await writable.close();
+  }
+
+  await idbPut(STORE, HANDLE_KEY, imported);
+  return imported;
 }
 
 export async function forgetFolder(): Promise<void> {
