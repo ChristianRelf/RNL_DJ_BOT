@@ -197,11 +197,6 @@ export function SiteFooter() {
       <div className="site-foot-base">
         <p>
           &copy; {year} RO. Nation LIVE &middot;{' '}
-          <a href="https://ronation.live">ronation.live</a>
-        </p>
-        <p className="site-foot-note">
-          <span className="site-foot-dot" aria-hidden="true" />
-          Run for you · no telemetry, no ad trackers
         </p>
       </div>
     </footer>
