@@ -102,8 +102,8 @@ export function rowsForPx(px: number): number {
 export const WIDGETS: WidgetSpec[] = [
   {
     id: 'library',
-    name: 'Music folder',
-    hint: 'Where the audio comes from - a folder on your machine',
+    name: 'Deck Cloud',
+    hint: 'Upload, download and manage the rig cloud library',
     group: 'library',
     w: 3,
     h: 12,
@@ -112,8 +112,8 @@ export const WIDGETS: WidgetSpec[] = [
   },
   {
     id: 'pool',
-    name: 'Browser library',
-    hint: 'Search and load tracks served from the connected browser folder',
+    name: 'Deck Cloud tracks',
+    hint: 'Search and drag cached cloud tracks onto the decks',
     group: 'library',
     w: 3,
     h: 26,

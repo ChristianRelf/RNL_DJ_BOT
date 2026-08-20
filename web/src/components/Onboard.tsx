@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Check, FolderOpen, Loader2, Plus } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Cloud, Loader2, Plus } from 'lucide-react';
 import { SitePage } from './SiteNav';
 
 /**
@@ -244,10 +244,10 @@ function Configure({
         <h2>How deck works</h2>
         <ol>
           <li>
-            <strong>Connect your music folder.</strong>
+            <strong>Upload music to Deck Cloud.</strong>
             <span>
-              Choose it from the Library panel. The browser reads and caches it locally; music is
-              not uploaded to the server. Keep that browser tab open while the rig is playing.
+              Music goes directly from your browser to the rig&rsquo;s cloud library. A local playback
+              cache is prepared automatically; the Droplet does not retain the source file.
             </span>
           </li>
           <li>
@@ -260,7 +260,7 @@ function Configure({
           <li>
             <strong>Load two decks and blend.</strong>
             <span>
-              Search the Browser library, load a track onto A or B, press play, then use the channel
+              Search Deck Cloud tracks, load one onto A or B, press play, then use the channel
               faders and crossfader to decide what the room hears.
             </span>
           </li>
@@ -275,7 +275,7 @@ function Configure({
       </div>
 
       <p className="onboard-body onboard-next">
-        <FolderOpen size={14} /> When the console opens, start with <strong>Music folder</strong>,
+        <Cloud size={14} /> When the console opens, start with <strong>Deck Cloud</strong>,
         then take control. You can rearrange every panel later.
       </p>
 

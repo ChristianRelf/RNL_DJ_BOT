@@ -341,18 +341,18 @@ const ARTICLES: Article[] = [
   {
     id: 'uploads',
     category: 'library',
-    title: 'Loading tracks from your browser',
-    keywords: 'files mp3 wav flac folder browser local storage tags bpm rename',
+    title: 'Uploading and loading cloud tracks',
+    keywords: 'files mp3 wav flac cloud cdn cache tags bpm rename',
     body: (
       <>
         <p>
-          Connect a local music folder from the Library panel. The browser scans and caches the
-          tracks locally; audio is streamed to the active decks only while that browser is hosting.
-          Use the Browser library panel to search, queue or drag a track onto a deck or sample pad.
+          Upload files from the Deck Cloud panel. They go directly to object storage rather than
+          through the Deck server, and a playback copy is cached in the browser automatically.
+          Use Deck Cloud tracks to search, queue or drag a track onto a deck or sample pad.
         </p>
         <p>
-          Audio files are never uploaded to or retained by the server. Keep the hosting tab open
-          while the room needs the folder.
+          The Droplet does not retain audio files. Keep the hosting tab open while the room is using
+          its playback cache; another operator can cache the same track from Deck Cloud later.
         </p>
       </>
     ),
@@ -397,35 +397,29 @@ const ARTICLES: Article[] = [
   {
     id: 'hosting-library',
     category: 'library',
-    title: 'Hosting a music folder',
-    summary: 'Make a folder on your computer available to the rig without uploading the audio library.',
-    keywords: 'host folder local files directory picker chrome edge library source offline missing tracks opfs cache',
+    title: 'Hosting the Deck Cloud playback cache',
+    summary: 'How cloud tracks reach the live mixer without being stored on the Droplet.',
+    keywords: 'host cloud cdn browser cache opfs source offline missing tracks',
     body: (
       <>
         <p>
-          A rig can use a music folder from an operator&rsquo;s computer as its library. The browser
-          reads the folder with your permission, analyses the tracks locally and serves only the
-          short pieces of audio the playing decks request. The original files remain on that
-          computer.
+          Deck Cloud is the shared source library. When an operator uploads or caches a track, the
+          browser prepares a private playback copy and serves only the short pieces the live mixer
+          requests. The Droplet mixes those pieces but does not retain the source file.
         </p>
         <h4>Start hosting</h4>
         <ol className="doc-steps">
-          <li>Open the <strong>Library</strong> panel and choose the folder option.</li>
-          <li>Select the folder that contains the music for this rig.</li>
-          <li>Leave the console tab open while the room is using that library.</li>
-          <li>Wait for the scan to finish before relying on search or tempo information.</li>
+          <li>Open <strong>Deck Cloud</strong> and upload music, or cache an existing cloud track.</li>
+          <li>Wait for the browser to prepare the playback cache.</li>
+          <li>Drag the track from <strong>Deck Cloud tracks</strong> onto a deck.</li>
+          <li>Leave the console tab open while this browser is hosting playback.</li>
         </ol>
         <div className="doc-callout">
           <strong>Important:</strong> the host is part of the audio path. If the host closes every
-          console tab or loses connectivity, the server can no longer request new audio. Buffered
+          console tab or loses connectivity, the mixer can no longer request new audio. Buffered
           audio plays briefly, then the decks pause rather than skipping through the track.
         </div>
-        <h4>Browser support</h4>
-        <p>
-          Chrome and Edge can remember a folder handle after permission is granted. Other browsers
-          may require the folder to be selected again on a later visit. Folder access is read-only:
-          renaming metadata in deck does not rename the source file.
-        </p>
+        <p>Cached tracks remain in private browser storage until the browser clears site data.</p>
       </>
     ),
   },

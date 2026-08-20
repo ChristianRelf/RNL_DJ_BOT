@@ -6545,6 +6545,47 @@ kbd {
   line-height: 1.4;
 }
 
+.cloud-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cloud-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.65rem;
+  align-items: center;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  background: var(--well);
+}
+
+.cloud-row.is-draggable {
+  cursor: grab;
+}
+
+.cloud-row.is-draggable:active {
+  cursor: grabbing;
+}
+
+.cloud-name {
+  overflow: hidden;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cloud-actions {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  gap: 0.35rem;
+}
+
 /* A track the hosting device's last scan could not find. Dimmed rather than
    struck through: the file is almost certainly fine, it is the folder that is
    not there - an unplugged drive, or nobody hosting yet. */

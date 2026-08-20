@@ -64,7 +64,9 @@ export async function prepareUpload(guildId: string, userId: string, name: strin
   }
   try {
     const command = new PutObjectCommand({ Bucket: config.spaces.bucket, Key: key, ContentType: contentType,
-      ACL: config.spaces.publicCdn ? 'public-read' : 'private', Metadata: { 'rig-id': guildId, 'media-id': id } });
+      ACL: config.spaces.publicCdn ? 'public-read' : 'private',
+      CacheControl: config.spaces.publicCdn ? 'public, max-age=31536000, immutable' : 'private, no-store',
+      Metadata: { 'rig-id': guildId, 'media-id': id } });
     const uploadUrl = await getSignedUrl(client, command, { expiresIn: 15 * 60 });
     return { item: { id, guildId, key, name, sizeBytes, contentType, createdBy: userId, createdAt, status: 'pending' as const }, uploadUrl,
       headers: { 'content-type': contentType, 'x-amz-acl': config.spaces.publicCdn ? 'public-read' : 'private' } };

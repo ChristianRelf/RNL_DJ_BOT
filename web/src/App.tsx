@@ -348,7 +348,8 @@ export default function App({
       />
     ),
     midi: <MidiPanel midi={midi} />,
-    library: <LibraryPanel library={library} host={state.host} meId={me.id} />,
+    library: <LibraryPanel library={library} host={state.host} meId={me.id} api={api}
+      media={dj.media} send={dj.send} locked={locked} />,
   };
 
   return (

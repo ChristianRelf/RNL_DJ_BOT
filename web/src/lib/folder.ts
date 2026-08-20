@@ -25,7 +25,10 @@ const DB_NAME = 'deck-library';
 const DB_VERSION = 1;
 const STORE = 'handles';
 const META_STORE = 'meta';
-const HANDLE_KEY = 'music-folder';
+// Separate from the former user-selected folder handle. Deck Cloud uses OPFS
+// as a disposable playback cache and must not silently reconnect an old local
+// music folder after the local-library UI has been removed.
+const HANDLE_KEY = 'deck-cloud-cache';
 
 export interface ScannedTrack {
   trackId: string;

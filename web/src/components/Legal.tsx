@@ -107,9 +107,10 @@ function Terms() {
 
       <h2>Your music</h2>
       <p>
-        Music stays in the folder you choose on your device. The browser may cache decoded audio
-        locally and sends short-lived audio chunks to the decks while you host the library; the
-        service does not retain the source files or decoded audio on the server.
+        Music uploaded to Deck Cloud is stored in RNL&rsquo;s object storage and delivered through its
+        configured content-delivery endpoint. The browser may cache audio locally and sends
+        short-lived audio chunks to the decks while it hosts playback; the Droplet does not retain
+        source files or decoded audio on its disk.
       </p>
       <p>
         You are responsible for what you play. By making a file available you confirm you hold the rights
@@ -286,11 +287,10 @@ function Privacy() {
 
       <h2>What stays in your browser</h2>
       <p>
-        With your permission, Deck stores the chosen folder handle, scan metadata, your console
-        layout and decoded audio cache in browser-managed storage. These remain on that device and
-        can be removed through browser site-data controls. The browser may clear them under its own
-        storage rules. Connecting a folder grants read-only access; Deck does not rename or delete
-        the source files.
+        Deck stores scan metadata, your console layout and a playback cache in browser-managed
+        storage. These remain on that device and can be removed through browser site-data controls.
+        The browser may clear them under its own storage rules. Removing a browser cache does not
+        remove the corresponding object from Deck Cloud.
       </p>
 
       <h2>What we do not collect</h2>
@@ -299,7 +299,7 @@ function Privacy() {
         <li>Your Discord email address through sign-in.</li>
         <li>Card, bank or payment details.</li>
         <li>Advertising identifiers or third-party analytics tracking.</li>
-        <li>Permanent server copies of source music files or decoded audio.</li>
+        <li>Source music or decoded audio on the Deck Droplet; cloud-library objects are held separately in object storage.</li>
       </ul>
 
       <h2>What it is used for</h2>
@@ -341,10 +341,11 @@ function Privacy() {
 
       <h2>Where information is stored</h2>
       <p>
-        Server-held data lives in our service database and logs with our hosting provider. It may
-        be processed in a country different from yours. Browser-held folder access and cached
-        audio stay on the device whose browser created them. Live audio necessarily passes through
-        our server and Discord to reach the voice channel.
+        Server-held data lives in our service database and logs with our hosting provider. Cloud
+        music lives in our configured object storage and may be delivered from CDN edge locations.
+        Data may be processed in a country different from yours. Cached audio stays on the device
+        whose browser created it. Live audio necessarily passes through our server and Discord to
+        reach the voice channel.
       </p>
 
       <h2>Cookies</h2>

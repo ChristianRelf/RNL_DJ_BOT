@@ -160,7 +160,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
   return (
     <section className="panel pool">
       <header className="panel-head">
-        <h2 className="panel-title">Browser library</h2>
+        <h2 className="panel-title">Deck Cloud tracks</h2>
       </header>
 
       <input
@@ -173,7 +173,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
       <ul className="track-list">
         {filtered.length === 0 ? (
           <li className="empty">
-            {media.length === 0 ? 'Connect a music folder to load tracks from this browser' : 'No matches'}
+            {media.length === 0 ? 'Upload or cache music from Deck Cloud first' : 'No matches'}
           </li>
         ) : null}
 
@@ -208,7 +208,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                       : item.status === 'processing'
                         ? 'decoding...'
                         : item.status === 'missing'
-                          ? 'not in the hosted folder'
+                          ? 'not in the playback cache'
                           : item.error ?? 'failed'}
                     {'   '}
                     {item.uploadedBy.name} {relativeTime(item.uploadedAt)}
@@ -276,7 +276,7 @@ export function MediaPool({ media, user, locked, send }: MediaPoolProps) {
                     title={mine ? 'Forget track metadata' : 'Only the host or an admin can remove this'}
                     aria-label="Forget track"
                     onClick={() => {
-                      if (confirm(`Forget "${item.title}"? The audio file in the browser folder is untouched.`)) {
+                      if (confirm(`Forget "${item.title}" from this track catalogue? The Deck Cloud object is untouched.`)) {
                         void send('media:delete', { id: item.id });
                       }
                     }}
