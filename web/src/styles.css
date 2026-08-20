@@ -6996,6 +6996,23 @@ kbd {
   display: block;
 }
 
+.invite-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.invite-heading .onboard-title {
+  margin: 0;
+}
+
+.invite-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted);
+}
+
 .onboard-basics strong {
   margin-bottom: 0.2rem;
   font-size: 0.86rem;

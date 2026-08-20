@@ -26,12 +26,14 @@ if (!container) throw new Error('Missing #root element');
  * is the front of house. The bare /deck paths are kept as aliases, because they
  * were handed out when there was only ever one rig to be on.
  */
-const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+const rawPath = window.location.pathname.replace(/\/+$/, '');
+const path = rawPath.toLowerCase();
 const rig = parseRigPath(path);
 const requestSlug = parseRequestPath(path);
 
 function page() {
-  const inviteToken = path.match(/^\/invite\/([a-z0-9_-]+)$/i)?.[1];
+  // Tokens are base64url and case-sensitive, so extract from the untouched URL.
+  const inviteToken = rawPath.match(/^\/invite\/([A-Za-z0-9_-]+)$/)?.[1];
   if (inviteToken) return <InviteAccept token={inviteToken} />;
   // Before the console: the request page is for people who are in the Discord
   // server and have no DJ role, so it must never mount App - that opens a
