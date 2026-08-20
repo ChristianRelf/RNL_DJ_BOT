@@ -283,6 +283,19 @@ body {
   border-radius: var(--radius);
 }
 
+/* Editing chrome is an overlay, not part of the tile's flow. If it consumes
+   height here, every panel is pushed down while arranging and springs back up
+   when DONE is pressed, making alignments that looked tight open into gaps.
+   Keeping the body geometry identical means what is lined up in arrange mode
+   remains lined up in the live console. */
+.console.is-arranging .wchrome {
+  position: absolute;
+  z-index: 3;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+}
+
 /* The lattice everything snaps to, drawn only while it matters. */
 .console.is-arranging::before {
   content: '';
@@ -2834,7 +2847,8 @@ kbd {
 .colophon {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   /* Sits opposite the shortcut hints in the console footer. */
   margin-left: auto;
 }
@@ -2855,9 +2869,12 @@ kbd {
   white-space: nowrap;
 }
 
+/* Four policies rather than two, in a footer that is already tight - so they
+   are allowed to reflow instead of squeezing the hints beside them. */
 .colophon-links {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
 }
 
 .colophon a {
@@ -3287,23 +3304,48 @@ kbd {
 
 /* -------------------------------------------------------------- footer */
 
+/* Two bands. The top one is the sitemap - what this is, a way in, and every
+   page grouped - and the base bar under it carries only what belongs on every
+   page: who runs it, and the promise about tracking. */
+
 .site-foot {
+  position: relative;
   border-top: 1px solid var(--line);
-  background: var(--well);
+  background: linear-gradient(180deg, var(--well), var(--bg));
 }
 
-.site-foot-inner {
+/* A hairline of accent across the join, so the footer reads as a deliberate
+   end to the page rather than the page running out of content. */
+.site-foot::before {
+  content: '';
+  position: absolute;
+  inset: -1px 0 auto;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent-dim) 22%,
+    var(--accent) 50%,
+    var(--accent-dim) 78%,
+    transparent
+  );
+  opacity: 0.5;
+}
+
+.site-foot-top {
   max-width: var(--measure);
   margin: 0 auto;
-  padding: clamp(32px, 5vw, 48px) var(--gutter);
+  padding: clamp(40px, 6vw, 68px) var(--gutter) clamp(28px, 4vw, 40px);
   display: grid;
-  gap: 32px;
+  gap: 40px;
 }
 
-@media (min-width: 720px) {
-  .site-foot-inner {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 64px;
+/* The mark and the invitation on the left, the sitemap on the right - the
+   columns get the wider share because there are three of them. */
+@media (min-width: 760px) {
+  .site-foot-top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+    gap: clamp(48px, 7vw, 96px);
   }
 }
 
@@ -3314,29 +3356,52 @@ kbd {
 }
 
 .site-foot-brand p {
-  margin: 12px 0 0;
-  max-width: 34ch;
-  font-size: 12px;
-  line-height: 1.6;
+  margin: 14px 0 0;
+  max-width: 32ch;
+  font-size: 13px;
+  line-height: 1.65;
   color: var(--dim);
+}
+
+.site-foot-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+/* The page buttons at a quieter size and without the glow: the footer invites,
+   it does not shout over the section that just closed above it. */
+.site-foot-cta .site-btn {
+  padding: 9px 20px;
+  font-size: 13px;
+}
+
+.site-foot-cta .site-btn.is-primary {
+  box-shadow: none;
 }
 
 .site-foot-cols {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 28px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 28px 24px;
+  align-content: start;
 }
 
-.site-foot-col {
+.site-foot-col ul {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 
 .site-foot-col a {
   font-size: 13px;
   color: var(--muted);
   text-decoration: none;
+  transition: color 0.12s linear;
 }
 
 .site-foot-col a:hover {
@@ -3346,23 +3411,48 @@ kbd {
 .site-foot-base {
   max-width: var(--measure);
   margin: 0 auto;
-  padding: 14px var(--gutter) 22px;
+  padding: 16px var(--gutter) 28px;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px 20px;
+  gap: 10px 24px;
   border-top: 1px solid var(--line);
   font-size: 11px;
   color: var(--dim);
 }
 
+.site-foot-base p {
+  margin: 0;
+}
+
 .site-foot-base a {
   color: var(--dim);
   text-decoration: none;
+  border-bottom: 1px solid transparent;
 }
 
 .site-foot-base a:hover {
   color: var(--muted);
+  border-bottom-color: var(--line-strong);
+}
+
+.site-foot-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.site-foot-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--play);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--play) 55%, transparent);
 }
 
 /* ===========================================================================
@@ -4070,12 +4160,76 @@ kbd {
 /* Tabs between the two policy pages. */
 .doc-tabs {
   display: flex;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 10px 18px;
   margin-bottom: 28px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
   font-size: 13px;
 }
+
+/* The last tab leaves the policies rather than switching between them, so it
+   sits apart from the set on anything wide enough to hold them on one line. */
+@media (min-width: 640px) {
+  .doc-tabs a:last-child {
+    margin-left: auto;
+  }
+}
+/* --------------------------------------------------------- doc tables */
+
+/* Rare in the docs, and used where columns genuinely beat prose - the cookie
+   table. It scrolls inside itself rather than pushing the page sideways. */
+.doc-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 20px;
+}
+
+.doc-table {
+  width: 100%;
+  min-width: 460px;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted);
+  text-align: left;
+}
+
+.doc-table th {
+  padding: 0 18px 8px 0;
+  border-bottom: 1px solid var(--line-strong);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.doc-table td {
+  padding: 14px 18px 14px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.doc-table tr:last-child td {
+  border-bottom: none;
+}
+
+.doc-table th:last-child,
+.doc-table td:last-child {
+  padding-right: 0;
+}
+
+/* The cookie name is the row's handle, so it does not wrap or grey out. */
+.doc-table td:first-child {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.doc-table td:nth-child(2) {
+  width: 100%;
+}
+
 
 .doc-tabs a {
   color: var(--muted);

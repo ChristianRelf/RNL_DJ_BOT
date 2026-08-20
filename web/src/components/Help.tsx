@@ -253,7 +253,8 @@ const ARTICLES: Article[] = [
     id: 'advanced-mixer',
     category: 'mixing',
     title: 'The advanced mixer',
-    keywords: 'pan balance mono limiter master eq isolator routing crossfader curve send',
+    keywords:
+      'pan balance mono limiter master mute width filter pad mute fx bypass master eq isolator routing crossfader curve send',
     body: (
       <>
         <p>
@@ -269,12 +270,14 @@ const ARTICLES: Article[] = [
           <li>
             <strong>Master</strong> has a three-band isolator across the whole output, a{' '}
             <strong>mono</strong> switch for club rigs and phone speakers, and a{' '}
-            <strong>limiter</strong> with a gain-reduction readout. Turning the limiter off leaves
-            the soft clipper as the backstop - the output will colour before it stops.
+            <strong>limiter</strong> with a gain-reduction readout. The output stage also has a
+            master filter, adjustable stereo width and a master mute. Turning the limiter off
+            leaves the soft clipper as the backstop - the output will colour before it stops.
           </li>
           <li>
             <strong>Routing</strong> holds the crossfader curve: fully anticlockwise is the
-            constant-power blend a long mix wants, clockwise is a cut you can scratch with.
+            constant-power blend a long mix wants, clockwise is a cut you can scratch with. The
+            bus controls provide pad level and ducking, FX return, pad mute and full FX bypass.
           </li>
         </ul>
       </>

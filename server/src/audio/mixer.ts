@@ -3,7 +3,7 @@ import { Readable } from 'node:stream';
 import { Deck } from './deck';
 import { Pad } from './pad';
 import { FxBus } from './fx';
-import { Isolator, Limiter, clamp, smoothingCoefficient, softClip } from './dsp';
+import { Biquad, Isolator, Limiter, clamp, filterCoefficients, smoothingCoefficient, softClip } from './dsp';
 import {
   BYTES_PER_FRAME,
   DECK_IDS,
@@ -103,9 +103,14 @@ export class Mixer extends EventEmitter {
   balance = 0;
   mono = false;
   limiter = true;
+  masterMute = false;
+  stereoWidth = 1;
+  masterFilter = 0;
   masterEq: DeckEq = { low: 0, mid: 0, high: 0 };
   padBus = 0.9;
   padDuck = 0.25;
+  padMute = false;
+  fxBypass = false;
 
   private readonly aL = new Float32Array(FRAME_SAMPLES);
   private readonly aR = new Float32Array(FRAME_SAMPLES);
@@ -124,6 +129,7 @@ export class Mixer extends EventEmitter {
   private duckEnvelope = 0;
 
   private readonly masterIso = new Isolator();
+  private readonly masterFilters = [new Biquad(), new Biquad()];
   private readonly masterLimiter = new Limiter();
   private eqDirty = true;
 
@@ -244,8 +250,17 @@ export class Mixer extends EventEmitter {
     if (patch.balance !== undefined) this.balance = clamp(patch.balance, -1, 1);
     if (patch.mono !== undefined) this.mono = patch.mono;
     if (patch.limiter !== undefined) this.limiter = patch.limiter;
+    if (patch.masterMute !== undefined) this.masterMute = patch.masterMute;
+    if (patch.stereoWidth !== undefined) this.stereoWidth = clamp(patch.stereoWidth, 0, 2);
+    if (patch.masterFilter !== undefined) {
+      this.masterFilter = clamp(patch.masterFilter, -1, 1);
+      const coefficients = filterCoefficients(this.masterFilter);
+      for (const filter of this.masterFilters) filter.setCoefficients(coefficients);
+    }
     if (patch.padBus !== undefined) this.padBus = clamp(patch.padBus, 0, 1.5);
     if (patch.padDuck !== undefined) this.padDuck = clamp(patch.padDuck, 0, 1);
+    if (patch.padMute !== undefined) this.padMute = patch.padMute;
+    if (patch.fxBypass !== undefined) this.fxBypass = patch.fxBypass;
     if (patch.masterEq) {
       for (const band of ['low', 'mid', 'high'] as const) {
         const value = patch.masterEq[band];
@@ -264,9 +279,14 @@ export class Mixer extends EventEmitter {
       balance: this.balance,
       mono: this.mono,
       limiter: this.limiter,
+      masterMute: this.masterMute,
+      stereoWidth: this.stereoWidth,
+      masterFilter: this.masterFilter,
       masterEq: { ...this.masterEq },
       padBus: this.padBus,
       padDuck: this.padDuck,
+      padMute: this.padMute,
+      fxBypass: this.fxBypass,
       fx: this.fx.snapshot(),
     };
   }
@@ -326,7 +346,7 @@ export class Mixer extends EventEmitter {
     const balanceTheta = ((this.balance + 1) / 2) * (Math.PI / 2);
     const balL = Math.cos(balanceTheta) * Math.SQRT2;
     const balR = Math.sin(balanceTheta) * Math.SQRT2;
-    const wet = this.fx.mix;
+    const wet = this.fxBypass ? 0 : this.fx.mix;
 
     // Dither belongs on signal, not on silence: an idle rig should put out true
     // zeros rather than a hiss, and the meter's own decay is what keeps the
@@ -355,8 +375,8 @@ export class Mixer extends EventEmitter {
       this.smoothedXfB += (targetB - this.smoothedXfB) * FADER_SMOOTHING;
       this.smoothedMaster += (this.master - this.smoothedMaster) * FADER_SMOOTHING;
 
-      const pl = padsActive ? this.padL[i] * this.padBus : 0;
-      const pr = padsActive ? this.padR[i] * this.padBus : 0;
+      const pl = padsActive && !this.padMute ? this.padL[i] * this.padBus : 0;
+      const pr = padsActive && !this.padMute ? this.padR[i] * this.padBus : 0;
 
       // Duck the decks under pad hits so voice drops sit on top of the music.
       const padLevel = Math.max(Math.abs(pl), Math.abs(pr));
@@ -377,6 +397,16 @@ export class Mixer extends EventEmitter {
         r = this.masterIso.process(1, r);
       }
 
+      l = this.masterFilters[0].process(l);
+      r = this.masterFilters[1].process(r);
+
+      if (this.stereoWidth !== 1) {
+        const mid = (l + r) * 0.5;
+        const side = (l - r) * 0.5 * this.stereoWidth;
+        l = mid + side;
+        r = mid - side;
+      }
+
       if (this.mono) {
         const sum = (l + r) * 0.5;
         l = sum;
@@ -385,6 +415,7 @@ export class Mixer extends EventEmitter {
 
       l *= this.smoothedMaster * balL;
       r *= this.smoothedMaster * balR;
+      if (this.masterMute) l = r = 0;
 
       if (l > 1 || l < -1 || r > 1 || r < -1) clipped = true;
       if (this.limiter) {

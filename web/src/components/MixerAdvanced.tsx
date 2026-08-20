@@ -45,6 +45,15 @@ const PAGES: Array<{ id: Page; label: string }> = [
 const formatPan = (value: number) =>
   Math.abs(value) < 0.02 ? 'C' : `${value < 0 ? 'L' : 'R'}${Math.abs(value * 100).toFixed(0)}`;
 
+const formatFilter = (value: number) =>
+  Math.abs(value) < 0.02 ? 'off' : `${value < 0 ? 'LP' : 'HP'} ${Math.abs(value * 100).toFixed(0)}`;
+
+const formatWidth = (value: number) => {
+  if (value < 0.02) return 'mono';
+  if (Math.abs(value - 1) < 0.02) return 'normal';
+  return `${Math.round(value * 100)}%`;
+};
+
 export function MixerAdvanced({ decks, mixer, locked, send, throttled }: Props) {
   const [page, setPage] = useState<Page>('channels');
 
@@ -316,6 +325,26 @@ export function MixerAdvanced({ decks, mixer, locked, send, throttled }: Props) 
                 disabled={locked}
                 onChange={(master) => throttled('mixer:set', { master })}
               />
+              <Knob
+                label="WIDTH"
+                value={mixer.stereoWidth}
+                min={0}
+                max={2}
+                defaultValue={1}
+                format={formatWidth}
+                disabled={locked}
+                onChange={(stereoWidth) => throttled('mixer:set', { stereoWidth })}
+              />
+              <Knob
+                label="FILTER"
+                value={mixer.masterFilter}
+                min={-1}
+                max={1}
+                defaultValue={0}
+                format={formatFilter}
+                disabled={locked}
+                onChange={(masterFilter) => throttled('mixer:set', { masterFilter })}
+              />
             </div>
 
             <div className="btn-row">
@@ -338,6 +367,16 @@ export function MixerAdvanced({ decks, mixer, locked, send, throttled }: Props) 
                 onClick={() => void send('mixer:set', { limiter: !mixer.limiter })}
               >
                 LIMITER
+              </button>
+              <button
+                type="button"
+                className={`btn tiny ${mixer.masterMute ? 'is-muted' : ''}`}
+                disabled={locked}
+                aria-pressed={mixer.masterMute}
+                title="Mute the complete master output"
+                onClick={() => void send('mixer:set', { masterMute: !mixer.masterMute })}
+              >
+                MASTER MUTE
               </button>
             </div>
 
@@ -398,6 +437,68 @@ export function MixerAdvanced({ decks, mixer, locked, send, throttled }: Props) 
             <p className="panel-note">
               Sends are taken post-fader, so pulling a channel down takes its effect tail with it.
               The return level lives on the FX rack.
+            </p>
+          </div>
+
+          <div className="control-cluster">
+            <span className="tool-label">Bus controls</span>
+            <div className="knob-row">
+              <Knob
+                label="PAD LEVEL"
+                value={mixer.padBus}
+                min={0}
+                max={1.5}
+                defaultValue={1}
+                format={formatDb}
+                disabled={locked}
+                onChange={(padBus) => throttled('mixer:set', { padBus })}
+              />
+              <Knob
+                label="PAD DUCK"
+                value={mixer.padDuck}
+                min={0}
+                max={1}
+                defaultValue={0.25}
+                format={formatPercent}
+                disabled={locked}
+                onChange={(padDuck) => throttled('mixer:set', { padDuck })}
+              />
+              <Knob
+                label="FX RETURN"
+                value={mixer.fx.mix}
+                min={0}
+                max={1}
+                defaultValue={0}
+                format={formatPercent}
+                disabled={locked}
+                onChange={(mix) => throttled('mixer:set', { fx: { mix } })}
+              />
+            </div>
+            <div className="btn-row">
+              <button
+                type="button"
+                className={`btn tiny ${mixer.padMute ? 'is-muted' : ''}`}
+                disabled={locked}
+                aria-pressed={mixer.padMute}
+                title="Mute the sampler pad bus"
+                onClick={() => void send('mixer:set', { padMute: !mixer.padMute })}
+              >
+                PAD MUTE
+              </button>
+              <button
+                type="button"
+                className={`btn tiny ${mixer.fxBypass ? 'is-muted' : ''}`}
+                disabled={locked}
+                aria-pressed={mixer.fxBypass}
+                title="Bypass the complete effects return"
+                onClick={() => void send('mixer:set', { fxBypass: !mixer.fxBypass })}
+              >
+                FX BYPASS
+              </button>
+            </div>
+            <p className="panel-note">
+              Cut either auxiliary bus instantly, or shape the pad level, ducking and wet return
+              without leaving the routing page.
             </p>
           </div>
         </div>

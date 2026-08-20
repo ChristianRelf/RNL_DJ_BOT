@@ -79,9 +79,14 @@ export const commandSchemas = {
       balance: finite.min(-1).max(1).optional(),
       mono: z.boolean().optional(),
       limiter: z.boolean().optional(),
+      masterMute: z.boolean().optional(),
+      stereoWidth: finite.min(0).max(2).optional(),
+      masterFilter: finite.min(-1).max(1).optional(),
       masterEq: eq.optional(),
       padBus: finite.min(0).max(1.5).optional(),
       padDuck: finite.min(0).max(1).optional(),
+      padMute: z.boolean().optional(),
+      fxBypass: z.boolean().optional(),
       fx: z
         .object({
           type: z.enum(['echo', 'reverb', 'flanger']).optional(),

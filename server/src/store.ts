@@ -76,9 +76,14 @@ export const DEFAULT_MIXER: MixerState = {
   balance: 0,
   mono: false,
   limiter: true,
+  masterMute: false,
+  stereoWidth: 1,
+  masterFilter: 0,
   masterEq: { low: 0, mid: 0, high: 0 },
   padBus: 0.9,
   padDuck: 0.25,
+  padMute: false,
+  fxBypass: false,
   fx: { type: 'echo', mix: 0, timeMs: 375, feedback: 0.35, tone: 0.6 },
 };
 

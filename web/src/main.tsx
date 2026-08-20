@@ -52,6 +52,16 @@ function page() {
       return <Legal page="terms" />;
     case '/privacy':
       return <Legal page="privacy" />;
+    // The cookie and accessibility policies. Both carry the spellings other
+    // sites link to, because an inbound link to the wrong one of these should
+    // not land on the sign-in door.
+    case '/cookies':
+    case '/cookie-policy':
+      return <Legal page="cookies" />;
+    case '/accessibility':
+    case '/accessibility-statement':
+    case '/a11y':
+      return <Legal page="accessibility" />;
 
     // Front of house sits under /home. The bare paths are kept as aliases so
     // links handed out before the restructure still land somewhere sensible.

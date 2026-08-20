@@ -268,12 +268,19 @@ export interface MixerState {
   mono: boolean;
   /** Brickwall limiter on the master, in place of the soft clipper. */
   limiter: boolean;
+  masterMute: boolean;
+  /** Mid/side stereo width: 0 mono, 1 original, 2 extra wide. */
+  stereoWidth: number;
+  /** DJ filter across the final mix, -1 low-pass, +1 high-pass. */
+  masterFilter: number;
   /** Master 3-band EQ in dB, -26..+6 */
   masterEq: DeckEq;
   /** Sample pad bus gain, 0..1.5 */
   padBus: number;
   /** Ducks the decks while a pad plays, 0 = off, 1 = full duck */
   padDuck: number;
+  padMute: boolean;
+  fxBypass: boolean;
   fx: FxState;
 }
 

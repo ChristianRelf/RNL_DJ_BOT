@@ -1,35 +1,49 @@
-import { SitePage } from './SiteNav';
+import { POLICIES, SitePage, type PolicyPage } from './SiteNav';
 
 /**
- * Terms and Privacy for the decks, served as whole pages by the SPA fallback
- * so they stay reachable without a session.
+ * The policy pages for the decks - terms, privacy, cookies and accessibility -
+ * served as whole pages by the SPA fallback so they stay reachable without a
+ * session.
  *
  * These sit under the site-wide policies at ronation.live/legal rather than
- * restating them: the general terms, the code of conduct and the cookie notice
- * are linked and incorporated, and what is written here is only what is
- * specific to this app. The data-handling sections are read off the
- * implementation - the OAuth scope, the cookie, and the files that get kept -
- * so keep them in step if any of that changes.
+ * restating them: the general terms, the code of conduct and the site cookie
+ * notice are linked and incorporated, and what is written here is only what is
+ * specific to this app. The factual sections are read off the implementation -
+ * the OAuth scope, the two cookies, the browser storage keys and what the
+ * console actually does at the keyboard - so keep them in step if any of that
+ * changes.
  */
 
 const SITE = 'https://ronation.live';
 const EMAIL = 'hello@ronation.live';
 const UPDATED = '20 August 2026';
 
-export function Legal({ page }: { page: 'terms' | 'privacy' }) {
+const BODIES: Record<PolicyPage, () => JSX.Element> = {
+  terms: Terms,
+  privacy: Privacy,
+  cookies: Cookies,
+  accessibility: Accessibility,
+};
+
+export function Legal({ page }: { page: PolicyPage }) {
+  const Body = BODIES[page];
   return (
     <SitePage>
       <nav className="doc-tabs" aria-label="Policies">
-        <a href="/terms" className={page === 'terms' ? 'is-current' : ''}>
-          Terms
-        </a>
-        <a href="/privacy" className={page === 'privacy' ? 'is-current' : ''}>
-          Privacy
-        </a>
+        {POLICIES.map((policy) => (
+          <a
+            key={policy.page}
+            href={policy.href}
+            className={page === policy.page ? 'is-current' : ''}
+            aria-current={page === policy.page ? 'page' : undefined}
+          >
+            {policy.label}
+          </a>
+        ))}
         <a href="/deck">Back to the decks</a>
       </nav>
 
-      {page === 'terms' ? <Terms /> : <Privacy />}
+      <Body />
     </SitePage>
   );
 }
@@ -404,6 +418,295 @@ function Privacy() {
       <h2>Contact</h2>
       <p>
         Questions about this policy: <a href={`mailto:${EMAIL}`}>{EMAIL}</a>, or the{' '}
+        <a href={`${SITE}/contact`}>contact page</a>.
+      </p>
+    </article>
+  );
+}
+
+function Cookies() {
+  return (
+    <article className="doc-body">
+      <h1>Cookie Policy</h1>
+      <p className="doc-updated">Last updated: {UPDATED}</p>
+
+      <SitePolicies />
+
+      <h2>What this covers</h2>
+      <p>
+        This explains the cookies and other browser storage the decks use - the web control
+        surface, the request page and the owner portal. It expands on the cookies section of the{' '}
+        <a href="/privacy">Deck Privacy Policy</a> and sits under the{' '}
+        <a href={`${SITE}/legal/cookies`}>site Cookie Notice</a>, which covers ronation.live as a
+        whole.
+      </p>
+
+      <h2>The short version</h2>
+      <p>
+        The decks set two cookies, both strictly necessary, and neither is used to track you. There
+        are no advertising cookies, no analytics cookies and no third-party trackers, which is why
+        you are not asked to accept a banner: there is nothing optional to accept.
+      </p>
+
+      <h2>What a cookie is</h2>
+      <p>
+        A cookie is a small piece of text a site asks your browser to keep and send back on later
+        visits. A cookie is called <strong>strictly necessary</strong> when the service cannot work
+        without it - here, that means knowing you signed in and finishing the sign-in safely.
+      </p>
+
+      <h2>The cookies we set</h2>
+      <div className="doc-table-wrap">
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Purpose</th>
+              <th>Expires</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>rnl_dj_session</code>
+              </td>
+              <td>
+                Keeps you signed in. A signed token holding your Discord ID, username, display name,
+                avatar URL, whether you are an administrator, and whether the session may drive a
+                console or only submit requests.
+              </td>
+              <td>7 days, or when you sign out</td>
+            </tr>
+            <tr>
+              <td>
+                <code>rnl_dj_state</code>
+              </td>
+              <td>
+                Protects the sign-in exchange against forgery and remembers which page to return you
+                to afterwards. Set when sign-in begins and cleared as soon as it completes.
+              </td>
+              <td>10 minutes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Both are <strong>first-party</strong> cookies, set by us and readable only by us. Both are{' '}
+        <code>HttpOnly</code>, so page scripts cannot read them; both are{' '}
+        <code>SameSite=Lax</code>, so they are not sent from other sites; and both are marked{' '}
+        <code>Secure</code> wherever the service is served over HTTPS. The session cookie is set on
+        the parent domain so one sign-in also covers the portal.
+      </p>
+
+      <h2>Cookies we do not set</h2>
+      <ul>
+        <li>Advertising, retargeting or profiling cookies.</li>
+        <li>Analytics or audience-measurement cookies.</li>
+        <li>Social media, embed or share-button cookies.</li>
+        <li>Cookies that follow you to another site, or that another site can read.</li>
+      </ul>
+
+      <h2>Other storage in your browser</h2>
+      <p>
+        Some things are kept on your device without being cookies. They are never sent to us
+        automatically the way a cookie is, and they stay on the device that created them.
+      </p>
+      <ul>
+        <li>
+          <strong>Local storage</strong> holds your console layout and your MIDI controller
+          mappings, so the desk comes back the way you left it.
+        </li>
+        <li>
+          <strong>IndexedDB</strong> holds the permission handle for the music folder you pointed at
+          and the metadata from scanning it, so you do not re-pick the folder every session.
+        </li>
+        <li>
+          <strong>The ordinary browser cache</strong> may hold audio while it plays, along with the
+          usual page assets.
+        </li>
+      </ul>
+      <p>
+        You can clear all of it through your browser's site-data controls. Clearing it signs you out
+        and resets your layout and mappings; it does not delete anything from Deck Cloud or from your
+        own music folder.
+      </p>
+
+      <h2>Third parties</h2>
+      <p>
+        Signing in happens at Discord, on Discord's own pages, and Discord sets its own cookies
+        there under <a href="https://discord.com/privacy">Discord's privacy policy</a> - we neither
+        set nor read them. Cloud music is delivered through a content-delivery endpoint, which
+        serves files and does not set tracking cookies.
+      </p>
+
+      <h2>Managing cookies</h2>
+      <p>
+        Every major browser lets you view, block and delete cookies, and signing out removes the
+        session cookie directly. Because both of ours are strictly necessary, blocking them means
+        sign-in cannot complete and the decks will not open - the public pages stay readable
+        without them.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        If we add a cookie, this page changes before it is set, and the date at the top shows when
+        it last changed. If we ever add a cookie that is not strictly necessary, we will ask you
+        first.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about cookies: <a href={`mailto:${EMAIL}`}>{EMAIL}</a>, or the{' '}
+        <a href={`${SITE}/contact`}>contact page</a>.
+      </p>
+    </article>
+  );
+}
+
+function Accessibility() {
+  return (
+    <article className="doc-body">
+      <h1>Accessibility Statement</h1>
+      <p className="doc-updated">Last updated: {UPDATED}</p>
+
+      <SitePolicies />
+
+      <h2>Our commitment</h2>
+      <p>
+        We want as many people as possible to be able to use the decks, and we would rather be
+        straight with you about where that currently stands than claim more than we can hold to.
+        We aim to meet <strong>WCAG 2.2 level AA</strong>. The public pages - the product page, the
+        help centre, the access page and these policies - are close to that. The console itself is
+        a dense, pointer-driven instrument and does not yet meet it in full; the gaps are listed
+        below rather than left for you to discover.
+      </p>
+
+      <h2>What is in place</h2>
+      <ul>
+        <li>
+          <strong>Keyboard control of playback.</strong> <kbd>Q</kbd> and <kbd>P</kbd> play or pause
+          the two decks, <kbd>1</kbd>&ndash;<kbd>8</kbd> fire the sample pads, and{' '}
+          <kbd>[</kbd> and <kbd>]</kbd> nudge the crossfader, so a set can be run without a mouse
+          on the controls that matter most.
+        </li>
+        <li>
+          <strong>Visible focus.</strong> Interactive controls show a focus ring when reached by
+          keyboard, and the ring is not removed for looks.
+        </li>
+        <li>
+          <strong>Named controls.</strong> Knobs, faders, buttons and icon-only controls carry text
+          names for screen readers. Knobs and faders report their value, range and a readable
+          version of what that value means; toggles report whether they are on.
+        </li>
+        <li>
+          <strong>Announced status.</strong> Toast notifications are announced rather than only
+          shown.
+        </li>
+        <li>
+          <strong>Reduced motion.</strong> If your system asks for less movement, decorative
+          animation - meters, pulses, the landing page's motion - stops. Nothing load-bearing is
+          animation-only.
+        </li>
+        <li>
+          <strong>Hardware as an alternative.</strong> A MIDI controller can drive the desk in place
+          of the pointer, and mappings are remembered.
+        </li>
+        <li>
+          <strong>Pointer alternatives on controls.</strong> Scrolling steps a control, right-click
+          or double-click resets it, and holding shift gives fine adjustment - so precise values do
+          not depend on a precise drag.
+        </li>
+        <li>
+          <strong>A layout you can rearrange.</strong> Panels can be moved and resized, so the parts
+          you need can be put where you can see them.
+        </li>
+        <li>
+          <strong>No flashing.</strong> Nothing in the interface flashes at a rate known to trigger
+          seizures.
+        </li>
+      </ul>
+
+      <h2>Known limitations</h2>
+      <p>We know about the following, and are not claiming otherwise.</p>
+      <ul>
+        <li>
+          <strong>Some interactions need a pointer.</strong> Scrubbing the waveform, setting cue
+          points by hand and rearranging the layout are drag gestures with no keyboard equivalent
+          yet.
+        </li>
+        <li>
+          <strong>Screen reader support is partial.</strong> Controls are labelled, but the console
+          is not yet a comfortable screen-reader experience end to end, and the reading order across
+          a rearranged layout can be surprising.
+        </li>
+        <li>
+          <strong>The interface is small and dense by design.</strong> Some labels are below the
+          size we would choose for body text. Browser zoom works, but at high zoom the console
+          layout gets tight.
+        </li>
+        <li>
+          <strong>Colour carries some meaning.</strong> Deck A and deck B are told apart by colour
+          as well as by their labels and position; on-air and playback states use colour alongside
+          text. We are working through the places where colour is doing too much of the work on its
+          own.
+        </li>
+        <li>
+          <strong>One theme.</strong> There is a dark theme only, with no high-contrast or light
+          alternative yet.
+        </li>
+        <li>
+          <strong>It is an audio product.</strong> The core output is sound. There is no visual
+          substitute for hearing the mix, though waveforms and level meters show what is playing.
+        </li>
+        <li>
+          <strong>Discord and the browser.</strong> Sign-in happens on Discord's pages, and playback
+          reaches listeners through Discord. Their accessibility is theirs, not ours.
+        </li>
+      </ul>
+
+      <h2>What we are working on</h2>
+      <p>
+        Keyboard equivalents for the remaining drag-only interactions, a fuller pass over
+        screen-reader labelling and reading order, and reducing the number of places where colour
+        alone carries a state. We do not publish dates we cannot keep, but this section changes as
+        those land.
+      </p>
+
+      <h2>Getting help</h2>
+      <p>
+        If something here is stopping you doing what you came to do, tell us and we will help you
+        get it done - directly, if that is what it takes - while we fix the underlying problem.
+      </p>
+
+      <h2>Telling us about a problem</h2>
+      <p>
+        Email <a href={`mailto:${EMAIL}`}>{EMAIL}</a> or use the{' '}
+        <a href={`${SITE}/contact`}>contact page</a>. It helps to know what you were trying to do,
+        the page or panel it happened on, the browser and any assistive technology you use, and what
+        you expected instead. We aim to reply within five working days, and to tell you what we
+        intend to do and roughly when.
+      </p>
+      <p>
+        If our reply does not resolve it, say so and we will look at it again. Nothing here affects
+        rights you have under equality or accessibility law where you live.
+      </p>
+
+      <h2>How this was assessed</h2>
+      <p>
+        This statement is based on our own review of the interface against WCAG 2.2 AA, using
+        keyboard testing, browser accessibility tooling and the implementation itself. It has not
+        been audited by an independent third party, and it is not a formal conformance claim.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        This statement is updated as the product changes. The date at the top shows when it last
+        changed.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Accessibility questions: <a href={`mailto:${EMAIL}`}>{EMAIL}</a>, or the{' '}
         <a href={`${SITE}/contact`}>contact page</a>.
       </p>
     </article>

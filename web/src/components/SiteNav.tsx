@@ -115,6 +115,22 @@ export function SitePage({
   );
 }
 
+/**
+ * The policy pages, in the order they are tabbed through.
+ *
+ * They live here rather than in Legal because the footer and the policy tabs
+ * both read this list, and Legal already imports from this file - putting it
+ * the other way round would make the two modules import each other.
+ */
+export const POLICIES = [
+  { href: '/terms', label: 'Terms', page: 'terms' },
+  { href: '/privacy', label: 'Privacy', page: 'privacy' },
+  { href: '/cookies', label: 'Cookies', page: 'cookies' },
+  { href: '/accessibility', label: 'Accessibility', page: 'accessibility' },
+] as const;
+
+export type PolicyPage = (typeof POLICIES)[number]['page'];
+
 const FOOTER = [
   {
     title: 'Product',
@@ -125,46 +141,68 @@ const FOOTER = [
     ],
   },
   {
-    title: 'Documentation',
+    title: 'Resources',
     links: [
       { href: '/home/help', label: 'Help centre' },
+      { href: '/request', label: 'Request a track' },
     ],
   },
   {
     title: 'Legal',
-    links: [
-      { href: '/terms', label: 'Terms' },
-      { href: '/privacy', label: 'Privacy' },
-    ],
+    links: POLICIES.map(({ href, label }) => ({ href, label })),
   },
 ];
 
+/**
+ * The last thing on every public page, so it does the work a sitemap would:
+ * what this is, a way in, where everything lives, and the policies. The base
+ * bar underneath carries only the things that belong on every page - who runs
+ * it, and the promise about tracking.
+ */
 export function SiteFooter() {
+  const year = new Date().getFullYear();
+
   return (
     <footer className="site-foot">
-      <div className="site-foot-inner">
+      <div className="site-foot-top">
         <div className="site-foot-brand">
           <img src="/deckLogo.png" alt="deck" />
           <p>Two decks, a mixer and your crew - live in a Discord voice channel.</p>
+          <div className="site-foot-cta">
+            <a className="site-btn is-primary" href="/home/access">
+              Get access
+            </a>
+            <a className="site-btn" href="/login">
+              Sign in
+            </a>
+          </div>
         </div>
 
-        <div className="site-foot-cols">
+        <nav className="site-foot-cols" aria-label="Footer">
           {FOOTER.map((column) => (
             <div className="site-foot-col" key={column.title}>
               <span className="site-eyebrow">{column.title}</span>
-              {column.links.map((link) => (
-                <a key={link.href} href={link.href}>
-                  {link.label}
-                </a>
-              ))}
+              <ul>
+                {column.links.map((link) => (
+                  <li key={link.href}>
+                    <a href={link.href}>{link.label}</a>
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
-        </div>
+        </nav>
       </div>
 
       <div className="site-foot-base">
-        <a href="https://ronation.live">Powered by RO Nation Live</a>
-        <span>Run for you · no telemetry</span>
+        <p>
+          &copy; {year} RO. Nation LIVE &middot;{' '}
+          <a href="https://ronation.live">ronation.live</a>
+        </p>
+        <p className="site-foot-note">
+          <span className="site-foot-dot" aria-hidden="true" />
+          Run for you · no telemetry, no ad trackers
+        </p>
       </div>
     </footer>
   );

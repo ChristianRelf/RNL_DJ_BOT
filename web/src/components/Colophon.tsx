@@ -1,7 +1,10 @@
+import { POLICIES } from './SiteNav';
+
 /**
- * Attribution and the legal links. Plain anchors rather than client-side
- * navigation: /terms and /privacy are whole pages served by the SPA fallback,
- * and a full load keeps them reachable without a session or a socket.
+ * Attribution and the legal links, for the pages that have no site footer -
+ * the console and the sign-in door. Plain anchors rather than client-side
+ * navigation: the policies are whole pages served by the SPA fallback, and a
+ * full load keeps them reachable without a session or a socket.
  */
 export function Colophon({ block }: { block?: boolean }) {
   return (
@@ -10,8 +13,11 @@ export function Colophon({ block }: { block?: boolean }) {
         Powered by RO Nation Live
       </a>
       <span className="colophon-links">
-        <a href="/terms">Terms</a>
-        <a href="/privacy">Privacy</a>
+        {POLICIES.map((policy) => (
+          <a key={policy.page} href={policy.href}>
+            {policy.label}
+          </a>
+        ))}
       </span>
     </div>
   );
