@@ -124,6 +124,15 @@ try {
   run(mixer, FRAMES);
   report('+ eight pads firing', mixer.frameTimer);
 
+  const monitorFrames = [];
+  const capture = (frame) => { monitorFrames.push(frame); if (monitorFrames.length > 10) monitorFrames.shift(); };
+  mixer.on('monitorFrame', capture);
+  mixer.monitorEnabled = true;
+  run(mixer, FRAMES);
+  report('+ browser master monitor', mixer.frameTimer);
+  mixer.monitorEnabled = false;
+  mixer.off('monitorFrame', capture);
+
   const [, p95] = mixer.frameTimer.percentiles();
   console.log();
   console.log(

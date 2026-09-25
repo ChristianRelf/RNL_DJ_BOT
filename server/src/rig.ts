@@ -13,7 +13,7 @@ import { BotRegistry } from './discord/bots';
 import type { GuildStore } from './store';
 import { config } from './config';
 import { createLogger } from './logger';
-import { decodeQueue, decodeToPcm, probeTitle } from './audio/transcode';
+import { analyseLoudness, decodeQueue, decodeToPcm, probeTitle } from './audio/transcode';
 import { commandSchemas, isCommand, NEEDS_CONTROL, type CommandKey } from './schemas';
 import type { Deck } from './audio/deck';
 import type { Pad } from './audio/pad';
@@ -78,6 +78,7 @@ export class Rig extends EventEmitter {
   private rev = 0;
   private channelTimer: NodeJS.Timeout | null = null;
   private hostGrace: NodeJS.Timeout | null = null;
+  private lastController: string | null = null;
 
   constructor(
     readonly guildId: string,
@@ -107,7 +108,15 @@ export class Rig extends EventEmitter {
       }
       this.bumpState();
     });
-    this.control.on('change', () => this.bumpState());
+    this.control.on('change', () => {
+      const holder = this.control.holderId;
+      if (holder !== this.lastController) {
+        this.mixer.decks.A.cancelPending();
+        this.mixer.decks.B.cancelPending();
+        this.lastController = holder;
+      }
+      this.bumpState();
+    });
     this.control.on('timeout', (_id: string, name: string) =>
       this.toast('warn', `${name} timed out - control passed on.`),
     );
@@ -161,8 +170,12 @@ export class Rig extends EventEmitter {
   // ---------------------------------------------------------------- state ---
 
   state(): EngineState {
+    const buffers = this.host.stats();
     return {
-      decks: { A: this.mixer.decks.A.snapshot(), B: this.mixer.decks.B.snapshot() },
+      decks: {
+        A: this.mixer.decks.A.snapshot(buffers['deck:A'] ? Math.round(buffers['deck:A'].ahead * 1000 / SAMPLE_RATE) : null, buffers['deck:A']?.responseMs ?? null),
+        B: this.mixer.decks.B.snapshot(buffers['deck:B'] ? Math.round(buffers['deck:B'].ahead * 1000 / SAMPLE_RATE) : null, buffers['deck:B']?.responseMs ?? null),
+      },
       pads: this.mixer.pads.map((p) => p.snapshot()),
       queue: { items: [...this.store.db.queue.items], auto: this.store.db.queue.auto },
       requests: [...this.store.db.requests],
@@ -328,6 +341,7 @@ export class Rig extends EventEmitter {
         title: item.title,
         reader: this.makeReader(item.id, `deck:${deck}`),
         bpm: item.bpm,
+        beatGrid: item.beatGrid,
       });
       if (play) this.mixer.decks[deck].play();
       this.store.save();
@@ -446,10 +460,12 @@ export class Rig extends EventEmitter {
    * estimate the scan read off file metadata - approximate for anything
    * variable-bitrate, and the difference is audible at the end of a track.
    */
-  registerPeaks(trackId: string, peaks: number[], frames: number): void {
+  registerPeaks(trackId: string, peaks: number[], frames: number, loudnessLufs?: number | null, truePeakDb?: number | null): void {
     const item = this.store.getMedia(trackId);
     if (!item) return;
     item.peaks = peaks;
+    if (loudnessLufs !== undefined) item.loudnessLufs = loudnessLufs;
+    if (truePeakDb !== undefined) item.truePeakDb = truePeakDb;
     if (frames > 0) item.durationMs = Math.round((frames / SAMPLE_RATE) * 1000);
     this.store.putMedia(item);
     this.syncTitles(item);
@@ -497,6 +513,9 @@ export class Rig extends EventEmitter {
         peaks: [],
         bpm: null,
         beatGrid: null,
+        hotCues: [null, null, null, null],
+        loudnessLufs: null,
+        truePeakDb: null,
         key: null,
         tags: [],
         status: 'ready',
@@ -561,6 +580,7 @@ export class Rig extends EventEmitter {
           title: item.title,
           reader: this.makeReader(item.id, `deck:${payload.deck}`),
           bpm: item.bpm,
+          beatGrid: item.beatGrid,
         });
         this.toast('success', `Loaded "${item.title}" onto deck ${payload.deck}.`);
         return;
@@ -590,6 +610,45 @@ export class Rig extends EventEmitter {
       case 'deck:nudge':
         this.deckOf(payload).nudgeMs(payload.deltaMs);
         return;
+      case 'deck:hotCue': {
+        const deck = this.deckOf(payload);
+        if (!deck.mediaId) throw new CommandError('Load a track first.');
+        const item = this.readyMedia(deck.mediaId);
+        const cues = item.hotCues ?? [null, null, null, null];
+        if (payload.action === 'jump') {
+          const cue = cues[payload.index];
+          if (!cue) throw new CommandError('That hot cue is empty.');
+          deck.jumpTo(cue.ms);
+        } else {
+          cues[payload.index] = payload.action === 'set'
+            ? { ms: Math.round(deck.positionMs), label: String(payload.index + 1) }
+            : null;
+          item.hotCues = cues;
+          this.store.putMedia(item);
+          this.emitMedia();
+        }
+        return;
+      }
+      case 'deck:align': {
+        const deck = this.deckOf(payload);
+        const other = this.mixer.decks[payload.deck === 'A' ? 'B' : 'A'];
+        const grid = deck.beatGrid;
+        const reference = other.beatGrid;
+        if (!grid || !reference || !deck.loaded || !other.loaded) {
+          throw new CommandError('Both decks need a beat grid to align.');
+        }
+        const phase = (position: number, bpm: number, offset: number) => {
+          const beat = 60_000 / bpm;
+          return (((position - offset) / beat) % 1 + 1) % 1;
+        };
+        const own = phase(deck.positionMs, grid.bpm, grid.beatOffsetMs);
+        const theirs = phase(other.positionMs, reference.bpm, reference.beatOffsetMs);
+        let beats = theirs - own;
+        if (beats > 0.5) beats -= 1;
+        if (beats < -0.5) beats += 1;
+        deck.nudgeMs(beats * 60_000 / grid.bpm);
+        return;
+      }
       case 'deck:set':
         this.deckOf(payload).applySettings(payload);
         return;
@@ -794,7 +853,32 @@ export class Rig extends EventEmitter {
         }
         if (payload.title !== undefined) item.title = payload.title;
         if (payload.bpm !== undefined) item.bpm = payload.bpm;
+        if (payload.bpm !== undefined && item.beatGrid && payload.bpm !== item.beatGrid.bpm) {
+          if (item.beatGrid.source === 'manual' && payload.bpm !== null) {
+            item.beatGrid.bpm = payload.bpm;
+            item.beatGrid.beatOffsetMs %= 60_000 / payload.bpm;
+          } else {
+            item.beatGrid = null;
+          }
+        }
         if (payload.tags !== undefined) item.tags = payload.tags;
+        this.store.putMedia(item);
+        this.syncTitles(item);
+        this.emitMedia();
+        return;
+      }
+      case 'media:grid': {
+        const item = this.readyMedia(payload.id);
+        const beat = 60_000 / payload.bpm;
+        item.bpm = payload.bpm;
+        item.beatGrid = {
+          bpm: payload.bpm,
+          beatOffsetMs: payload.offsetMs % beat,
+          beatsPerBar: 4,
+          downbeat: payload.downbeat,
+          confidence: 1,
+          source: 'manual',
+        };
         this.store.putMedia(item);
         this.syncTitles(item);
         this.emitMedia();
@@ -899,6 +983,9 @@ export class Rig extends EventEmitter {
       peaks: [],
       bpm: null,
       beatGrid: null,
+      hotCues: [null, null, null, null],
+      loudnessLufs: null,
+      truePeakDb: null,
       key: null,
       tags: [],
       status: 'processing',
@@ -941,8 +1028,15 @@ export class Rig extends EventEmitter {
    * install aubio *after* importing a library, not before.
    */
   private async analyse(item: MediaItem): Promise<void> {
+    const loudness = await analyseLoudness(pcmPath(item.id));
+    if (loudness) {
+      item.loudnessLufs = loudness.lufs;
+      item.truePeakDb = loudness.truePeakDb;
+      this.store.putMedia(item);
+      this.emitMedia();
+    }
     const grid = await analyseBeats(pcmPath(item.id), item.durationMs);
-    if (!grid) return;
+    if (!grid || item.beatGrid?.source === 'manual') return;
     item.beatGrid = grid;
     // Detected tempo fills a blank, but never overrules a number somebody
     // typed or tapped: they were listening to it and the detector was not.
@@ -981,6 +1075,8 @@ export class Rig extends EventEmitter {
       if (deck.mediaId === item.id) {
         deck.title = item.title;
         deck.bpm = item.bpm;
+        if (deck.beatGrid !== item.beatGrid) deck.cancelPending();
+        deck.beatGrid = item.beatGrid;
       }
     }
     for (const pad of this.mixer.pads) {

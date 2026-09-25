@@ -117,6 +117,9 @@ export function DeckPanel({
     [deck.mediaId, media],
   );
   const peaks = item?.peaks ?? [];
+  const grid = item?.beatGrid ?? null;
+  const hotCues = item?.hotCues ?? [];
+  const otherGrid = other.mediaId ? media.find((entry) => entry.id === other.mediaId)?.beatGrid : null;
   const remaining = Math.max(0, deck.durationMs - deck.positionMs);
   const loopLength = Math.max(0, deck.loop.endMs - deck.loop.startMs);
   const empty = locked || !deck.mediaId;
@@ -129,6 +132,31 @@ export function DeckPanel({
   const target = playingBpm(other.bpm, other.rate);
   const match = syncRate(bpm, target);
   const activeBeats = deck.loop.active ? loopBeats(loopLength, bpm) : null;
+  const phaseMs = grid && otherGrid
+    ? (() => {
+        const phase = (ms: number, offset: number, tempo: number) => (((ms - offset) / (60_000 / tempo)) % 1 + 1) % 1;
+        let beats = phase(other.positionMs, otherGrid.beatOffsetMs, otherGrid.bpm)
+          - phase(deck.positionMs, grid.beatOffsetMs, grid.bpm);
+        if (beats > 0.5) beats -= 1;
+        if (beats < -0.5) beats += 1;
+        return Math.round(beats * 60_000 / grid.bpm / deck.rate);
+      })()
+    : null;
+  const suggestedTrimDb = item?.loudnessLufs != null && item.truePeakDb != null
+    ? Math.min(20 * Math.log10(2), -14 - item.loudnessLufs, -1 - item.truePeakDb)
+    : null;
+  const suggestedTrim = suggestedTrimDb === null ? null : Math.min(2, Math.max(0, 10 ** (suggestedTrimDb / 20)));
+
+  const setGrid = (offsetMs: number, downbeat = grid?.downbeat ?? 0) => {
+    if (!item || !bpm) return;
+    const period = 60_000 / bpm;
+    void send('media:grid', {
+      id: item.id,
+      bpm,
+      offsetMs: ((offsetMs % period) + period) % period,
+      downbeat,
+    });
+  };
 
   const scaleLoop = (factor: number) => {
     const length = Math.max(50, loopLength || 4000) * factor;
@@ -188,6 +216,9 @@ export function DeckPanel({
               deck.playing ? 'playing' : deck.mediaId ? 'stopped' : 'empty',
               deck.rate !== 1 ? formatRate(deck.rate) : null,
               deck.repeat ? 'repeat' : null,
+              deck.muted ? 'muted' : null,
+              deck.starved ? 'audio waiting' : null,
+              deck.pendingCue ? 'cue armed' : null,
             ]
               .filter(Boolean)
               .join('   ')}
@@ -211,10 +242,19 @@ export function DeckPanel({
         positionMs={deck.positionMs}
         cueMs={deck.cueMs}
         loop={deck.loop}
+        beatGrid={grid}
+        hotCues={hotCues}
         accent={accent}
         disabled={empty}
         onSeek={(ms) => throttled('deck:seek', { deck: deck.id, ms })}
       />
+
+      <div className="deck-health mono" aria-live="polite">
+        <span className={deck.starved ? 'is-warning' : ''}>{deck.starved ? 'AUDIO WAITING' : deck.playing ? 'PLAYING' : 'READY'}</span>
+        <span className={deck.playing && deck.bufferMs !== null && deck.bufferMs < 500 ? 'is-warning' : ''}>{deck.bufferMs === null ? 'LOCAL SOURCE' : `BUFFER ${(deck.bufferMs / 1000).toFixed(1)}s`}</span>
+        {deck.refillMs !== null ? <span>REFILL {deck.refillMs}ms</span> : null}
+        <span>{grid ? `${grid.source.toUpperCase()} GRID ${Math.round(grid.confidence * 100)}%` : 'NO BEAT GRID'}</span>
+      </div>
 
       <div className="deck-times">
         <span className="mono deck-elapsed">{formatTimeMs(deck.positionMs)}</span>
@@ -386,6 +426,48 @@ export function DeckPanel({
             </div>
           </div>
 
+          <div className="tool-block">
+            <span className="tool-label">Hot cues · click to set/jump · Shift-click to clear</span>
+            <div className="hot-cue-row">
+              {[0, 1, 2, 3].map((index) => {
+                const cue = hotCues[index];
+                return <button
+                  key={index}
+                  type="button"
+                  className={`btn tiny hot-cue ${cue ? 'is-set' : ''}`}
+                  disabled={empty}
+                  title={cue ? `Jump to cue ${index + 1} at ${formatTime(cue.ms)}. Shift-click to clear.` : `Set cue ${index + 1} here`}
+                  onClick={(event) => void send('deck:hotCue', { deck: deck.id, index, action: event.shiftKey ? 'clear' : cue ? 'jump' : 'set' })}
+                  onContextMenu={(event) => { event.preventDefault(); if (!empty) void send('deck:hotCue', { deck: deck.id, index, action: 'clear' }); }}
+                >
+                  {index + 1}{cue ? <small>{formatTime(cue.ms)}</small> : null}
+                </button>;
+              })}
+            </div>
+          </div>
+
+          <div className="tool-block">
+            <span className="tool-label">Beat grid</span>
+            <div className="transport-row">
+              <button type="button" className={`btn tiny ${deck.quantize ? 'is-loop' : ''}`} disabled={empty || !grid} aria-pressed={deck.quantize} onClick={() => void send('deck:set', { deck: deck.id, quantize: !deck.quantize })}>QUANTIZE</button>
+              <button type="button" className="btn tiny" disabled={empty || !bpm} title="Place a beat marker at the current playhead" onClick={() => setGrid(deck.positionMs)}>GRID HERE</button>
+              <button type="button" className="btn tiny" disabled={empty || !grid} onClick={() => setGrid(grid!.beatOffsetMs - 10)}>−10ms</button>
+              <button type="button" className="btn tiny" disabled={empty || !grid} onClick={() => setGrid(grid!.beatOffsetMs + 10)}>+10ms</button>
+              <button type="button" className="btn tiny" disabled={empty || !grid} title="Move the bar downbeat" onClick={() => setGrid(grid!.beatOffsetMs, ((grid!.downbeat + 1) % 4))}>BAR {grid ? grid.downbeat + 1 : '—'}</button>
+            </div>
+            <div className="transport-row">
+              <span className="mono phase-readout">{phaseMs === null ? 'PHASE —' : `PHASE ${phaseMs > 0 ? '+' : ''}${phaseMs}ms`}</span>
+              <button type="button" className="btn tiny" disabled={empty || phaseMs === null} onClick={() => void send('deck:align', { deck: deck.id })}>ALIGN BEATS</button>
+            </div>
+          </div>
+
+          {suggestedTrim !== null && suggestedTrimDb !== null ? (
+            <div className="deck-loudness mono">
+              <span>{item!.loudnessLufs!.toFixed(1)} LUFS · PEAK {item!.truePeakDb!.toFixed(1)} dB</span>
+              <button type="button" className="btn tiny" disabled={empty} title="Apply the suggested safe input trim" onClick={() => void send('deck:set', { deck: deck.id, trim: suggestedTrim })}>MATCH {suggestedTrimDb > 0 ? '+' : ''}{suggestedTrimDb.toFixed(1)} dB</button>
+            </div>
+          ) : null}
+
           <div className="deck-flags">
             <label className="check">
               <input
@@ -447,6 +529,10 @@ export function DeckPanel({
           <span className={`mono tiny-value ${deck.rate !== 1 ? 'is-moved' : ''}`}>
             {formatRate(deck.rate)}
           </span>
+
+          <div className="pitch-steps" aria-label="Fine pitch adjustments">
+            {[-0.01, -0.001, 0.001, 0.01].map((step) => <button key={step} type="button" className="btn tiny" disabled={empty} title={`${step > 0 ? 'Raise' : 'Lower'} speed by ${Math.abs(step * 100)}%`} onClick={() => void send('deck:set', { deck: deck.id, rate: Math.max(0.5, Math.min(2, Math.round((deck.rate + step) * 1000) / 1000)) })}>{step > 0 ? '+' : '−'}{Math.abs(step * 100)}%</button>)}
+          </div>
 
           {/* The pitch fader resets on right-click like every other control, so
               a dedicated reset button would just be taking up the space. */}

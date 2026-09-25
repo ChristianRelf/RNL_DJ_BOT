@@ -2,13 +2,20 @@ import { Headphones, Users } from 'lucide-react';
 import { ClipLamp, Meter, PeakReadout } from './controls';
 import { formatDb } from '../lib/format';
 import type { MixerState, VoiceState } from '../protocol';
+import type { Socket } from 'socket.io-client';
+import type { DeckId, DeckState } from '../protocol';
+import { BoothCue } from './BoothCue';
 
 interface OutputPanelProps {
   mixer: MixerState;
   voice: VoiceState;
+  decks: Record<DeckId, DeckState>;
+  socket: Socket | null;
 }
 
 const LANES = [
+  { channel: 'preA', label: 'A IN' },
+  { channel: 'preB', label: 'B IN' },
   { channel: 'A', label: 'A' },
   { channel: 'B', label: 'B' },
   { channel: 'pads', label: 'PAD' },
@@ -26,7 +33,7 @@ const SCALE_DB = [-48, -24, -12, -6, 0];
  * The meter bridge. Everything here is read-only - it answers "what is actually
  * going out to the room" without making you read it off the mixer strips.
  */
-export function OutputPanel({ mixer, voice }: OutputPanelProps) {
+export function OutputPanel({ mixer, voice, decks, socket }: OutputPanelProps) {
   return (
     <section className="panel output">
       <header className="panel-head">
@@ -80,6 +87,7 @@ export function OutputPanel({ mixer, voice }: OutputPanelProps) {
           <dd className="bridge-channel">{voice.channelName ?? 'not connected'}</dd>
         </div>
       </dl>
+      <BoothCue decks={decks} socket={socket} />
     </section>
   );
 }

@@ -78,11 +78,21 @@ export interface MediaItem {
   bpm: number | null;
   /** Where the beats are, or null when nothing trustworthy was found. */
   beatGrid: BeatGrid | null;
+  /** Four shared, persistent performance markers. */
+  hotCues: (HotCue | null)[];
+  /** Offline measured integrated loudness and oversampled peak estimate, when available. */
+  loudnessLufs: number | null;
+  truePeakDb: number | null;
   /** Camelot notation, e.g. "8A". Set by hand for now. */
   key: string | null;
   tags: string[];
   status: MediaStatus;
   error?: string;
+}
+
+export interface HotCue {
+  ms: number;
+  label: string;
 }
 
 /**
@@ -157,6 +167,13 @@ export interface DeckState {
    * than as the deck having silently stopped.
    */
   starved: boolean;
+  /** Optional beat-locked actions for this deck. */
+  quantize: boolean;
+  /** Remote audio currently held in memory, or null for local files. */
+  bufferMs: number | null;
+  refillMs: number | null;
+  /** True while a cue jump is waiting for the next beat. */
+  pendingCue: boolean;
 }
 
 export type PadMode = 'oneshot' | 'loop' | 'gate';
@@ -437,6 +454,8 @@ export interface Meters {
   master: [number, number];
   A: [number, number];
   B: [number, number];
+  preA: [number, number];
+  preB: [number, number];
   pads: [number, number];
   /** Wet return of the effects bus. */
   fx: [number, number];
@@ -466,6 +485,8 @@ export interface ClientCommands {
   'deck:setCue': { deck: DeckId; ms: number };
   'deck:seek': { deck: DeckId; ms: number };
   'deck:nudge': { deck: DeckId; deltaMs: number };
+  'deck:hotCue': { deck: DeckId; index: number; action: 'set' | 'jump' | 'clear' };
+  'deck:align': { deck: DeckId };
   'deck:set': {
     deck: DeckId;
     gain?: number;
@@ -476,6 +497,7 @@ export interface ClientCommands {
     fxSend?: number;
     muted?: boolean;
     repeat?: boolean;
+    quantize?: boolean;
     eq?: Partial<DeckEq>;
   };
   'deck:loop': { deck: DeckId; active: boolean; startMs?: number; endMs?: number };
@@ -512,6 +534,7 @@ export interface ClientCommands {
    * tends to get installed *after* a library has been imported, not before.
    */
   'media:analyse': { id: string };
+  'media:grid': { id: string; bpm: number; offsetMs: number; downbeat: number };
   'media:delete': { id: string };
   'control:request': Record<string, never>;
   'control:release': Record<string, never>;

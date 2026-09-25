@@ -51,6 +51,8 @@ const DECLINE_BACKOFF_MS = 250;
 /** Buffer health for one source. Enough to tell a slow link from a demand bug. */
 export interface ReaderStats {
   buffered: number;
+  ahead: number;
+  responseMs: number | null;
   outstanding: number;
   restarts: number;
   requested: number;
@@ -99,6 +101,9 @@ export class RemoteWindowReader implements WindowReader {
    *  demand is being sized off the wrong reference, not that the link is slow. */
   private restarts = 0;
   private requested = 0;
+  private playhead = 0;
+  private responseMs: number | null = null;
+  private sentAt = new Map<number, number>();
   private declinedUntil = 0;
 
   /** Set once the host has said it cannot serve this track at all. */
@@ -149,6 +154,8 @@ export class RemoteWindowReader implements WindowReader {
   get stats(): ReaderStats {
     return {
       buffered: this.count,
+      ahead: Math.max(0, this.count - Math.max(0, this.playhead - this.head)),
+      responseMs: this.responseMs,
       outstanding: this.outstanding,
       restarts: this.restarts,
       requested: this.requested,
@@ -222,6 +229,7 @@ export class RemoteWindowReader implements WindowReader {
    */
   private want(pos: number): void {
     if (this.closed || this.gone) return;
+    this.playhead = pos;
 
     const offset = pos - this.head;
     // Outside the ring entirely: the head has been moved by a cue, a loop or a
@@ -262,6 +270,7 @@ export class RemoteWindowReader implements WindowReader {
     // Anything in flight belongs to the old position and will be dropped on
     // arrival by the sequence check, so it must not hold the new fill back.
     this.outstanding = 0;
+    this.sentAt.clear();
     this.declinedUntil = 0;
 
     if (this.gone || from >= this.totalFrames) return;
@@ -288,6 +297,7 @@ export class RemoteWindowReader implements WindowReader {
     this.nextRequest += frames;
     this.outstanding++;
     this.requested += frames;
+    this.sentAt.set(need.fromFrame, Date.now());
     this.onNeed(need);
   }
 
@@ -306,6 +316,7 @@ export class RemoteWindowReader implements WindowReader {
    */
   decline(seq: number, fromFrame: number): void {
     if (this.closed || seq !== this.seq) return;
+    this.sentAt.delete(fromFrame);
     this.outstanding = Math.max(0, this.outstanding - 1);
     if (fromFrame < this.nextRequest) this.nextRequest = fromFrame;
     this.declinedUntil = Date.now() + DECLINE_BACKOFF_MS;
@@ -321,6 +332,10 @@ export class RemoteWindowReader implements WindowReader {
    */
   push(seq: number, fromFrame: number, pcm: Int16Array): boolean {
     if (this.closed || seq !== this.seq) return false;
+
+    const sent = this.sentAt.get(fromFrame);
+    if (sent !== undefined) this.responseMs = Date.now() - sent;
+    this.sentAt.delete(fromFrame);
 
     this.outstanding = Math.max(0, this.outstanding - 1);
 

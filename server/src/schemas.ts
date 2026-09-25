@@ -28,6 +28,8 @@ export const commandSchemas = {
   'deck:setCue': z.object({ deck: deckId, ms: finite.min(0) }).strict(),
   'deck:seek': z.object({ deck: deckId, ms: finite.min(0) }).strict(),
   'deck:nudge': z.object({ deck: deckId, deltaMs: finite.min(-60_000).max(60_000) }).strict(),
+  'deck:hotCue': z.object({ deck: deckId, index: z.number().int().min(0).max(3), action: z.enum(['set', 'jump', 'clear']) }).strict(),
+  'deck:align': z.object({ deck: deckId }).strict(),
   'deck:set': z
     .object({
       deck: deckId,
@@ -39,6 +41,7 @@ export const commandSchemas = {
       fxSend: finite.min(0).max(1).optional(),
       muted: z.boolean().optional(),
       repeat: z.boolean().optional(),
+      quantize: z.boolean().optional(),
       eq: eq.optional(),
     })
     .strict(),
@@ -139,6 +142,7 @@ export const commandSchemas = {
     })
     .strict(),
   'media:analyse': z.object({ id: mediaId }).strict(),
+  'media:grid': z.object({ id: mediaId, bpm: finite.min(20).max(300), offsetMs: finite.min(0).max(3000), downbeat: z.number().int().min(0).max(3) }).strict(),
   'media:delete': z.object({ id: mediaId }).strict(),
   'control:request': z.object({}).strict(),
   'control:release': z.object({}).strict(),
@@ -165,8 +169,11 @@ export const NEEDS_CONTROL = new Set<CommandKey>([
   'deck:setCue',
   'deck:seek',
   'deck:nudge',
+  'deck:hotCue',
+  'deck:align',
   'deck:set',
   'deck:loop',
+  'media:grid',
   // Anyone signed in may line a track up - that is the point of a shared queue,
   // and it does not touch what the room is hearing. Rearranging what somebody
   // else is about to play does, so the rest of these need the lock.
@@ -238,5 +245,7 @@ export const mediaPeaksSchema = z
     trackId,
     peaks: z.array(z.number().min(0).max(1)).length(PEAK_BUCKETS),
     frames: z.number().int().min(0),
+    loudnessLufs: finite.min(-100).max(10).nullable().optional(),
+    truePeakDb: finite.min(-100).max(10).nullable().optional(),
   })
   .strict();

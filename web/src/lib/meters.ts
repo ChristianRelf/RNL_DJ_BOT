@@ -4,6 +4,8 @@ const EMPTY: Meters = {
   master: [0, 0],
   A: [0, 0],
   B: [0, 0],
+  preA: [0, 0],
+  preB: [0, 0],
   pads: [0, 0],
   fx: [0, 0],
   clip: false,

@@ -11,6 +11,8 @@ const KEYS: Array<[string, string]> = [
   ['P', 'Play or pause deck B'],
   ['1 – 8', 'Fire the sample pads'],
   ['[  ]', 'Nudge the crossfader'],
+  ['Z X C V', 'Deck A hot cues 1–4; Shift sets'],
+  ['N M , .', 'Deck B hot cues 1–4; Shift sets'],
 ];
 
 const GESTURES: Array<[string, string]> = [

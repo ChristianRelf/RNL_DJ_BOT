@@ -1459,6 +1459,22 @@ body {
   cursor: default;
 }
 
+.waveform-stack { display: grid; gap: 3px; }
+.waveform-zoom { height: 55px; cursor: default; }
+.deck-health { display: flex; flex-wrap: wrap; gap: 5px 12px; color: var(--muted); font-size: 10px; }
+.deck-health .is-warning { color: var(--danger); font-weight: 700; }
+.hot-cue-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+.hot-cue { min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.hot-cue.is-set { border-color: #ab8a2d; color: #f4d35e; }
+.hot-cue small { font: 9px var(--mono); }
+.phase-readout { flex: 1; align-self: center; color: var(--muted); font-size: 10px; }
+.deck-loudness { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; color: var(--muted); font-size: 10px; }
+.booth-cue { display: grid; gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.cue-slider { display: flex; align-items: center; gap: 6px; font: 10px var(--mono); color: var(--muted); }
+.cue-slider input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.cue-slider select { flex: 1; min-width: 0; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); font: inherit; }
+.cue-status { align-self: center; color: var(--muted); font-size: 10px; }
+
 .deck-times {
   display: flex;
   justify-content: space-between;
@@ -1610,6 +1626,8 @@ body {
 .deck-pitch .btn.tiny:not(.sync) {
   width: 100%;
 }
+.pitch-steps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; width: 100%; }
+.pitch-steps .btn.tiny { padding-left: 2px; padding-right: 2px; font-size: 9px; }
 
 .tiny-value {
   font-size: 10px;

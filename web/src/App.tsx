@@ -196,6 +196,22 @@ export default function App({
         return;
       }
 
+      const cueKeys: Record<string, { deck: 'A' | 'B'; index: number }> = {
+        z: { deck: 'A', index: 0 }, x: { deck: 'A', index: 1 },
+        c: { deck: 'A', index: 2 }, v: { deck: 'A', index: 3 },
+        n: { deck: 'B', index: 0 }, m: { deck: 'B', index: 1 },
+        ',': { deck: 'B', index: 2 }, '.': { deck: 'B', index: 3 },
+        '<': { deck: 'B', index: 2 }, '>': { deck: 'B', index: 3 },
+      };
+      const cue = cueKeys[event.key.toLowerCase()];
+      if (cue && state.decks[cue.deck].mediaId) {
+        event.preventDefault();
+        const item = dj.media.find((entry) => entry.id === state.decks[cue.deck].mediaId);
+        const action = event.shiftKey || !item?.hotCues?.[cue.index] ? 'set' : 'jump';
+        void dj.send('deck:hotCue', { ...cue, action });
+        return;
+      }
+
       switch (event.key.toLowerCase()) {
         case 'q':
           event.preventDefault();
@@ -312,7 +328,7 @@ export default function App({
         throttled={throttled}
       />
     ),
-    output: <OutputPanel mixer={state.mixer} voice={state.voice} />,
+    output: <OutputPanel mixer={state.mixer} voice={state.voice} decks={state.decks} socket={dj.socket} />,
     crew: <CrewPanel control={state.control} users={state.users} me={me} send={dj.send} />,
     pads: <Pads pads={state.pads} locked={locked} send={dj.send} throttled={throttled} />,
     nowPlaying: <NowPlaying decks={state.decks} mixer={state.mixer} />,

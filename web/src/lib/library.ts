@@ -5,6 +5,7 @@ import {
 } from './folder';
 import type { WorkerReply, WorkerRequest } from './libraryWorker';
 import { PEAK_BUCKETS, type AudioNeedMessage } from '../protocol';
+import { LoudnessAnalyser } from './loudness';
 
 const CHANNELS = 2;
 const SAMPLE_RATE = 48000;
@@ -37,7 +38,7 @@ export interface LibraryEvents {
   onDecodeStart?: (trackId: string) => void;
   onDecodeDone?: (trackId: string, frames: number) => void;
   /** The waveform envelope, once there is one. Sent on to the server. */
-  onPeaks?: (trackId: string, peaks: number[], frames: number) => void;
+  onPeaks?: (trackId: string, peaks: number[], frames: number, loudnessLufs: number | null, truePeakDb: number | null) => void;
   onError?: (message: string) => void;
 }
 
@@ -192,6 +193,7 @@ export class Library {
     // the only pass over the samples there will be, and walking a decoded track
     // twice to draw a picture of it would be the expensive kind of tidy.
     const peaks = new Float32Array(PEAK_BUCKETS);
+    const loudness = new LoudnessAnalyser();
     const perBucket = audio.length / PEAK_BUCKETS;
 
     await this.ask({ kind: 'begin', trackId });
@@ -206,6 +208,7 @@ export class Library {
           // full-scale click rather than the clip it actually is.
           const l = Math.max(-1, Math.min(1, left[start + i]));
           const r = Math.max(-1, Math.min(1, right[start + i]));
+          loudness.push(l, r);
           view[i * 2] = l < 0 ? l * 32768 : l * 32767;
           view[i * 2 + 1] = r < 0 ? r * 32768 : r * 32767;
 
@@ -232,7 +235,8 @@ export class Library {
       this.events.onTracks?.(this.trackList);
     }
 
-    this.events.onPeaks?.(trackId, Array.from(peaks, (v) => Math.round(v * 1000) / 1000), frames);
+    const levels = loudness.finish();
+    this.events.onPeaks?.(trackId, Array.from(peaks, (v) => Math.round(v * 1000) / 1000), frames, levels.loudnessLufs, levels.truePeakDb);
     this.events.onDecodeDone?.(trackId, frames);
     return frames;
   }

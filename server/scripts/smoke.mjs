@@ -124,6 +124,52 @@ try {
   check('loop wraps inside its window', A.positionMs >= 1000 && A.positionMs < 1200, `${A.positionMs.toFixed(0)}ms`);
   A.setLoop(false);
 
+  // --- performance controls ----------------------------------------------
+  A.beatGrid = { bpm: 120, beatOffsetMs: 0, beatsPerBar: 4, downbeat: 0, confidence: 1, source: 'manual' };
+  A.applySettings({ quantize: true });
+  A.setLoop(true, 1040, 2030);
+  check('quantized loop markers land on the grid', Math.abs(A.loop.startMs - 1000) < 1 && Math.abs(A.loop.endMs - 2000) < 1);
+  A.setLoop(false);
+  A.seekMs(1100);
+  A.jumpTo(2500);
+  check('hot cue waits for the next audio beat', A.snapshot().pendingCue && A.positionMs < 1200);
+  renderPeak(mixer, 25);
+  check('hot cue fires inside rendering', !A.snapshot().pendingCue && A.positionMs >= 2500 && A.positionMs < 2700,
+    `${A.positionMs.toFixed(1)}ms`);
+  A.seekMs(1100);
+  A.jumpTo(2500);
+  A.cancelPending();
+  renderPeak(mixer, 25);
+  check('cancelled cue does not fire', A.positionMs < 2000);
+  A.setLoop(true, 1000, 1125);
+  A.seekMs(1050);
+  A.jumpTo(2500);
+  renderPeak(mixer, 7);
+  check('cue escapes a short loop at its next boundary', !A.loop.active && A.positionMs >= 2500 && A.positionMs < 2700,
+    `${A.positionMs.toFixed(1)}ms`);
+  A.applySettings({ quantize: false });
+
+  A.applySettings({ quantize: true });
+  A.seekMs(1100);
+  A.setCue(750);
+  A.cue();
+  check('quantized primary cue waits while playing', A.playing && A.snapshot().pendingCue);
+  renderPeak(mixer, 25);
+  check('quantized primary cue stops at its marker', !A.playing && Math.abs(A.positionMs - 750) < 20);
+  A.jumpTo(1000);
+  check('a hot cue starts a paused deck', A.playing && Math.abs(A.positionMs - 1000) < 1);
+  A.applySettings({ quantize: false });
+
+  // A seek while audible should start at the previous sample and settle into
+  // the new position rather than make a full-amplitude discontinuity.
+  const beforeJump = mixer.renderFrame();
+  const lastSample = beforeJump.readInt16LE(beforeJump.length - 4);
+  A.seekMs(2800);
+  const afterJump = mixer.renderFrame();
+  const firstSample = afterJump.readInt16LE(0);
+  check('seek starts without a click-sized discontinuity', Math.abs(firstSample - lastSample) < 6000,
+    `${Math.abs(firstSample - lastSample)} samples`);
+
   A.seekMs(3990);
   A.play();
   renderPeak(mixer, 20);

@@ -77,8 +77,8 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
         // correction has to travel, not just be remembered locally.
         socketRef.current?.emit('host:tracks', { tracks: next });
       },
-      onPeaks: (trackId, peaks, frames) => {
-        socketRef.current?.emit('media:peaks', { trackId, peaks, frames });
+      onPeaks: (trackId, peaks, frames, loudnessLufs, truePeakDb) => {
+        socketRef.current?.emit('media:peaks', { trackId, peaks, frames, loudnessLufs, truePeakDb });
       },
     });
   }
@@ -182,8 +182,20 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
     };
 
     socket.on('audio:need', onNeed);
+    const onCueNeed = (need: { requestId: string; trackId: string; fromFrame: number; frames: number }) => {
+      void (async () => {
+        try {
+          const served = await library.serve({ sourceKey: 'cue', trackId: need.trackId, fromFrame: need.fromFrame, frames: need.frames, seq: 0 });
+          socket.emit('cue:chunk', { requestId: need.requestId }, served?.pcm ?? new ArrayBuffer(0));
+        } catch {
+          socket.emit('cue:chunk', { requestId: need.requestId }, new ArrayBuffer(0));
+        }
+      })();
+    };
+    socket.on('cue:need', onCueNeed);
     return () => {
       socket.off('audio:need', onNeed);
+      socket.off('cue:need', onCueNeed);
     };
   }, [socket]);
 

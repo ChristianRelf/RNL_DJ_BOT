@@ -16,6 +16,36 @@ export interface DecodeResult {
   pcmBytes: number;
 }
 
+/** FFmpeg's loudnorm first pass reports EBU R128 integrated loudness and 4x true peak. */
+export function analyseLoudness(pcmPath: string): Promise<{ lufs: number; truePeakDb: number } | null> {
+  return new Promise((resolve) => {
+    const proc = spawn(config.bin.ffmpeg, [
+      '-hide_banner', '-nostdin', '-f', 's16le', '-ar', String(SAMPLE_RATE), '-ac', String(CHANNELS),
+      '-i', pcmPath, '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json',
+      '-f', 'null', '-',
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let output = '';
+    proc.stderr.on('data', (chunk: Buffer) => {
+      output += chunk.toString();
+      if (output.length > 16000) output = output.slice(-16000);
+    });
+    proc.on('error', () => resolve(null));
+    proc.on('close', (code) => {
+      if (code !== 0) return resolve(null);
+      try {
+        const json = /\{\s*"input_i"[\s\S]*?\}/.exec(output)?.[0];
+        if (!json) return resolve(null);
+        const values = JSON.parse(json) as { input_i: string; input_tp: string };
+        const lufs = Number(values.input_i);
+        const truePeakDb = Number(values.input_tp);
+        resolve(Number.isFinite(lufs) && Number.isFinite(truePeakDb) ? { lufs, truePeakDb } : null);
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+}
+
 /**
  * Accumulates a mono peak envelope from interleaved s16le stereo, handling
  * chunk boundaries that fall inside a sample frame.
@@ -38,7 +68,7 @@ class PeakEnvelope {
     for (let i = 0; i < usable; i += BYTES_PER_SAMPLE_FRAME) {
       const l = buf.readInt16LE(i);
       const r = buf.readInt16LE(i + 2);
-      const mono = Math.abs(l + r) / 2;
+      const mono = Math.max(Math.abs(l), Math.abs(r));
       if (mono > this.current) this.current = mono;
       if (++this.framesInBucket >= ENVELOPE_FRAMES) {
         this.buckets.push(this.current / 32768);

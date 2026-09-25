@@ -214,6 +214,9 @@ export class GuildStore {
       // so without this the web side sees a property that is not there rather
       // than one that is null.
       if (item.beatGrid === undefined) item.beatGrid = null;
+      if (!Array.isArray(item.hotCues)) item.hotCues = [null, null, null, null];
+      if (item.loudnessLufs === undefined) item.loudnessLufs = null;
+      if (item.truePeakDb === undefined) item.truePeakDb = null;
       if (item.key === undefined) item.key = null;
       this.data.media[item.id] = item;
     }

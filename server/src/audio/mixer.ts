@@ -93,6 +93,8 @@ export interface MixerEvents {
  * timer when not, so transport positions stay truthful while previewing.
  */
 export class Mixer extends EventEmitter {
+  /** Enabled only while at least one DJ is listening to the browser monitor. */
+  monitorEnabled = false;
   readonly decks: Record<DeckId, Deck>;
   readonly pads: Pad[];
   readonly fx = new FxBus();
@@ -137,6 +139,8 @@ export class Mixer extends EventEmitter {
     master: [0, 0],
     A: [0, 0],
     B: [0, 0],
+    preA: [0, 0],
+    preB: [0, 0],
     pads: [0, 0],
     fx: [0, 0],
     clip: false,
@@ -221,7 +225,7 @@ export class Mixer extends EventEmitter {
 
   private anythingActive(): boolean {
     for (const id of DECK_IDS) {
-      if (this.decks[id].playing) {
+      if (this.decks[id].active) {
         this.tail = FX_TAIL_FRAMES;
         return true;
       }
@@ -481,6 +485,7 @@ export class Mixer extends EventEmitter {
     if (endedA) this.emit('trackEnded', 'A');
     if (endedB) this.emit('trackEnded', 'B');
 
+    if (this.monitorEnabled) this.emit('monitorFrame', Buffer.from(this.out));
     this.frameTimer.add(Number(process.hrtime.bigint() - started) / 1e6);
     return this.out;
   }
@@ -512,6 +517,8 @@ export class Mixer extends EventEmitter {
     m.fx = [hold(m.fx[0], frame.fx[0]), hold(m.fx[1], frame.fx[1])];
     m.A = [hold(m.A[0], this.decks.A.meter[0]), hold(m.A[1], this.decks.A.meter[1])];
     m.B = [hold(m.B[0], this.decks.B.meter[0]), hold(m.B[1], this.decks.B.meter[1])];
+    m.preA = [hold(m.preA[0], this.decks.A.preMeter[0]), hold(m.preA[1], this.decks.A.preMeter[1])];
+    m.preB = [hold(m.preB[0], this.decks.B.preMeter[0]), hold(m.preB[1], this.decks.B.preMeter[1])];
     // Reduction recovers slowly so a brief grab still registers on the console.
     m.reduction = frame.reduction < m.reduction ? frame.reduction : m.reduction + (1 - m.reduction) * 0.14;
     if (frame.clipped) this.clipHold = 40;
@@ -525,6 +532,8 @@ export class Mixer extends EventEmitter {
     m.master = d(m.master);
     m.A = d(m.A);
     m.B = d(m.B);
+    m.preA = d(m.preA);
+    m.preB = d(m.preB);
     m.pads = d(m.pads);
     m.fx = d(m.fx);
     m.reduction = m.reduction + (1 - m.reduction) * 0.14;

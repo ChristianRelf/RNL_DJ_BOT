@@ -93,6 +93,10 @@ check(
   'bpm and key survived',
 );
 check('the beat grid survived', storeA.getMedia('track-a')?.beatGrid?.confidence === 0.8);
+check('legacy tracks gain empty hot cues and level metadata',
+  storeA.getMedia('track-a')?.hotCues?.length === 4 &&
+  storeA.getMedia('track-a')?.loudnessLufs === null &&
+  storeA.getMedia('track-a')?.truePeakDb === null);
 check('the queue survived', storeA.db.queue.items.length === 1 && storeA.db.queue.auto === true);
 check('the pads survived', storeA.db.pads[0].mediaId === 'track-a' && storeA.db.pads[0].mode === 'loop');
 check('mixer settings survived', storeA.db.mixer.crossfader === -0.5);
@@ -132,6 +136,9 @@ storeB.putMedia({
   peaks: [],
   bpm: null,
   beatGrid: null,
+  hotCues: [null, null, null, null],
+  loudnessLufs: null,
+  truePeakDb: null,
   key: null,
   tags: [],
   status: 'ready',

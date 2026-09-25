@@ -25,13 +25,23 @@ them is touching the decks at a time, with a hand-over queue for the rest.
 
 ## What it does
 
-**Decks (A/B)** - waveform overview with click-to-seek, play/pause, cue point,
-loop in/out with halve/double, pitch fader (0.5×–2× turntable-style, pitch follows
-speed), nudge, repeat.
+**Decks (A/B)** - overview and playhead waveforms with click-to-seek, four shared
+hot cues per track, play/pause, cue point, beat-grid correction, optional
+quantized cues and loops, beat alignment, loop in/out with halve/double, pitch
+fader (0.5×–2× turntable-style, pitch follows speed), fine pitch steps, nudge,
+repeat. The deck header shows buffer health and source refill time.
 
 **Mixer** - per channel: trim, 3-band isolator EQ (a full cut is a real kill, not a
 dip), single-knob LP/HP filter, pan, mute, channel fader with peak metering.
 Crossfader with a blend-to-cut curve, master fader, and clip indication.
+
+**Headphone cue** - audition either loaded deck in your browser without sending
+it to Discord. The booth output panel blends the cue with a read-only master
+monitor and can select an output device where the browser supports it.
+
+**Level matching** - decoded tracks carry measured loudness and peak data. The
+deck offers a safe suggested trim; applying it is an explicit action, and the
+booth meter bridge shows each deck before and after its channel fader.
 
 **Advanced mixer** - the rest of the desk, on its own tool: per-channel sends and
 pan, a 3-band isolator across the master, left/right balance, a mono fold-down, a

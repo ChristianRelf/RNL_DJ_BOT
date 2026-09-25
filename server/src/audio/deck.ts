@@ -2,7 +2,7 @@ import { PcmSource } from './source';
 import type { WindowReader } from './windowReader';
 import { Biquad, Isolator, clamp, dbToGain, filterCoefficients, smoothingCoefficient } from './dsp';
 import { SAMPLE_RATE } from '../protocol';
-import type { DeckEq, DeckId, DeckState } from '../protocol';
+import type { BeatGrid, DeckEq, DeckId, DeckState } from '../protocol';
 
 const GAIN_SMOOTHING = smoothingCoefficient(12);
 /** Short fade applied on start/stop so transport moves never click. */
@@ -23,6 +23,7 @@ const RATE_SMOOTHING = smoothingCoefficient(25);
 const PHASE_BIAS = 0.002;
 /** A nudge is meant to be felt, so it is worked off at something like platter speed. */
 const BEND_BIAS = 0.25;
+const JUMP_FADE_FRAMES = Math.round(SAMPLE_RATE * 0.004);
 
 export interface DeckLoadRequest {
   mediaId: string;
@@ -34,6 +35,7 @@ export interface DeckLoadRequest {
    */
   reader: WindowReader;
   bpm: number | null;
+  beatGrid?: BeatGrid | null;
 }
 
 /**
@@ -57,10 +59,14 @@ export class Deck {
   cueMs = 0;
   repeat = false;
   bpm: number | null = null;
+  beatGrid: BeatGrid | null = null;
+  quantize = false;
   loop = { active: false, startMs: 0, endMs: 0 };
 
   /** Post-fader peak, decayed by the mixer for metering. */
   meter: [number, number] = [0, 0];
+  /** Post EQ and trim, before the channel fader. */
+  preMeter: [number, number] = [0, 0];
 
   private source: PcmSource | null = null;
   private position = 0;
@@ -92,6 +98,14 @@ export class Deck {
   private envelope = 0;
   private smoothedPanL = 1;
   private smoothedPanR = 1;
+  private pendingCue: { atFrame: number; targetMs: number; stop: boolean } | null = null;
+  private jumpFade = 0;
+  private jumpTailL = 0;
+  private jumpTailR = 0;
+  private lastL = 0;
+  private lastR = 0;
+  /** Cue stops at its marker after the audible transport tail has closed. */
+  private cueStopMs: number | null = null;
 
   private readonly isolator = new Isolator();
   private readonly filters = [new Biquad(), new Biquad()];
@@ -113,6 +127,10 @@ export class Deck {
     return this.source !== null;
   }
 
+  get active(): boolean {
+    return this.playing || this.envelope > 0.0005;
+  }
+
   load(req: DeckLoadRequest): void {
     const next = new PcmSource(req.reader, this.id === 'A' ? 0 : 3);
     this.source?.close();
@@ -120,10 +138,15 @@ export class Deck {
     this.mediaId = req.mediaId;
     this.title = req.title;
     this.bpm = req.bpm;
+    this.beatGrid = req.beatGrid ?? null;
+    this.pendingCue = null;
+    this.cueStopMs = null;
     this.position = 0;
     this.cueMs = 0;
     this.playing = false;
     this.envelope = 0;
+    this.jumpFade = 0;
+    this.lastL = this.lastR = 0;
     this.currentRate = this.rate;
     this.clearDebt();
     this.loop = { active: false, startMs: 0, endMs: Math.min(8000, next.durationMs) };
@@ -133,11 +156,16 @@ export class Deck {
   eject(): void {
     this.playing = false;
     this.envelope = 0;
+    this.jumpFade = 0;
+    this.lastL = this.lastR = 0;
     this.source?.close();
     this.source = null;
     this.mediaId = null;
     this.title = null;
     this.bpm = null;
+    this.beatGrid = null;
+    this.pendingCue = null;
+    this.cueStopMs = null;
     this.position = 0;
     this.cueMs = 0;
     this.clearDebt();
@@ -149,16 +177,18 @@ export class Deck {
     if (!this.source) return;
     if (this.position >= this.source.frames - 1) this.position = 0;
     this.playing = true;
+    this.cueStopMs = null;
   }
 
   pause(): void {
     this.playing = false;
+    this.pendingCue = null;
+    this.cueStopMs = null;
   }
 
   /** DJ cue: jump back to the cue point and stop. */
   cue(): void {
-    this.seekMs(this.cueMs);
-    this.playing = false;
+    this.jumpTo(this.cueMs, true);
   }
 
   setCue(ms: number): void {
@@ -166,7 +196,10 @@ export class Deck {
   }
 
   seekMs(ms: number): void {
+    this.cueStopMs = null;
+    this.pendingCue = null;
     const target = clamp(ms, 0, this.durationMs);
+    if (this.playing && Math.abs(target - this.positionMs) > 1) this.beginJumpFade();
     // Whole frames: a fractional head serves no purpose and it is what lets a
     // deck at zero pitch take the source's straight-copy path.
     this.position = Math.round((target / 1000) * SAMPLE_RATE);
@@ -174,6 +207,42 @@ export class Deck {
     if (this.source && this.position > this.source.frames - 1) {
       this.position = Math.max(0, this.source.frames - 1);
     }
+  }
+
+  private beginJumpFade(): void {
+    this.jumpTailL = this.lastL;
+    this.jumpTailR = this.lastR;
+    this.jumpFade = JUMP_FADE_FRAMES;
+  }
+
+  /** A quantized cue is executed inside render(), at an audio boundary. */
+  jumpTo(ms: number, stop = false): void {
+    const grid = this.beatGrid;
+    if (!this.quantize || !this.playing || !grid) {
+      this.pendingCue = null;
+      this.loop.active = false;
+      this.seekMs(ms);
+      if (stop) { this.pause(); this.cueStopMs = ms; }
+      else if (!this.playing) this.play();
+      return;
+    }
+    const beatFrames = (SAMPLE_RATE * 60) / grid.bpm;
+    const offsetFrames = (grid.beatOffsetMs / 1000) * SAMPLE_RATE;
+    const nextBeat = offsetFrames + (Math.floor((this.position - offsetFrames) / beatFrames) + 1) * beatFrames;
+    // A short active loop may wrap before another whole beat is reached.
+    const loopEnd = this.loop.active ? this.loop.endMs * SAMPLE_RATE / 1000 : Infinity;
+    const next = Math.min(nextBeat, loopEnd);
+    if (next >= (this.source?.frames ?? 0) - 1) {
+      this.loop.active = false;
+      this.seekMs(ms);
+      if (stop) { this.pause(); this.cueStopMs = ms; }
+      return;
+    }
+    this.pendingCue = { atFrame: next, targetMs: ms, stop };
+  }
+
+  cancelPending(): void {
+    this.pendingCue = null;
   }
 
   /**
@@ -203,6 +272,19 @@ export class Deck {
   }
 
   setLoop(active: boolean, startMs?: number, endMs?: number): void {
+    if (this.quantize && this.beatGrid) {
+      const beat = 60_000 / this.beatGrid.bpm;
+      const offset = this.beatGrid.beatOffsetMs;
+      const snap = (ms: number) => offset + Math.round((ms - offset) / beat) * beat;
+      if (startMs !== undefined && endMs !== undefined) {
+        const length = Math.max(beat / 4, Math.round((endMs - startMs) / (beat / 4)) * (beat / 4));
+        startMs = snap(startMs);
+        endMs = startMs + length;
+      } else {
+        if (startMs !== undefined) startMs = snap(startMs);
+        if (endMs !== undefined) endMs = snap(endMs);
+      }
+    }
     if (startMs !== undefined) this.loop.startMs = clamp(startMs, 0, this.durationMs);
     if (endMs !== undefined) this.loop.endMs = clamp(endMs, 0, this.durationMs);
     if (this.loop.endMs <= this.loop.startMs) {
@@ -302,13 +384,15 @@ export class Deck {
     const targetGain = this.muted ? 0 : this.trim * this.gain;
     const loopStart = (this.loop.startMs / 1000) * SAMPLE_RATE;
     const loopEnd = (this.loop.endMs / 1000) * SAMPLE_RATE;
-    const looping = this.loop.active && loopEnd > loopStart;
+    let looping = this.loop.active && loopEnd > loopStart;
     // Constant power, so a swept pan holds its level across the image.
     const theta = ((clamp(this.pan, -1, 1) + 1) / 2) * (Math.PI / 2);
     const targetPanL = Math.cos(theta) * Math.SQRT2;
     const targetPanR = Math.sin(theta) * Math.SQRT2;
     let peakL = 0;
     let peakR = 0;
+    let preL = 0;
+    let preR = 0;
 
     const target = this.rate;
     let i = 0;
@@ -323,7 +407,10 @@ export class Deck {
         ? 0
         : clamp(this.phaseDebt / remaining, -this.bendLimit, this.bendLimit);
       const fastest = Math.max(this.currentRate, target) + Math.max(bias, 0);
-      const run = src ? this.runLength(remaining, src, looping, loopEnd, fastest) : remaining;
+      let run = src ? this.runLength(remaining, src, looping, loopEnd, fastest) : remaining;
+      if (advancing && this.pendingCue) {
+        run = Math.min(run, Math.max(1, Math.ceil((this.pendingCue.atFrame - this.position) / fastest)));
+      }
       const end = i + run;
 
       // The source fills the output buffers for the whole run in one call and
@@ -359,6 +446,8 @@ export class Deck {
 
         l = this.filters[0].process(l);
         r = this.filters[1].process(r);
+        preL = Math.max(preL, Math.abs(l * this.trim * this.envelope));
+        preR = Math.max(preR, Math.abs(r * this.trim * this.envelope));
 
         this.smoothedPanL += (targetPanL - this.smoothedPanL) * PAN_SMOOTHING;
         this.smoothedPanR += (targetPanR - this.smoothedPanR) * PAN_SMOOTHING;
@@ -366,6 +455,15 @@ export class Deck {
         const g = this.smoothedGain * this.envelope;
         l *= g * this.smoothedPanL;
         r *= g * this.smoothedPanR;
+
+        if (this.jumpFade > 0) {
+          const blend = this.jumpFade / JUMP_FADE_FRAMES;
+          l = l * (1 - blend) + this.jumpTailL * blend;
+          r = r * (1 - blend) + this.jumpTailR * blend;
+          this.jumpFade--;
+        }
+        this.lastL = l;
+        this.lastR = r;
 
         outL[i] = l;
         outR[i] = r;
@@ -378,7 +476,16 @@ export class Deck {
       // Whichever boundary ended the run, handled once instead of tested on
       // every frame. When the run simply filled the block none of these hold.
       if (src && this.advancing) {
-        if (looping && this.position >= loopEnd) {
+        if (this.pendingCue && this.position >= this.pendingCue.atFrame) {
+          const targetMs = this.pendingCue.targetMs;
+          const stop = this.pendingCue.stop;
+          this.pendingCue = null;
+          this.loop.active = false;
+          looping = false;
+          this.seekMs(targetMs);
+          if (stop) { this.pause(); this.cueStopMs = targetMs; }
+        } else if (looping && this.position >= loopEnd) {
+          this.beginJumpFade();
           this.position = loopStart + (this.position - loopEnd);
         } else if (this.position >= src.frames - 1) {
           if (this.repeat) {
@@ -397,10 +504,16 @@ export class Deck {
     // Pull the window forward for the next block rather than waiting for a read
     // to miss, so the refill never lands in the same frame as the audio that
     // wanted it. Costs nothing while there is still read-ahead in hand.
+    if (this.cueStopMs !== null && !this.playing && this.envelope < 0.0005) {
+      const target = this.cueStopMs;
+      this.seekMs(target);
+    }
     if (src) src.prefetch(this.position, true);
 
     this.meter[0] = peakL;
     this.meter[1] = peakR;
+    this.preMeter[0] = preL;
+    this.preMeter[1] = preR;
     return reachedEnd;
   }
 
@@ -413,6 +526,7 @@ export class Deck {
     fxSend?: number;
     muted?: boolean;
     repeat?: boolean;
+    quantize?: boolean;
     eq?: Partial<DeckEq>;
   }): void {
     if (patch.gain !== undefined) this.gain = clamp(patch.gain, 0, 1.25);
@@ -422,11 +536,15 @@ export class Deck {
     if (patch.fxSend !== undefined) this.fxSend = clamp(patch.fxSend, 0, 1);
     if (patch.muted !== undefined) this.muted = patch.muted;
     if (patch.repeat !== undefined) this.repeat = patch.repeat;
+    if (patch.quantize !== undefined) {
+      this.quantize = patch.quantize;
+      if (!this.quantize) this.pendingCue = null;
+    }
     if (patch.filter !== undefined) this.setFilter(patch.filter);
     if (patch.eq) this.setEq(patch.eq);
   }
 
-  snapshot(): DeckState {
+  snapshot(bufferMs: number | null = null, refillMs: number | null = null): DeckState {
     return {
       id: this.id,
       mediaId: this.mediaId,
@@ -450,6 +568,10 @@ export class Deck {
       // dropping out, and flagging it would light the console up every time
       // somebody loaded a track and left it sitting.
       starved: this.playing && (this.source?.starving ?? false),
+      quantize: this.quantize,
+      bufferMs,
+      refillMs,
+      pendingCue: this.pendingCue !== null,
     };
   }
 
