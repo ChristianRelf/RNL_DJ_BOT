@@ -32,7 +32,8 @@ export type WidgetId =
   | 'mixerAdvanced'
   | 'fx'
   | 'midi'
-  | 'library';
+  | 'library'
+  | 'health';
 
 /** Groups the palette sorts tools into. */
 export type WidgetGroup = 'decks' | 'mix' | 'library' | 'info';
@@ -211,6 +212,16 @@ export const WIDGETS: WidgetSpec[] = [
     minH: 6,
   },
   {
+    id: 'health',
+    name: 'System health',
+    hint: 'Connection, Discord output, playback host and device cache readiness',
+    group: 'info',
+    w: 3,
+    h: 14,
+    minW: 2,
+    minH: 8,
+  },
+  {
     id: 'crew',
     name: 'Crew',
     hint: 'Who has control, who is waiting, who is on',
@@ -333,6 +344,10 @@ const STORAGE_KEY = 'deck.layout.v2';
 /** The pre-grid layout, kept only long enough to convert it. */
 const LEGACY_KEY = 'deck.layout.v1';
 
+function storageKey(profile = 'main'): string {
+  return profile === 'main' ? STORAGE_KEY : `${STORAGE_KEY}.${profile}`;
+}
+
 /* ------------------------------------------------------------- geometry */
 
 export function clampRect(id: WidgetId, rect: Rect): Rect {
@@ -426,8 +441,11 @@ export function layoutHeight(layout: Layout): number {
  * the readouts, the advanced mixer, the FX rack, MIDI - waits in the palette
  * tray rather than being in the way from the start.
  */
-export function defaultLayout(): Layout {
-  return fromPreset(PRESETS[0]);
+export function defaultLayout(profile = 'main'): Layout {
+  const preset = profile === 'main'
+    ? PRESETS[0]
+    : PRESETS.find((entry) => entry.id === profile) ?? PRESETS[0];
+  return fromPreset(preset);
 }
 
 /**
@@ -442,27 +460,27 @@ export function defaultLayout(): Layout {
  * render, which is more honest than the sizes in the palette - those are
  * guesses about panels whose height depends on what is in them.
  */
-export function hasStoredLayout(): boolean {
+export function hasStoredLayout(profile = 'main'): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) !== null;
+    return window.localStorage.getItem(storageKey(profile)) !== null;
   } catch {
     return false;
   }
 }
 
-export function loadLayout(): Layout {
-  if (typeof window === 'undefined') return defaultLayout();
+export function loadLayout(profile = 'main'): Layout {
+  if (typeof window === 'undefined') return defaultLayout(profile);
 
   let stored: unknown;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return migrateLegacy() ?? defaultLayout();
+    const raw = window.localStorage.getItem(storageKey(profile));
+    if (!raw) return (profile === 'main' ? migrateLegacy() : null) ?? defaultLayout(profile);
     stored = JSON.parse(raw);
   } catch {
-    return defaultLayout();
+    return defaultLayout(profile);
   }
-  if (!Array.isArray(stored)) return defaultLayout();
+  if (!Array.isArray(stored)) return defaultLayout(profile);
 
   const seen = new Set<WidgetId>();
   const layout: Layout = [];
@@ -487,7 +505,7 @@ export function loadLayout(): Layout {
     layout.push({ id: widget.id, x: 0, y: 0, w: widget.w, h: widget.h, hidden: true });
   }
 
-  return layout.length > 0 ? separate(layout) : defaultLayout();
+  return layout.length > 0 ? separate(layout) : defaultLayout(profile);
 }
 
 /** Re-seats a whole layout so that nothing overlaps, keeping reading order. */
@@ -547,10 +565,10 @@ function migrateLegacy(): Layout | null {
   return layout.length > 0 ? separate(layout) : null;
 }
 
-export function saveLayout(layout: Layout): void {
+export function saveLayout(layout: Layout, profile = 'main'): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+    window.localStorage.setItem(storageKey(profile), JSON.stringify(layout));
   } catch {
     // A full or blocked store is not worth interrupting a set over.
   }
@@ -651,6 +669,7 @@ export const PRESETS: Preset[] = [
       ['onAir', 0, 9, 4, 7],
       ['clock', 4, 9, 4, 6],
       ['crew', 8, 9, 4, 10],
+      ['health', 0, 19, 12, 10],
     ],
   },
   {

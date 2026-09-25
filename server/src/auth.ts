@@ -6,6 +6,7 @@ import { member } from './discord/gate';
 import { getGuild, isAllowed, isGuildMemberInvited } from './db/platform';
 import { createLogger } from './logger';
 import type { SessionUser } from './protocol';
+import { billingEnabled, hasCloudEntitlement } from './billing';
 
 const log = createLogger('auth');
 
@@ -65,7 +66,7 @@ export function isPlatformAdmin(userId: string): boolean {
  * editing a table is not a state worth being able to reach.
  */
 export function maySignIn(userId: string): boolean {
-  return isPlatformAdmin(userId) || isAllowed(userId) !== null;
+  return isPlatformAdmin(userId) || isAllowed(userId)?.status === 'active';
 }
 
 /** Keyed by guild as well as user: the same person is not the same thing in two servers. */
@@ -162,7 +163,6 @@ export async function checkAccess(
 ): Promise<AccessResult> {
   const key = `${guildId}:${userId}`;
   const cached = accessCache.get(key);
-  if (cached && Date.now() - cached.at < ACCESS_CACHE_TTL_MS) return cached.result;
 
   const guild = getGuild(guildId);
   if (!guild) {
@@ -176,6 +176,17 @@ export async function checkAccess(
       reason: 'This rig has been suspended.',
     };
   }
+  if (billingEnabled && !hasCloudEntitlement(guildId) && !isPlatformAdmin(userId)) {
+    return {
+      allowed: false,
+      isAdmin: false,
+      displayName: fallbackName,
+      reason: 'This rig needs an active Deck subscription.',
+    };
+  }
+  // Account, rig and billing status are deliberately checked above the cache:
+  // suspensions and failed subscriptions take effect on the very next request.
+  if (cached && Date.now() - cached.at < ACCESS_CACHE_TTL_MS) return cached.result;
 
   const lookup = await member(guildId, userId);
   let result: AccessResult;
@@ -237,12 +248,15 @@ export async function checkMember(
 ): Promise<MemberResult> {
   const key = `${guildId}:${userId}`;
   const cached = memberCache.get(key);
-  if (cached && Date.now() - cached.at < ACCESS_CACHE_TTL_MS) return cached.result;
 
   const guild = getGuild(guildId);
   if (!guild || guild.status !== 'active') {
     return { member: false, displayName: fallbackName, reason: 'No such rig.' };
   }
+  if (billingEnabled && !hasCloudEntitlement(guildId) && !isPlatformAdmin(userId)) {
+    return { member: false, displayName: fallbackName, reason: 'This rig is not accepting requests.' };
+  }
+  if (cached && Date.now() - cached.at < ACCESS_CACHE_TTL_MS) return cached.result;
 
   const lookup = await member(guildId, userId);
   // Same as above: an outage must not be cached as a refusal.
@@ -377,7 +391,7 @@ export function verifySession(token: string | null | undefined): SessionUser | n
   // concerned. Every console path - the socket handshake, every rig route -
   // asks this one question, so a listener token is refused by all of them
   // without any of them having to know that listeners exist.
-  return session && session.scope === 'dj' ? session.user : null;
+  return session && session.scope === 'dj' && maySignIn(session.user.id) ? session.user : null;
 }
 
 /** The session as it actually is, scope and all. Only the request page wants this. */
@@ -421,7 +435,7 @@ declare module 'express-serve-static-core' {
 export function attachUser(req: Request, _res: Response, next: NextFunction): void {
   const session = readSession(req.cookies?.[SESSION_COOKIE]) ?? undefined;
   req.session = session;
-  req.user = session?.scope === 'dj' ? session.user : undefined;
+  req.user = session?.scope === 'dj' && maySignIn(session.user.id) ? session.user : undefined;
   next();
 }
 

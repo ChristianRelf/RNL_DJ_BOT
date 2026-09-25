@@ -7,9 +7,8 @@ import { DocPage, Section } from './SiteNav';
  * deck is run for you - there is nothing to install and nothing to host - so
  * this page is about joining the list rather than about standing anything up.
  *
- * Nothing here states a price, a term, a date or a queue position. Those are
- * decisions for a person, not for this file, and a made-up "you are number 40"
- * is the fastest way to lose someone's trust.
+ * The plan is intentionally plain: one monthly price and one storage allowance.
+ * Access can still open in batches while playback capacity is expanded.
  */
 
 const EMAIL = 'hello@ronation.live';
@@ -20,16 +19,16 @@ const HOW = [
     body: 'Leave your Discord handle and where it is for. That is the whole form - the rest is a conversation.',
   },
   {
-    title: 'We fit you in',
-    body: 'Access opens in batches so every new room gets set up properly rather than dropped into a queue behind a hundred others.',
+    title: 'Connect your server',
+    body: 'When access opens, Discord shows its own server picker and adds Deck with only view, connect and speak permissions.',
   },
   {
-    title: 'The bot joins your server',
-    body: 'We invite it, point it at the role you nominate, and hand you the booth link. No developer portal, no tokens, no container.',
+    title: 'Start the Deck plan',
+    body: '$5 a month covers the hosted rig and 2.5 GB of private Deck Cloud storage. Checkout is handled securely by Stripe.',
   },
   {
-    title: 'You play',
-    body: 'Everything runs on our machines. Upgrades land while you are asleep, and there is nothing for you to keep an eye on.',
+    title: 'Choose roles and play',
+    body: 'Pick who can DJ and who can force a takeover, run the launch check, then open the console. No tokens or containers.',
   },
 ];
 
@@ -40,7 +39,7 @@ const FAQ = [
   },
   {
     q: 'What does it cost?',
-    a: 'It depends on the size of your room and what you are doing with it - a small community and a ticketed event are not the same thing. We will come back with a number when we come back about a spot.',
+    a: '$5 USD per rig each month, including 2.5 GB of Deck Cloud storage. You can manage or cancel the subscription through Stripe.',
   },
   {
     q: 'Can I run it on my own machine?',
@@ -212,7 +211,7 @@ export function Access() {
     <DocPage
       current="/home/access"
       title="Get access"
-      lede="deck is run for you - there is nothing to install, host or keep running. Access opens in batches, so put your room on the list and we will come to you."
+      lede="deck is run for you for $5 a month, including 2.5 GB of Deck Cloud. There is nothing to install, host or keep running. Access opens in batches while capacity grows."
     >
       <Section eyebrow="The list" title="Ask for a spot">
         <WaitlistForm />

@@ -199,7 +199,11 @@ const FAQ = [
   },
   {
     q: 'How do we get in?',
-    a: 'Submit an access request with your Discord details. New servers are onboarded in batches so roles, permissions and playback are configured correctly.',
+    a: 'Submit an access request with your Discord details. Once approved, the guided setup connects your server, starts the $5 monthly plan, assigns roles and runs a launch check.',
+  },
+  {
+    q: 'What is included?',
+    a: '$5 USD per rig each month includes the hosted console, integrations, multi-screen controls and 2.5 GB of private Deck Cloud storage.',
   },
 ];
 
@@ -371,7 +375,7 @@ export function Home() {
           n="13"
           label="Get access"
           statement="Bring live mixing to your server."
-          lede="Tell us about your community, station or event. We onboard new servers in batches and configure each deployment with you."
+          lede="Tell us about your community, station or event. Approved rooms get guided setup, a $5 monthly plan and 2.5 GB of Deck Cloud."
         >
           <div className="cue-cta">
             <a className="btn is-primary" href="/home/access">

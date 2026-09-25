@@ -14,6 +14,7 @@
     "stream": "node scripts/stream.mjs",
     "tenancy": "node scripts/tenancy.mjs",
     "beats": "node scripts/beats.mjs",
+    "billing:test": "node scripts/billing.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "libsodium-wrappers": "^0.7.15",
     "multer": "^2.0.1",
     "socket.io": "^4.8.1",
+    "stripe": "^22.6.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {

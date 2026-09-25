@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Check, Copy } from 'lucide-react';
+import { ArrowLeft, Check, Copy, ExternalLink, MonitorUp } from 'lucide-react';
 import type { ClientCommands, EngineState, SessionUser, ToolsState } from '../protocol';
 import type { DjClient } from '../socket';
 import { InvitePanel } from './InvitePanel';
@@ -225,6 +225,7 @@ function Timecode({ tools, api }: { tools: ToolsState; api: string }) {
   // Never touch window during render - it is not always there.
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   const url = `${origin}${api}/timecode?key=${tools.timecodeKey}`;
+  const overlay = `${origin}/overlay?${new URLSearchParams({ rig: api, key: tools.timecodeKey }).toString()}`;
   return (
     <>
       <label className="tool-field">
@@ -234,10 +235,18 @@ function Timecode({ tools, api }: { tools: ToolsState; api: string }) {
           <CopyButton value={url} />
         </div>
       </label>
+      <label className="tool-field">
+        <span>OBS / browser-source overlay</span>
+        <div className="tool-row">
+          <input className="tool-input mono" readOnly value={overlay} onFocus={(e) => e.target.select()} />
+          <CopyButton value={overlay} />
+          <a className="btn tiny" href={overlay} target="_blank" rel="noreferrer"><ExternalLink size={12} /> OPEN</a>
+        </div>
+      </label>
       <p className="tool-note">
-        Poll this for deck positions, titles, tempo and crossfader position. Whoever holds the URL
-        can read it - external systems cannot sign in with Discord - so treat it as a password.
-        Switching the tool off and on again issues a new key and kills the old one.
+        Use the raw feed for lighting/video automation or add the transparent overlay as an OBS
+        browser source. Whoever holds either URL can read live track data, so treat them as a
+        password. Switching this tool off and on issues a new key and kills the old one.
       </p>
     </>
   );
@@ -369,6 +378,36 @@ function Requests({ slug }: { slug: string }) {
   );
 }
 
+/* --------------------------------------------------------- multi-screen */
+
+function MultiScreen({ slug }: { slug: string }) {
+  const open = (profile: 'monitor' | 'library' | 'studio') => {
+    window.open(`/g/${slug}/deck?screen=${profile}`, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <section className="tool is-on">
+      <header className="tool-head">
+        <div className="tool-heading">
+          <h2><MonitorUp size={15} /> Multi-screen console</h2>
+          <p>Open a purpose-built second display that stays synced with this rig.</p>
+        </div>
+      </header>
+      <div className="tool-body">
+        <div className="multi-screen-actions">
+          <button type="button" className="btn" onClick={() => open('monitor')}><ExternalLink size={13} /> Booth monitor</button>
+          <button type="button" className="btn" onClick={() => open('library')}><ExternalLink size={13} /> Library desk</button>
+          <button type="button" className="btn" onClick={() => open('studio')}><ExternalLink size={13} /> Mixer + FX</button>
+        </div>
+        <p className="tool-note">
+          Each window keeps its own panel layout. Controls and meters stay live in every window,
+          while the rig&rsquo;s single control lock still decides who can change the mix.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ page */
 
 export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPageProps) {
@@ -400,6 +439,7 @@ export function ToolsPage({ state, user, locked, send, api, slug }: ToolsPagePro
 
       <div className="tools-list">
         {user.isAdmin ? <InvitePanel api={`${api}/invites`} /> : null}
+        <MultiScreen slug={slug} />
         <Tool
           name="Timecode feed"
           summary="Publishes deck positions over HTTP for lighting, stream overlays and video."

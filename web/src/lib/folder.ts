@@ -32,6 +32,7 @@ const HANDLE_KEY = 'deck-cloud-cache';
 
 export interface ScannedTrack {
   trackId: string;
+  cloudMediaId?: string;
   title: string;
   /** Path relative to the chosen folder, for telling two copies apart. */
   path: string;
@@ -262,6 +263,7 @@ function titleOf(name: string): string {
 export async function scanFolder(
   handle: FileSystemDirectoryHandle,
   onProgress?: (found: number, current: string) => void,
+  cloudHints?: Map<string, { name: string; cloudMediaId: string }>,
 ): Promise<ScanResult> {
   const cache =
     (await idbGet<Record<string, CachedMeta>>(META_STORE, 'scan').catch(() => undefined)) ?? {};
@@ -295,6 +297,11 @@ export async function scanFolder(
 
       const extension = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
       if (!AUDIO_EXTENSIONS.has(extension)) continue;
+      const hint = cloudHints?.get(path);
+      // In a managed Deck Cloud directory, an OPFS file is playable only when
+      // its manifest says it was fully downloaded and verified. This keeps a
+      // crashed partial transfer out of the library scan.
+      if (cloudHints && !hint) continue;
 
       const fileHandle = entry as FileSystemFileHandle;
       let file: File;
@@ -318,7 +325,8 @@ export async function scanFolder(
       files.set(meta.trackId, fileHandle);
       tracks.push({
         trackId: meta.trackId,
-        title: titleOf(name),
+        cloudMediaId: hint?.cloudMediaId,
+        title: titleOf(hint?.name ?? name),
         path,
         frames: meta.frames,
         sizeBytes: file.size,

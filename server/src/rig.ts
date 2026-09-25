@@ -492,6 +492,7 @@ export class Rig extends EventEmitter {
 
       if (existing) {
         existing.status = 'ready';
+        if (track.cloudMediaId) existing.cloudMediaId = track.cloudMediaId;
         existing.durationMs = durationMs;
         existing.sizeBytes = track.sizeBytes;
         existing.originalName = track.path;
@@ -504,6 +505,7 @@ export class Rig extends EventEmitter {
 
       this.store.putMedia({
         id: track.trackId,
+        cloudMediaId: track.cloudMediaId,
         title: track.title,
         originalName: track.path,
         durationMs,

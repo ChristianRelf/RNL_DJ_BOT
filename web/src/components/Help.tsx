@@ -96,8 +96,8 @@ const ARTICLES: Article[] = [
           come back on Discord when a spot is ready.
         </p>
         <p>
-          When it is, we bring the bot into your Discord server and point it at the role you
-          nominate. From then on, anyone holding that role can open the booth.
+          The setup wizard then connects the bot, starts the $5 monthly plan with 2.5 GB of Deck
+          Cloud, lets you choose DJ and takeover roles, and checks the rig before opening the booth.
         </p>
       </>
     ),
@@ -356,6 +356,8 @@ const ARTICLES: Article[] = [
         <p>
           The Droplet does not retain audio files. Keep the hosting tab open while the room is using
           its playback cache; another operator can cache the same track from Deck Cloud later.
+          Uploads are deduplicated by content inside the rig, so uploading identical bytes again
+          does not use more of the cloud allowance.
         </p>
       </>
     ),
@@ -413,7 +415,7 @@ const ARTICLES: Article[] = [
         <h4>Start hosting</h4>
         <ol className="doc-steps">
           <li>Open <strong>Deck Cloud</strong> and upload music, or cache an existing cloud track.</li>
-          <li>Wait for the browser to prepare the playback cache.</li>
+          <li>Wait for the browser to verify the playback cache, then pin critical tracks if needed.</li>
           <li>Drag the track from <strong>Deck Cloud tracks</strong> onto a deck.</li>
           <li>Leave the console tab open while this browser is hosting playback.</li>
         </ol>
@@ -422,7 +424,16 @@ const ARTICLES: Article[] = [
           console tab or loses connectivity, the mixer can no longer request new audio. Buffered
           audio plays briefly, then the decks pause rather than skipping through the track.
         </div>
-        <p>Cached tracks remain in private browser storage until the browser clears site data.</p>
+        <p>
+          Use <strong>Preflight set</strong> after building the queue. Deck caches every queued or
+          loaded cloud track, protects those tracks from automatic eviction, and resumes any
+          interrupted transfer. Device settings show the adaptive storage budget and let you
+          request persistent browser storage.
+        </p>
+        <p>
+          Unpinned, unused tracks are removed least-recently-used when the device cache approaches
+          its budget. Removing a local copy never deletes its Deck Cloud source.
+        </p>
       </>
     ),
   },
@@ -525,6 +536,26 @@ const ARTICLES: Article[] = [
     ),
   },
   {
+    id: 'multi-screen',
+    category: 'tools',
+    title: 'Using a second screen',
+    summary: 'Open synced booth, library or mixer views with independent layouts.',
+    keywords: 'second screen dual monitor popout booth library mixer layout tools',
+    body: (
+      <>
+        <p>
+          Open <strong>Tools → Multi-screen console</strong> and choose Booth monitor, Library
+          desk, or Mixer + FX. The new window connects to the same live rig but saves its own
+          arrangement, so changing the second display never moves the main console.
+        </p>
+        <div className="doc-callout">
+          Both windows still use the rig&rsquo;s one control lock. Opening another display does not
+          create another operator or bypass view-only mode.
+        </div>
+      </>
+    ),
+  },
+  {
     id: 'timecode',
     category: 'tools',
     title: 'Using the timecode feed',
@@ -539,8 +570,8 @@ const ARTICLES: Article[] = [
         </p>
         <ol className="doc-steps">
           <li>Take control and open the rig&rsquo;s <strong>Tools</strong> page.</li>
-          <li>Enable <strong>Timecode feed</strong> and copy the generated URL.</li>
-          <li>Configure the receiving system to poll that URL at a sensible interval.</li>
+          <li>Enable <strong>Timecode feed</strong> and copy the raw feed URL for automation.</li>
+          <li>For OBS, copy the browser-source overlay URL and add it as a browser source.</li>
           <li>Test deck A, deck B and the crossfader before using the data in a live production.</li>
         </ol>
         <div className="doc-callout">

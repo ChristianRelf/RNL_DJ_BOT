@@ -140,9 +140,46 @@ CREATE TABLE IF NOT EXISTS cloud_media (
   content_type  TEXT NOT NULL,
   created_by    TEXT NOT NULL,
   created_at    INTEGER NOT NULL,
-  status        TEXT NOT NULL DEFAULT 'pending'
+  status        TEXT NOT NULL DEFAULT 'pending',
+  etag          TEXT,
+  sha256        TEXT,
+  verified_at   INTEGER,
+  error         TEXT
 );
 CREATE INDEX IF NOT EXISTS cloud_media_by_guild ON cloud_media (guild_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS cloud_cache_metrics (
+  guild_id          TEXT PRIMARY KEY,
+  hits              INTEGER NOT NULL DEFAULT 0,
+  misses            INTEGER NOT NULL DEFAULT 0,
+  resumed_bytes     INTEGER NOT NULL DEFAULT 0,
+  evictions         INTEGER NOT NULL DEFAULT 0,
+  corruptions       INTEGER NOT NULL DEFAULT 0,
+  downloads         INTEGER NOT NULL DEFAULT 0,
+  downloaded_bytes  INTEGER NOT NULL DEFAULT 0,
+  cdn_bytes         INTEGER NOT NULL DEFAULT 0,
+  origin_bytes      INTEGER NOT NULL DEFAULT 0,
+  updated_at        INTEGER NOT NULL
+);
+
+-- One subscription funds one community/rig. Card details stay in Stripe; this
+-- table is only the entitlement projection needed by the app and the portal.
+CREATE TABLE IF NOT EXISTS billing_accounts (
+  guild_id                TEXT PRIMARY KEY,
+  stripe_customer_id      TEXT UNIQUE,
+  stripe_subscription_id  TEXT UNIQUE,
+  status                  TEXT NOT NULL DEFAULT 'none',
+  current_period_end      INTEGER,
+  cancel_at_period_end    INTEGER NOT NULL DEFAULT 0,
+  updated_at              INTEGER NOT NULL
+);
+
+-- Stripe retries webhooks. Remembering the event id makes every delivery
+-- idempotent without retaining the event payload.
+CREATE TABLE IF NOT EXISTS billing_events (
+  id           TEXT PRIMARY KEY,
+  processed_at INTEGER NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS waitlist (
   id        TEXT PRIMARY KEY,
@@ -175,6 +212,36 @@ export function db(): DatabaseSync {
   database.exec('PRAGMA synchronous = NORMAL');
   database.exec('PRAGMA foreign_keys = ON');
   database.exec(SCHEMA);
+
+  // CREATE TABLE cannot add a column to an existing installation. Small,
+  // additive migrations live here so upgrading never needs a separate CLI.
+  const allowColumns = database.prepare('PRAGMA table_info(allowlist)').all() as Array<{ name: string }>;
+  if (!allowColumns.some((column) => column.name === 'status')) {
+    database.exec("ALTER TABLE allowlist ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+  }
+
+  const cloudColumns = database.prepare('PRAGMA table_info(cloud_media)').all() as Array<{ name: string }>;
+  const cloudMigrations = [
+    ['etag', 'TEXT'],
+    ['sha256', 'TEXT'],
+    ['verified_at', 'INTEGER'],
+    ['error', 'TEXT'],
+  ] as const;
+  for (const [name, type] of cloudMigrations) {
+    if (!cloudColumns.some((column) => column.name === name)) {
+      database.exec(`ALTER TABLE cloud_media ADD COLUMN ${name} ${type}`);
+    }
+  }
+  database.exec(
+    'CREATE INDEX IF NOT EXISTS cloud_media_by_hash ON cloud_media (guild_id, sha256, size_bytes, status)',
+  );
+
+  const metricColumns = database.prepare('PRAGMA table_info(cloud_cache_metrics)').all() as Array<{ name: string }>;
+  for (const name of ['cdn_bytes', 'origin_bytes']) {
+    if (!metricColumns.some((column) => column.name === name)) {
+      database.exec(`ALTER TABLE cloud_cache_metrics ADD COLUMN ${name} INTEGER NOT NULL DEFAULT 0`);
+    }
+  }
 
   log.info(`opened ${file}`);
   return database;

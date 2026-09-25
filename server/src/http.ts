@@ -30,7 +30,21 @@ import { createLogger } from './logger';
 import { mountOnboarding } from './onboard';
 import { mountRequests } from './requests';
 import { DECK_IDS, type SessionUser } from './protocol';
-import { cloudUsage, confirmUpload, getCloudMedia, listCloudMedia, playbackUrl, prepareUpload, removeCloudMedia, spacesEnabled } from './cloudMedia';
+import {
+  cloudCacheMetrics,
+  cloudUsage,
+  confirmUpload,
+  expirePendingCloudMedia,
+  getCloudMedia,
+  listCloudMedia,
+  playbackUrl,
+  prepareUpload,
+  reconcileCloudMedia,
+  recordCloudCacheMetrics,
+  removeCloudMedia,
+  spacesEnabled,
+} from './cloudMedia';
+import { billingSummary, getBillingAccount, mountBilling, mountBillingWebhook } from './billing';
 
 const log = createLogger('http');
 
@@ -99,6 +113,16 @@ export function createApp(): express.Express {
   const app = express();
   app.set('trust proxy', true);
   app.disable('x-powered-by');
+  // Stripe signs the exact request bytes. Mount this before any middleware
+  // that might parse or replace the body.
+  mountBillingWebhook(app);
+  if (spacesEnabled) {
+    void expirePendingCloudMedia().catch((err) => log.warn('startup cloud cleanup failed:', err));
+    const cleanup = setInterval(() => {
+      void expirePendingCloudMedia().catch((err) => log.warn('scheduled cloud cleanup failed:', err));
+    }, 60 * 60 * 1000);
+    cleanup.unref();
+  }
   app.use(cookieParser());
   app.use(attachUser);
 
@@ -253,6 +277,7 @@ export function createApp(): express.Express {
     res.json({ rigs: found.filter(Boolean) });
   });
 
+  mountBilling(app);
   mountOnboarding(app);
   mountRequests(app);
 
@@ -317,6 +342,9 @@ export function createApp(): express.Express {
           voice: voice ? { status: voice.status, channelName: voice.channelName } : null,
           bot: rig?.bots.active() ?? null,
           tracks: rig ? rig.store.listMedia().length : 0,
+          billing: billingSummary(guild.id),
+          cloud: cloudUsage(guild.id),
+          cacheMetrics: cloudCacheMetrics(guild.id),
         };
       }),
       allowlist: platform.listAllowed(),
@@ -353,6 +381,20 @@ export function createApp(): express.Express {
     res.json({ allowlist: platform.listAllowed() });
   });
 
+  app.patch('/api/portal/allow/:id', requirePlatformAdmin, json, (req, res) => {
+    const status = req.body?.status;
+    if (status !== undefined && status !== 'active' && status !== 'suspended') {
+      return res.status(400).json({ error: 'Account status must be active or suspended.' });
+    }
+    const updated = platform.updateAllowed(req.params.id, {
+      ...(typeof req.body?.note === 'string' ? { note: req.body.note.trim() } : {}),
+      ...(typeof req.body?.canOnboard === 'boolean' ? { canOnboard: req.body.canOnboard } : {}),
+      ...(status ? { status } : {}),
+    });
+    if (!updated) return res.status(404).json({ error: 'No such account.' });
+    res.json({ account: updated, allowlist: platform.listAllowed() });
+  });
+
   app.delete('/api/portal/allow/:id', requirePlatformAdmin, (req, res) => {
     platform.disallow(req.params.id);
     res.json({ allowlist: platform.listAllowed() });
@@ -361,6 +403,15 @@ export function createApp(): express.Express {
   app.delete('/api/portal/waitlist/:id', requirePlatformAdmin, (req, res) => {
     platform.removeWaitlist(req.params.id);
     res.json({ waitlist: platform.listWaitlist() });
+  });
+
+  app.post('/api/portal/cloud/reconcile', requirePlatformAdmin, json, async (req, res) => {
+    try {
+      res.json({ report: await reconcileCloudMedia(req.body?.apply === true) });
+    } catch (err) {
+      log.error('cloud reconciliation failed:', err);
+      res.status(502).json({ error: (err as Error).message || 'Could not reconcile Deck Cloud.' });
+    }
   });
 
   app.post('/api/portal/invites', requirePlatformAdmin, json, (req, res) => {
@@ -428,7 +479,27 @@ export function createApp(): express.Express {
     res.json({ ok: rig !== null });
   });
 
+  app.patch('/api/portal/rigs/:id', requirePlatformAdmin, json, async (req, res) => {
+    const guild = platform.getGuild(req.params.id);
+    if (!guild) return res.status(404).json({ error: 'No such rig.' });
+    const status = req.body?.status;
+    if (status !== 'active' && status !== 'suspended') {
+      return res.status(400).json({ error: 'Rig status must be active or suspended.' });
+    }
+    platform.updateGuild(guild.id, { status });
+    invalidateAccess(guild.id);
+    if (status === 'suspended') await rigs.stop(guild.id);
+    else await rigs.ensure(guild.id);
+    res.json({ guild: platform.getGuild(guild.id) });
+  });
+
   app.delete('/api/portal/rigs/:id', requirePlatformAdmin, async (req, res) => {
+    const billing = getBillingAccount(req.params.id);
+    if (billing?.status === 'active' || billing?.status === 'trialing') {
+      return res.status(409).json({
+        error: 'Cancel this rig\'s active Stripe subscription before deleting it.',
+      });
+    }
     await rigs.stop(req.params.id);
     platform.deleteGuild(req.params.id);
     res.json({ ok: true });
@@ -474,9 +545,12 @@ export function createApp(): express.Express {
     res.json({ media: (req.rig as Rig).store.listMedia() });
   });
 
-  guild.get('/cloud', (req, res) => {
+  guild.get('/cloud', async (req, res) => {
     const rig = req.rig as Rig;
-    res.json({ enabled: spacesEnabled, cdn: config.spaces.publicCdn, media: listCloudMedia(rig.guildId), quota: cloudUsage(rig.guildId) });
+    await expirePendingCloudMedia().catch((err) => log.warn('pending cloud cleanup failed:', err));
+    res.json({ enabled: spacesEnabled, cdn: config.spaces.publicCdn, media: listCloudMedia(rig.guildId),
+      quota: cloudUsage(rig.guildId), billing: billingSummary(rig.guildId),
+      cacheMetrics: cloudCacheMetrics(rig.guildId) });
   });
 
   guild.post('/cloud/upload', express.json({ limit: '8kb' }), async (req, res) => {
@@ -484,15 +558,19 @@ export function createApp(): express.Express {
     const name = String(req.body?.name ?? '').trim().slice(0, 240);
     const sizeBytes = Number(req.body?.sizeBytes);
     const contentType = String(req.body?.contentType ?? 'application/octet-stream').trim().slice(0, 120);
+    const sha256 = String(req.body?.sha256 ?? '').trim().toLowerCase();
     if (!name || !Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > config.spaces.maxObjectBytes) {
       return res.status(400).json({ error: `Choose a file no larger than ${Math.round(config.spaces.maxObjectBytes / 1048576)} MB.` });
     }
     if (!/^(audio|video)\//.test(contentType)) return res.status(400).json({ error: 'Only audio or video media can be stored.' });
+    if (!/^[a-f0-9]{64}$/.test(sha256)) return res.status(400).json({ error: 'The file hash is missing or invalid.' });
     try {
-      res.json(await prepareUpload((req.rig as Rig).guildId, (req.user as SessionUser).id, name, sizeBytes, contentType));
+      res.json(await prepareUpload((req.rig as Rig).guildId, (req.user as SessionUser).id, name, sizeBytes, contentType, sha256));
     } catch (err) {
       const message = (err as Error).message;
       if (message.includes('storage limit')) return res.status(413).json({ error: message });
+      if (message.includes('subscription')) return res.status(402).json({ error: message });
+      if (message.includes('already in progress')) return res.status(409).json({ error: message });
       log.error('cloud upload preparation failed:', err);
       res.status(502).json({ error: 'Could not prepare cloud storage.' });
     }
@@ -509,8 +587,15 @@ export function createApp(): express.Express {
   guild.get('/cloud/:id/url', async (req, res) => {
     const item = getCloudMedia((req.rig as Rig).guildId, req.params.id);
     if (!item) return res.status(404).json({ error: 'No such cloud media.' });
-    try { res.json({ url: await playbackUrl(item), expiresIn: config.spaces.publicCdn ? null : 3600 }); }
+    try { res.json({ url: await playbackUrl(item), expiresIn: config.spaces.publicCdn ? null : 600,
+      etag: item.etag, sizeBytes: item.sizeBytes, acceptRanges: true,
+      delivery: config.spaces.publicCdn ? 'cdn' : 'origin' }); }
     catch (err) { res.status(400).json({ error: (err as Error).message }); }
+  });
+
+  guild.post('/cloud/cache-metrics', express.json({ limit: '4kb' }), (req, res) => {
+    recordCloudCacheMetrics((req.rig as Rig).guildId, req.body ?? {});
+    res.status(204).end();
   });
 
   guild.delete('/cloud/:id', async (req, res) => {
@@ -625,6 +710,10 @@ export function createApp(): express.Express {
   app.get('/api/g/:guildId/timecode', (req, res) => {
     const rig = rigs.get(req.params.guildId);
     if (!rig) return res.status(404).json({ error: 'No such rig.' });
+    const billing = billingSummary(req.params.guildId);
+    if (billing.configured && !billing.entitled) {
+      return res.status(402).json({ error: 'The rig subscription is inactive.' });
+    }
 
     const tools = rig.store.db.tools;
     if (!tools.timecode) return res.status(404).json({ error: 'The timecode feed is off.' });

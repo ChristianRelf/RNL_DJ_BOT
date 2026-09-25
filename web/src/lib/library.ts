@@ -89,9 +89,14 @@ export class Library {
 
   /* ----------------------------------------------------------------- scan */
 
-  async scan(handle: FileSystemDirectoryHandle): Promise<ScannedTrack[]> {
-    const result = await scanFolder(handle, (found, current) =>
-      this.events.onScanProgress?.(found, current),
+  async scan(
+    handle: FileSystemDirectoryHandle,
+    cloudHints?: Map<string, { name: string; cloudMediaId: string }>,
+  ): Promise<ScannedTrack[]> {
+    const result = await scanFolder(
+      handle,
+      (found, current) => this.events.onScanProgress?.(found, current),
+      cloudHints,
     );
 
     this.files = result.files;

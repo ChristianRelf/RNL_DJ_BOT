@@ -16,8 +16,8 @@ them is touching the decks at a time, with a hand-over queue for the rest.
 ```text
  your machine                          server (Node)                    Discord
  ┌───────────────────────────┐   ws    ┌──────────────────────────┐    ┌─────────┐
- │ music folder (read-only)  │◀──────▶ │ Rig per guild           │    │  voice  │
- │ decoded cache (OPFS)      │  audio  │  control lock            │───▶│ channel │
+│ Deck Cloud cache (OPFS)   │◀──────▶ │ Rig per guild           │    │  voice  │
+│ decoded PCM cache         │  audio  │  control lock            │───▶│ channel │
  │ decks · mixer · fx · pads │  state  │  mix graph (48k stereo)  │opus│         │
  └───────────────────────────┘ +meters │  8 s ring per deck       │    └─────────┘
               ▲ Discord OAuth2         └──────────────────────────┘
@@ -225,16 +225,42 @@ remain on the Droplet. Objects are isolated under `rigs/<guild-id>/<uuid>`.
    s3cmd setcors deploy/spaces-cors.xml s3://YOUR_SPACE
    ```
 
-Private mode is the default. Downloads use one-hour presigned origin URLs. DigitalOcean
+Private mode is the default. Downloads use ten-minute presigned origin URLs. DigitalOcean
 does not cache presigned requests at its CDN. To use Spaces as a real CDN, enable a CDN
 endpoint, set `SPACES_CDN_URL`, and explicitly set `SPACES_PUBLIC_CDN=true`. That marks
-objects public-read: their random URL is difficult to guess, but anyone who receives it
-can fetch it. Do not enable that mode for a library that must remain access-controlled.
+objects public-read: anyone who receives or derives the content-addressed URL can fetch
+it. Do not enable that mode for a library that must remain access-controlled.
 
 The `/api/health` response reports whether Spaces and public-CDN mode are active.
-Each rig has a 1 GiB cloud quota by default. Change `SPACES_GUILD_LIMIT_GB` to
-adjust it; pending uploads count against the quota so simultaneous requests
-cannot reserve more than the allowance.
+The hosted Deck plan grants each subscribed rig 2.5 GB. Pending uploads count
+against the quota so simultaneous requests cannot reserve more than the allowance.
+Self-hosted installs without Stripe use `SPACES_GUILD_LIMIT_GB` (2.5 GB by default).
+
+Each browser keeps a per-rig IndexedDB manifest and OPFS source cache. Cached
+objects are verified by ETag and byte length, interrupted downloads resume with
+HTTP Range requests, and an adaptive LRU budget evicts only unpinned tracks that
+are not loaded, queued or recently used. The Deck Cloud panel exposes device
+usage, persistence, pin/retry/remove controls and a set preflight action.
+
+Uploads are SHA-256 content-addressed within a rig. Uploading the same bytes
+again reuses the existing object and does not consume the rig's allowance twice.
+Platform admins can dry-run and apply object/database reconciliation from the
+Infrastructure section of the owner portal.
+
+### Stripe subscriptions
+
+Create a recurring **$5 USD monthly** Price in Stripe, then set
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `STRIPE_PRICE_ID`. Register:
+
+```text
+https://deck.ronation.live/api/billing/webhook
+```
+
+for `checkout.session.completed` and the `customer.subscription.*` lifecycle
+events. Checkout and billing management use Stripe-hosted pages; Deck stores
+only Stripe customer/subscription IDs and the entitlement projection. When the
+three Stripe values are blank, billing enforcement is disabled for local and
+self-hosted development.
 
 ## Configuration
 
@@ -245,8 +271,14 @@ cannot reserve more than the allowance.
 | `DISCORD_CLIENT_SECRET` | - | Required. Drives the OAuth2 sign-in. |
 | `DISCORD_GUILD_ID` | - | Only to import a legacy `db.json` on first start. Unset it afterwards. |
 | `PLATFORM_ADMIN_IDS` | - | Who runs the platform: the portal, the allowlist, the bot pool, every rig. Read as `OWNER_USER_IDS` too, for installs that predate the rename. |
-| `PORTAL_HOST` | - | Hostname the owner portal answers on, e.g. `portal.deck.ronation.live`. |
+| `PORTAL_HOST` | - | Hostname the owner portal answers on, e.g. `deckportal.ronation.live`. |
 | `COOKIE_DOMAIN` | - | Scopes the session cookie so one sign-in covers the console and the portal. |
+| `STRIPE_SECRET_KEY` | - | Stripe server key. Configure with webhook secret and Price ID, or leave all three blank. |
+| `STRIPE_WEBHOOK_SECRET` | - | Signing secret for `/api/billing/webhook`. |
+| `STRIPE_PRICE_ID` | - | Recurring $5 USD monthly Price used by Checkout. |
+| `DECK_PLAN_PRICE_CENTS` | `500` | Expected plan price; Checkout refuses a mismatched Price ID. |
+| `DECK_PLAN_STORAGE_GB` | `2.5` | Deck Cloud allowance for an entitled rig. |
+| `SPACES_GUILD_LIMIT_GB` | `2.5` | Cloud allowance when Stripe billing is disabled. |
 | `SESSION_SECRET` | - | Required, ≥32 chars. Rotating it signs everyone out. |
 | `PUBLIC_URL` | `http://localhost:7403` | Must match the registered redirect URI. |
 | `PORT` | `7403` | |
@@ -283,10 +315,13 @@ EQ kills, looping, seeking, rate, the streaming path, pads and the limiter.
 
 ## How the audio works
 
-Your files never leave your machine. The console decodes a track **once**, the
+Deck Cloud sources upload directly from the browser to configured object
+storage; the Droplet never retains the source. Each hosting browser keeps a
+verified, bounded OPFS source cache. The console decodes a track **once**, the
 first time it is loaded, into headerless 48 kHz stereo `s16le` - exactly the
-format the Opus encoder wants - and keeps that in an OPFS cache on your device
-(1 GB, least-recently-used). The waveform envelope is built in the same pass.
+format the Opus encoder wants - and keeps that derivative in a separate 1 GB
+least-recently-used OPFS cache. The waveform and loudness data are built in the
+same pass.
 
 The server asks for quarter-second chunks a few times a second per playing deck,
 keeping an 8-second ring per source. Nothing on the realtime path touches a
@@ -356,7 +391,7 @@ environment, and are addressed by slug:
 | `/g/<slug>/deck` | that server's console |
 | `/g/<slug>/tools` | its tools page |
 | `/onboard` | setting a new one up |
-| `portal.deck.ronation.live` | the owner portal |
+| `deckportal.ronation.live` | the owner portal |
 
 Signing in at all takes being on the allowlist, which is a list of Discord user
 ids a platform admin keeps in the portal. Being on it does not grant access to

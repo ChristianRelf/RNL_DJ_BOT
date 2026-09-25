@@ -63,6 +63,8 @@ export type MediaStatus = 'processing' | 'ready' | 'error' | 'missing';
 
 export interface MediaItem {
   id: string;
+  /** Deck Cloud object this browser-hosted item came from, when applicable. */
+  cloudMediaId?: string;
   title: string;
   originalName: string;
   durationMs: number;
@@ -407,6 +409,7 @@ export interface HostState {
  */
 export interface HostTrackInfo {
   trackId: string;
+  cloudMediaId?: string;
   title: string;
   path: string;
   /** Decoded length in sample frames. Authoritative: the ring sizes requests off it. */

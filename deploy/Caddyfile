@@ -1,4 +1,4 @@
-# RNL DJ - Caddy site blocks for deck.ronation.live and its portal.
+# RNL DJ - Caddy site blocks for deck.ronation.live and deckportal.ronation.live.
 #
 # These go into whichever Caddyfile is already serving this box. Caddy will not
 # present a certificate for a hostname it has no site block for, and a browser
@@ -58,15 +58,15 @@ deck.ronation.live {
 # The owner portal.
 #
 # A separate site block on the same backend rather than a wildcard: two named
-# hosts each get an ordinary certificate over HTTP-01, where *.deck.ronation.live
-# would need DNS-01 and a provider API token sitting on this box.
+# hosts each get an ordinary certificate over HTTP-01.
 #
 # Optional. Without it the portal is still reachable at deck.ronation.live/portal.
 #
-# The session cookie is issued with Domain=deck.ronation.live (COOKIE_DOMAIN in
-# .env), which is why one sign-in covers both hosts.
+# The session cookie is issued with Domain=ronation.live (COOKIE_DOMAIN in
+# .env), which is why one sign-in covers these sibling hosts. Only use this if
+# every other ronation.live subdomain is trusted.
 # ---------------------------------------------------------------------------
-portal.deck.ronation.live {
+deckportal.ronation.live {
 	encode zstd gzip
 
 	reverse_proxy rnl-dj-bot:7403 {

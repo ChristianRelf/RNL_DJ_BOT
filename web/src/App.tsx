@@ -27,6 +27,7 @@ import { MixerAdvanced } from './components/MixerAdvanced';
 import { FxRack } from './components/FxRack';
 import { MidiPanel } from './components/MidiPanel';
 import { LibraryPanel } from './components/LibraryPanel';
+import { SystemHealth } from './components/SystemHealth';
 import {
   compact,
   defaultLayout,
@@ -58,6 +59,13 @@ export default function App({
   // id. Resolved once here, and until it lands there is nothing to connect to.
   const [rig, setRig] = useState<RigSummary | null>(null);
   const [rigError, setRigError] = useState<string | null>(null);
+  const screenProfile = useMemo(() => {
+    if (typeof window === 'undefined') return 'main';
+    const wanted = new URLSearchParams(window.location.search).get('screen');
+    return wanted && ['monitor', 'library', 'studio', 'performance'].includes(wanted)
+      ? wanted
+      : 'main';
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,14 +93,14 @@ export default function App({
 
   // ------------------------------------------------------------- layout ---
 
-  const [layout, setLayout] = useState<Layout>(loadLayout);
+  const [layout, setLayout] = useState<Layout>(() => loadLayout(screenProfile));
   const [arranging, setArranging] = useState(false);
   // Tools waiting to be sized to their own content: everything on a console
   // that has never been arranged, and anything added from the tray afterwards.
   // The palette's heights are guesses about panels whose height depends on what
   // is in them, so a measurement beats a guess wherever one is available.
   const [fitting, setFitting] = useState<ReadonlySet<WidgetId>>(() =>
-    hasStoredLayout()
+    hasStoredLayout(screenProfile)
       ? new Set<WidgetId>()
       : new Set(layout.filter((item) => !item.hidden).map((item) => item.id)),
   );
@@ -114,8 +122,8 @@ export default function App({
 
   const applyLayout = useCallback((next: Layout) => {
     setLayout(next);
-    saveLayout(next);
-  }, []);
+    saveLayout(next, screenProfile);
+  }, [screenProfile]);
 
   /** Drops a tool onto the first row with room for it, then fits it. */
   const addWidget = useCallback(
@@ -138,7 +146,7 @@ export default function App({
       const item = prev.find((entry) => entry.id === id);
       if (!item || item.hidden || item.h === rows) return prev;
       const next = place(prev, id, { ...item, h: rows });
-      saveLayout(next);
+      saveLayout(next, screenProfile);
       return next;
     });
     setFitting((prev) => {
@@ -147,7 +155,7 @@ export default function App({
       next.delete(id);
       return next;
     });
-  }, []);
+  }, [screenProfile]);
 
   /** A preset is a fresh start, so its tiles are fitted like a fresh console. */
   const applyPreset = useCallback(
@@ -365,7 +373,16 @@ export default function App({
     ),
     midi: <MidiPanel midi={midi} />,
     library: <LibraryPanel library={library} host={state.host} meId={me.id} api={api}
-      media={dj.media} send={dj.send} locked={locked} />,
+      media={dj.media}
+      protectedMediaIds={[
+        ...state.queue.items.map((entry) => entry.mediaId),
+        ...Object.values(state.decks).map((deck) => deck.mediaId).filter((id): id is string => Boolean(id)),
+      ]}
+      send={dj.send} locked={locked} />,
+    health: <SystemHealth connection={dj.status} voice={state.voice} host={state.host}
+      control={state.control} cacheStatus={library.status} cachedTracks={library.tracks.length}
+      cacheUsedBytes={library.cache?.usedBytes ?? 0} cacheBudgetBytes={library.cache?.budgetBytes ?? 0}
+      persistence={library.cache?.persistent ?? 'unknown'} />,
   };
 
   return (
@@ -384,6 +401,11 @@ export default function App({
       />
 
       {banner ? <div className="banner">{banner}</div> : null}
+      {screenProfile !== 'main' && view === 'console' ? (
+        <div className="second-screen-strip mono">
+          SECOND SCREEN · {screenProfile.toUpperCase()} · INDEPENDENT LAYOUT
+        </div>
+      ) : null}
 
       {locked ? (
         <div className="lock-strip">
@@ -404,7 +426,7 @@ export default function App({
             onAdd={addWidget}
             onPreset={(preset) => applyPreset(fromPreset(preset))}
             onCompact={() => applyLayout(compact(layout))}
-            onReset={() => applyPreset(defaultLayout())}
+            onReset={() => applyPreset(defaultLayout(screenProfile))}
             onDone={() => setArranging(false)}
           />
         ) : null}

@@ -87,8 +87,8 @@ export const config = {
     portalHost: (process.env.PORTAL_HOST ?? '').trim().toLowerCase(),
     /**
      * Domain to scope the session cookie to. Set it to the parent of both the
-     * console and the portal - `deck.ronation.live` covers
-     * `portal.deck.ronation.live` - so one sign-in serves both. Left empty the
+     * console and the portal - `ronation.live` covers `deck.ronation.live` and
+     * `deckportal.ronation.live` - so one sign-in serves both. Left empty the
      * cookie is host-only, which is right for localhost.
      */
     cookieDomain: (process.env.COOKIE_DOMAIN ?? '').trim(),
@@ -116,7 +116,19 @@ export const config = {
     cdnUrl: (process.env.SPACES_CDN_URL ?? '').replace(/\/+$/, ''),
     publicCdn: bool('SPACES_PUBLIC_CDN'),
     maxObjectBytes: Math.round(num('SPACES_MAX_OBJECT_MB', 500) * 1024 * 1024),
-    guildLimitBytes: Math.round(num('SPACES_GUILD_LIMIT_GB', 1) * 1024 * 1024 * 1024),
+    guildLimitBytes: Math.round(num('SPACES_GUILD_LIMIT_GB', 2.5) * 1024 * 1024 * 1024),
+  },
+  billing: {
+    /**
+     * Stripe stays entirely optional for local/self-hosted installs. In the
+     * hosted service all three values are configured together; only then does
+     * an active subscription become a Deck Cloud entitlement.
+     */
+    secretKey: (process.env.STRIPE_SECRET_KEY ?? '').trim(),
+    webhookSecret: (process.env.STRIPE_WEBHOOK_SECRET ?? '').trim(),
+    priceId: (process.env.STRIPE_PRICE_ID ?? '').trim(),
+    monthlyPriceCents: Math.round(num('DECK_PLAN_PRICE_CENTS', 500)),
+    storageBytes: Math.round(num('DECK_PLAN_STORAGE_GB', 2.5) * 1024 * 1024 * 1024),
   },
   /**
    * External binaries the rig shells out to. None of them are on the realtime
@@ -170,6 +182,19 @@ if (config.access.platformAdminIds.length === 0) {
   }
   if (config.spaces.publicCdn && !config.spaces.cdnUrl) {
     throw new Error('SPACES_PUBLIC_CDN requires SPACES_CDN_URL.');
+  }
+}
+
+{
+  const values = [config.billing.secretKey, config.billing.webhookSecret, config.billing.priceId];
+  const configured = values.filter(Boolean).length;
+  if (configured !== 0 && configured !== values.length) {
+    throw new Error(
+      'Stripe is partly configured. Set STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET and STRIPE_PRICE_ID together.',
+    );
+  }
+  if (config.billing.monthlyPriceCents < 1 || config.billing.storageBytes < 1) {
+    throw new Error('Deck billing price and storage allowance must be positive.');
   }
 }
 

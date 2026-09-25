@@ -212,6 +212,7 @@ const trackId = z.string().min(1).max(128);
 export const hostTrackSchema = z
   .object({
     trackId,
+    cloudMediaId: z.string().uuid().optional(),
     title: z.string().min(1).max(200),
     path: z.string().max(1024),
     // A quarter of a million frames is about 90 minutes. Long enough for a

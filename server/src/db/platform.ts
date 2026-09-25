@@ -137,7 +137,7 @@ export function deleteGuild(id: string): void {
   const database = db();
   database.exec('BEGIN');
   try {
-    for (const table of ['media', 'queue', 'pads', 'guild_bots', 'guild_members', 'invites', 'cloud_media']) {
+    for (const table of ['media', 'queue', 'pads', 'guild_bots', 'guild_members', 'invites', 'cloud_media', 'cloud_cache_metrics', 'billing_accounts']) {
       database.prepare(`DELETE FROM ${table} WHERE guild_id = ?`).run(id);
     }
     database.prepare('DELETE FROM guilds WHERE id = ?').run(id);
@@ -226,6 +226,7 @@ export interface AllowEntry {
   discordId: string;
   note: string;
   canOnboard: boolean;
+  status: 'active' | 'suspended';
   addedBy: string;
   addedAt: number;
 }
@@ -235,6 +236,7 @@ export function listAllowed(): AllowEntry[] {
     discord_id: string;
     note: string;
     can_onboard: number;
+    status: string;
     added_by: string;
     added_at: number;
   }>;
@@ -242,6 +244,7 @@ export function listAllowed(): AllowEntry[] {
     discordId: r.discord_id,
     note: r.note,
     canOnboard: r.can_onboard === 1,
+    status: r.status === 'suspended' ? 'suspended' : 'active',
     addedBy: r.added_by,
     addedAt: r.added_at,
   }));
@@ -249,13 +252,14 @@ export function listAllowed(): AllowEntry[] {
 
 export function isAllowed(discordId: string): AllowEntry | null {
   const row = db().prepare('SELECT * FROM allowlist WHERE discord_id = ?').get(discordId) as unknown as
-    | { discord_id: string; note: string; can_onboard: number; added_by: string; added_at: number }
+    | { discord_id: string; note: string; can_onboard: number; status: string; added_by: string; added_at: number }
     | undefined;
   if (!row) return null;
   return {
     discordId: row.discord_id,
     note: row.note,
     canOnboard: row.can_onboard === 1,
+    status: row.status === 'suspended' ? 'suspended' : 'active',
     addedBy: row.added_by,
     addedAt: row.added_at,
   };
@@ -265,22 +269,43 @@ export function allow(entry: {
   discordId: string;
   note?: string;
   canOnboard?: boolean;
+  status?: 'active' | 'suspended';
   addedBy: string;
 }): void {
+  const existing = isAllowed(entry.discordId);
   db()
     .prepare(
-      `INSERT INTO allowlist (discord_id, note, can_onboard, added_by, added_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO allowlist (discord_id, note, can_onboard, status, added_by, added_at)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(discord_id) DO UPDATE SET note = excluded.note,
-                                             can_onboard = excluded.can_onboard`,
+                                             can_onboard = excluded.can_onboard,
+                                             status = excluded.status`,
     )
     .run(
       entry.discordId,
       entry.note ?? '',
       entry.canOnboard === false ? 0 : 1,
+      (entry.status ?? existing?.status) === 'suspended' ? 'suspended' : 'active',
       entry.addedBy,
       Date.now(),
     );
+}
+
+export function updateAllowed(
+  discordId: string,
+  patch: Partial<Pick<AllowEntry, 'note' | 'canOnboard' | 'status'>>,
+): AllowEntry | null {
+  const current = isAllowed(discordId);
+  if (!current) return null;
+  db()
+    .prepare('UPDATE allowlist SET note = ?, can_onboard = ?, status = ? WHERE discord_id = ?')
+    .run(
+      patch.note === undefined ? current.note : patch.note.slice(0, 200),
+      (patch.canOnboard ?? current.canOnboard) ? 1 : 0,
+      (patch.status ?? current.status) === 'suspended' ? 'suspended' : 'active',
+      discordId,
+    );
+  return isAllowed(discordId);
 }
 
 export function disallow(discordId: string): void {

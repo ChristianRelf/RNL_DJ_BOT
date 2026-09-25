@@ -16,7 +16,7 @@ import { POLICIES, SitePage, type PolicyPage } from './SiteNav';
 
 const SITE = 'https://ronation.live';
 const EMAIL = 'hello@ronation.live';
-const UPDATED = '20 August 2026';
+const UPDATED = '25 September 2026';
 
 const BODIES: Record<PolicyPage, () => JSX.Element> = {
   terms: Terms,
@@ -98,6 +98,20 @@ function Terms() {
         associated server and any DJ role configured for that rig. Server administrators decide
         their own roles; RO. Nation LIVE controls platform admission and the owner portal. Either
         can change or withdraw the access they control.
+      </p>
+
+      <h2>Subscription and Deck Cloud allowance</h2>
+      <p>
+        A hosted rig costs $5 USD per month and includes 2.5 GB of Deck Cloud storage. Stripe
+        processes checkout and recurring payments. A subscription renews monthly until it is
+        cancelled through the billing portal; cancellation normally takes effect at the end of
+        the paid period. Any tax or final total is shown by Stripe before payment.
+      </p>
+      <p>
+        If payment fails or the subscription ends, the rig and new cloud uploads may be disabled.
+        An owner should remove or export anything they need before deleting a rig. Refunds and
+        mandatory cancellation rights are handled under the site terms and the consumer law that
+        applies where you live.
       </p>
 
       <h2>Administrators and the owner portal</h2>
@@ -294,8 +308,16 @@ function Privacy() {
           browsers receive only safe identifiers and fingerprints, never the stored token.
         </li>
         <li>
+          Stripe customer and subscription identifiers, subscription status, renewal date and
+          whether cancellation is scheduled. Stripe, not Deck, holds the payment method.
+        </li>
+        <li>
           Ordinary server logs, which may include an IP address, browser user-agent, timestamps,
           sign-ins, requests and errors, kept for security and debugging.
+        </li>
+        <li>
+          Aggregate per-rig cache diagnostics such as hit and miss counts, resumed and downloaded
+          bytes, evictions and integrity failures. Signed object URLs are not included.
         </li>
       </ul>
 
@@ -327,6 +349,7 @@ function Privacy() {
         <li>Operating rigs, queues, requests, handovers and live Discord playback.</li>
         <li>Showing authorised users who is connected and what the rig is doing.</li>
         <li>Running the waitlist, onboarding communities and administering playback bots.</li>
+        <li>Creating checkout and billing-portal sessions and enforcing the paid storage allowance.</li>
         <li>Preventing abuse, investigating failures and protecting the service.</li>
       </ul>
 
@@ -342,8 +365,10 @@ function Privacy() {
         details and bot controls are not exposed on ordinary rig pages.
       </p>
       <p>
-        Outside that, data goes to Discord (for authentication and to deliver the audio) and our
-        hosting provider. Nobody else receives it, unless we are required by law to hand it over.
+        Outside that, data goes to Discord (for authentication and to deliver the audio), Stripe
+        (for subscription billing), and our hosting and object-storage providers. Stripe receives
+        payment information directly under its own privacy policy; it is not sent through Deck.
+        Nobody else receives it unless we are required by law to hand it over.
       </p>
 
       <h2>Audio broadcast</h2>
@@ -367,8 +392,9 @@ function Privacy() {
         Session cookies only. After a successful sign-in we set{' '}
         <code>rnl_dj_session</code>, a signed token holding your Discord ID, username, display
         name, avatar URL and whether you are an administrator. It expires after 7 days and is
-        removed when you sign out. A short-lived cookie is also set during sign-in to protect the
-        exchange, and is cleared as soon as sign-in completes.
+        removed when you sign out. In production it is scoped to <code>ronation.live</code> so the
+        console and <code>deckportal.ronation.live</code> share a sign-in. A short-lived cookie is
+        also set during sign-in to protect the exchange, and is cleared as soon as sign-in completes.
       </p>
       <p>
         No advertising, analytics or third-party tracking cookies are set. See the{' '}
@@ -382,6 +408,7 @@ function Privacy() {
         <li>Allowlist records remain while access is granted or needed for administration.</li>
         <li>Rig state and track metadata remain until removed or the rig is deleted.</li>
         <li>Bot credentials remain until a platform administrator removes the bot.</li>
+        <li>Billing references remain while the rig exists and as needed for payment disputes or legal records.</li>
         <li>Browser-held data remains until you or the browser clears it.</li>
         <li>Server logs are kept briefly, then discarded.</li>
       </ul>
@@ -513,18 +540,18 @@ function Cookies() {
           mappings, so the desk comes back the way you left it.
         </li>
         <li>
-          <strong>IndexedDB</strong> holds the permission handle for the music folder you pointed at
-          and the metadata from scanning it, so you do not re-pick the folder every session.
+          <strong>IndexedDB</strong> holds the per-rig Deck Cloud cache manifest, including object
+          identity, verification state, local usage and whether you pinned a track.
         </li>
         <li>
-          <strong>The ordinary browser cache</strong> may hold audio while it plays, along with the
-          usual page assets.
+          <strong>Origin-private file storage</strong> holds verified cloud sources and decoded audio
+          for playback. It is bounded by the device cache budget and can be removed from Deck without
+          deleting the cloud source.
         </li>
       </ul>
       <p>
         You can clear all of it through your browser's site-data controls. Clearing it signs you out
-        and resets your layout and mappings; it does not delete anything from Deck Cloud or from your
-        own music folder.
+        and resets your layout and mappings; it does not delete anything from Deck Cloud.
       </p>
 
       <h2>Third parties</h2>

@@ -1,19 +1,43 @@
-import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Check, Cloud, Loader2, Plus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Check,
+  Cloud,
+  CreditCard,
+  ExternalLink,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Server,
+  ShieldCheck,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { SitePage } from './SiteNav';
 
-/**
- * Setting a rig up.
- *
- * Two steps and no forms to speak of: add the bot to a Discord server, then say
- * who is allowed to drive it. The server is picked in Discord's own dialog, so
- * nobody is ever asked to find and paste a guild id - and the id that comes back
- * is Discord's word for it rather than the browser's.
- */
+interface BillingSummary {
+  configured: boolean;
+  status: string;
+  entitled: boolean;
+  customer: boolean;
+  subscription: boolean;
+  currentPeriodEnd: number | null;
+  cancelAtPeriodEnd: boolean;
+  plan: { amountCents: number; currency: 'usd'; interval: 'month'; storageBytes: number };
+}
+
+interface OnboardRig {
+  id: string;
+  slug: string;
+  name: string;
+  createdBy: string;
+  billing: BillingSummary;
+}
 
 interface OnboardState {
   mayOnboard: boolean;
-  rigs: Array<{ id: string; slug: string; name: string; createdBy: string }>;
+  billingRequired: boolean;
+  rigs: OnboardRig[];
 }
 
 interface Role {
@@ -34,10 +58,50 @@ function roleColour(color: number): string | undefined {
   return color ? `#${color.toString(16).padStart(6, '0')}` : undefined;
 }
 
+function bytes(value: number): string {
+  return `${(value / 1024 ** 3).toFixed(value % 1024 ** 3 === 0 ? 0 : 1)} GB`;
+}
+
+function BillingBadge({ billing }: { billing: BillingSummary }) {
+  const label = billing.entitled
+    ? billing.cancelAtPeriodEnd
+      ? 'Active · cancels at period end'
+      : 'Active'
+    : billing.status === 'past_due' || billing.status === 'unpaid'
+      ? 'Payment needs attention'
+      : 'Subscription required';
+  return <span className={`onboard-billing-badge ${billing.entitled ? 'is-ready' : ''}`}>{label}</span>;
+}
+
+function Steps({ current, billingRequired }: { current: number; billingRequired: boolean }) {
+  const items = [
+    { label: 'Connect Discord', icon: Server },
+    ...(billingRequired ? [{ label: 'Choose plan', icon: CreditCard }] : []),
+    { label: 'Set access', icon: ShieldCheck },
+    { label: 'Open console', icon: SlidersHorizontal },
+  ];
+  return (
+    <ol className="onboard-progress" aria-label="Setup progress">
+      {items.map((item, index) => {
+        const Icon = item.icon;
+        const done = index < current;
+        const active = index === current;
+        return (
+          <li key={item.label} className={`${done ? 'is-done' : ''}${active ? ' is-active' : ''}`}>
+            <span>{done ? <Check size={14} /> : <Icon size={14} />}</span>
+            <strong>{item.label}</strong>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function Onboard() {
   const params = new URLSearchParams(window.location.search);
   const slug = params.get('rig');
   const gateMissing = params.get('gate') === 'missing';
+  const checkout = params.get('checkout');
 
   const [state, setState] = useState<OnboardState | null>(null);
   const [error, setError] = useState<string | null>(params.get('error'));
@@ -53,113 +117,146 @@ export function Onboard() {
       <div className="boot">
         <AlertTriangle size={18} />
         <p>{error}</p>
-        <a className="btn" href="/login">
-          Sign in
-        </a>
+        <a className="btn" href="/login">Sign in</a>
       </div>
     );
   }
 
   if (!state) {
-    return (
-      <div className="boot">
-        <div className="boot-spinner" />
-        <p>loading</p>
-      </div>
-    );
+    return <div className="boot"><div className="boot-spinner" /><p>loading</p></div>;
   }
 
   return (
     <SitePage>
-      <div className="onboard">
-        {error && (
-          <p className="onboard-error">
-            <AlertTriangle size={13} /> {error}
-          </p>
-        )}
+      <div className="onboard onboard-v2">
+        {error && <p className="onboard-error"><AlertTriangle size={13} /> {error}</p>}
 
         {!state.mayOnboard ? (
           <section className="onboard-step">
-            <h1 className="onboard-title">Not set up yet</h1>
+            <h1 className="onboard-title">Your account is ready, but rig creation is off</h1>
             <p className="onboard-body">
-              Your account can sign in, but it has not been cleared to create a rig. If somebody
-              is expecting you to set one up, ask them to enable it - otherwise{' '}
-              <a href="/home/access">put your community on the list</a>.
+              A platform admin can enable rig creation for your account. If you are bringing a new
+              community to Deck, <a href="/home/access">send an access request</a>.
             </p>
           </section>
         ) : slug ? (
-          <Configure state={state} slug={slug} gateMissing={gateMissing} onError={setError} />
+          <Configure
+            state={state}
+            slug={slug}
+            gateMissing={gateMissing}
+            checkout={checkout}
+            onError={setError}
+          />
         ) : (
-          <Invite existing={state.rigs.length} />
+          <Invite existing={state.rigs.length} billingRequired={state.billingRequired} />
         )}
       </div>
     </SitePage>
   );
 }
 
-/* ------------------------------------------------------------- step one */
-
-function Invite({ existing }: { existing: number }) {
+function Invite({ existing, billingRequired }: { existing: number; billingRequired: boolean }) {
   return (
-    <section className="onboard-step">
-      <h1 className="onboard-title">Add deck to your server</h1>
+    <section className="onboard-step onboard-welcome">
+      <Steps current={0} billingRequired={billingRequired} />
+      <span className="onboard-kicker">NEW RIG</span>
+      <h1 className="onboard-title">Bring your Discord room on air</h1>
       <p className="onboard-body">
-        Deck plays into a Discord voice channel, so the first thing it needs is to be in your
-        server. Discord will ask which one - pick it there and you will land back here.
+        Connect Deck to a server, choose who can operate it, and run a quick readiness check before
+        the first set. Discord&rsquo;s own server picker keeps IDs and permissions out of the form.
       </p>
-      <p className="onboard-note">
-        It asks for three permissions: view channels, connect, and speak. Nothing else, and
-        nothing that can read messages.
-      </p>
+
+      <div className="onboard-permissions">
+        <span><Check size={13} /> View channels</span>
+        <span><Check size={13} /> Connect</span>
+        <span><Check size={13} /> Speak</span>
+      </div>
 
       <a className="btn btn-primary btn-large" href="/api/onboard/invite">
-        <Plus size={15} /> Add to a Discord server
+        <Plus size={15} /> Connect a Discord server
       </a>
 
-      {existing > 0 && (
-        <p className="onboard-note">
-          Already set one up? <a href="/rigs">Open your rigs</a>.
-        </p>
-      )}
+      {existing > 0 && <p className="onboard-note">Already set one up? <a href="/rigs">Open your rigs</a>.</p>}
     </section>
   );
 }
-
-/* ------------------------------------------------------------- step two */
 
 function Configure({
   state,
   slug,
   gateMissing,
+  checkout,
   onError,
 }: {
   state: OnboardState;
   slug: string;
   gateMissing: boolean;
-  onError: (message: string) => void;
+  checkout: string | null;
+  onError: (message: string | null) => void;
 }) {
-  const rig = state.rigs.find((entry) => entry.slug === slug);
-
+  const initialRig = state.rigs.find((entry) => entry.slug === slug);
   const [roles, setRoles] = useState<Role[] | null>(null);
-  const [name, setName] = useState(rig?.name ?? '');
+  const [name, setName] = useState(initialRig?.name ?? '');
+  const [rigSlug, setRigSlug] = useState(initialRig?.slug ?? '');
   const [djRole, setDjRole] = useState('');
   const [adminRole, setAdminRole] = useState('');
+  const [billing, setBilling] = useState<BillingSummary | null>(initialRig?.billing ?? null);
   const [saving, setSaving] = useState(false);
+  const [billingBusy, setBillingBusy] = useState(false);
 
-  const guildId = rig?.id;
+  const guildId = initialRig?.id;
+  const billingReady = !state.billingRequired || Boolean(billing?.entitled);
+  const rolesReady = roles !== null;
+  const currentStep = state.billingRequired && !billingReady ? 1 : rolesReady ? (state.billingRequired ? 2 : 1) : 1;
+
+  const refreshBilling = useCallback(async () => {
+    if (!guildId) return;
+    const body = await api(`/api/billing/${guildId}`);
+    setBilling(body.billing);
+  }, [guildId]);
 
   useEffect(() => {
     if (!guildId) return;
     api(`/api/onboard/roles/${guildId}`)
-      .then((body: { roles: Role[]; guild: { name: string } }) => {
+      .then((body: { roles: Role[]; guild: { name: string }; djRoleIds: string[]; adminRoleIds: string[] }) => {
         setRoles(body.roles.filter((role) => !role.isEveryone));
         setName((current) => current || body.guild.name);
+        setDjRole(body.djRoleIds[0] ?? '');
+        setAdminRole(body.adminRoleIds[0] ?? '');
       })
       .catch((err: Error) => onError(err.message));
   }, [guildId, onError]);
 
+  useEffect(() => {
+    if (checkout !== 'success' || billingReady || !guildId) return;
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      void refreshBilling().catch(() => undefined);
+      if (attempts >= 15) window.clearInterval(timer);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [checkout, billingReady, guildId, refreshBilling]);
+
+  const cleanSlug = useMemo(
+    () => rigSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40),
+    [rigSlug],
+  );
+
+  const openStripe = async (kind: 'checkout' | 'portal') => {
+    if (!guildId || billingBusy) return;
+    setBillingBusy(true);
+    try {
+      const body = await api(`/api/billing/${guildId}/${kind}`, { method: 'POST' });
+      window.location.assign(body.url);
+    } catch (err) {
+      onError((err as Error).message);
+      setBillingBusy(false);
+    }
+  };
+
   const finish = useCallback(() => {
-    if (!guildId || saving) return;
+    if (!guildId || saving || !billingReady) return;
     setSaving(true);
     void api('/api/onboard/finish', {
       method: 'POST',
@@ -167,121 +264,113 @@ function Configure({
       body: JSON.stringify({
         guildId,
         name,
-        slug: name,
+        slug: cleanSlug,
         djRoleIds: djRole ? [djRole] : [],
         adminRoleIds: adminRole ? [adminRole] : [],
       }),
     })
-      .then((body: { slug: string }) => {
-        window.location.href = `/g/${body.slug}/deck`;
-      })
-      .catch((err: Error) => {
-        onError(err.message);
-        setSaving(false);
-      });
-  }, [guildId, name, djRole, adminRole, saving, onError]);
+      .then((body: { slug: string }) => { window.location.href = `/g/${body.slug}/deck`; })
+      .catch((err: Error) => { onError(err.message); setSaving(false); });
+  }, [guildId, saving, billingReady, name, cleanSlug, djRole, adminRole, onError]);
 
-  if (!rig) {
+  if (!initialRig) {
     return (
       <section className="onboard-step">
-        <h1 className="onboard-title">Nearly there</h1>
-        <p className="onboard-body">
-          That rig is not showing up yet. Give it a moment and <a href={`/onboard?rig=${slug}`}>try
-          again</a>.
-        </p>
+        <h1 className="onboard-title">We&rsquo;re finishing the connection</h1>
+        <p className="onboard-body">Give Discord a moment, then <a href={`/onboard?rig=${slug}`}>check again</a>.</p>
       </section>
     );
   }
 
   return (
-    <section className="onboard-step">
-      <h1 className="onboard-title">
-        <Check size={18} className="onboard-tick" /> {rig.name} is connected
-      </h1>
-
-      {gateMissing && (
-        <p className="onboard-warn">
-          <AlertTriangle size={13} /> deck cannot read that server yet, so nobody there will be
-          able to sign in. Discord sometimes takes a moment to catch up - reload this page, and
-          if it persists, check the bot is still in the server.
-        </p>
-      )}
-
-      <label className="onboard-field">
-        <span>Call it</span>
-        <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
-
-      <label className="onboard-field">
-        <span>Who can DJ</span>
-        <select className="input" value={djRole} onChange={(e) => setDjRole(e.target.value)}>
-          <option value="">Anyone in the server</option>
-          {(roles ?? []).map((role) => (
-            <option key={role.id} value={role.id} style={{ color: roleColour(role.color) }}>
-              {role.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="onboard-field">
-        <span>Who can take over</span>
-        <select className="input" value={adminRole} onChange={(e) => setAdminRole(e.target.value)}>
-          <option value="">Only the server owner</option>
-          {(roles ?? []).map((role) => (
-            <option key={role.id} value={role.id} style={{ color: roleColour(role.color) }}>
-              {role.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p className="onboard-note">
-        Taking over means pulling the decks away from whoever currently holds control. The server
-        owner can always do it.
-      </p>
-
-      <div className="onboard-basics">
-        <h2>How deck works</h2>
-        <ol>
-          <li>
-            <strong>Upload music to Deck Cloud.</strong>
-            <span>
-              Music goes directly from your browser to the rig&rsquo;s cloud library. A local playback
-              cache is prepared automatically; the Droplet does not retain the source file.
-            </span>
-          </li>
-          <li>
-            <strong>Take control before mixing.</strong>
-            <span>
-              Everyone can watch the console, but only the person holding control can operate the
-              decks. Other DJs can request control for a clean handover.
-            </span>
-          </li>
-          <li>
-            <strong>Load two decks and blend.</strong>
-            <span>
-              Search Deck Cloud tracks, load one onto A or B, press play, then use the channel
-              faders and crossfader to decide what the room hears.
-            </span>
-          </li>
-          <li>
-            <strong>Join a Discord voice channel.</strong>
-            <span>
-              Pick a voice channel from the top bar and put the rig on air. Queueing, cueing and
-              arranging the console can all be prepared before listeners hear anything.
-            </span>
-          </li>
-        </ol>
+    <section className="onboard-step onboard-configure">
+      <Steps current={currentStep} billingRequired={state.billingRequired} />
+      <div className="onboard-heading-row">
+        <div>
+          <span className="onboard-kicker">CONNECTED</span>
+          <h1 className="onboard-title"><Check size={18} className="onboard-tick" /> {initialRig.name}</h1>
+        </div>
+        {billing && <BillingBadge billing={billing} />}
       </div>
 
-      <p className="onboard-body onboard-next">
-        <Cloud size={14} /> When the console opens, start with <strong>Deck Cloud</strong>,
-        then take control. You can rearrange every panel later.
-      </p>
+      {gateMissing && (
+        <p className="onboard-warn"><AlertTriangle size={13} /> Deck cannot read the server yet. Check the bot is still present, then reload.</p>
+      )}
+      {checkout === 'success' && !billingReady && (
+        <p className="onboard-note"><Loader2 size={13} className="spin" /> Confirming the subscription with Stripe&hellip;</p>
+      )}
+      {checkout === 'cancelled' && <p className="onboard-note">Checkout was cancelled. Nothing was charged.</p>}
 
-      <button type="button" className="btn btn-primary btn-large" onClick={finish} disabled={saving}>
+      {state.billingRequired && billing && (
+        <article className={`onboard-plan ${billing.entitled ? 'is-ready' : ''}`}>
+          <div>
+            <span className="onboard-kicker">DECK CLOUD PLAN</span>
+            <h2>${(billing.plan.amountCents / 100).toFixed(0)} <small>/ month</small></h2>
+            <p>{bytes(billing.plan.storageBytes)} private cloud storage, all console modules, integrations, and multi-screen control.</p>
+          </div>
+          <ul>
+            <li><Check size={13} /> Direct-to-cloud uploads</li>
+            <li><Check size={13} /> Cancel any time in Stripe</li>
+            <li><Check size={13} /> Card data never reaches Deck</li>
+          </ul>
+          <div className="onboard-plan-actions">
+            {billing.entitled || billing.customer ? (
+              <button type="button" className="btn" onClick={() => void openStripe('portal')} disabled={billingBusy}>
+                {billingBusy ? <Loader2 size={14} className="spin" /> : <ExternalLink size={14} />} Manage billing
+              </button>
+            ) : (
+              <button type="button" className="btn btn-primary" onClick={() => void openStripe('checkout')} disabled={billingBusy}>
+                {billingBusy ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />} Subscribe securely
+              </button>
+            )}
+            {!billing.entitled && billing.customer && (!billing.subscription || billing.status === 'canceled' || billing.status === 'incomplete_expired') && (
+              <button type="button" className="btn btn-primary" onClick={() => void openStripe('checkout')} disabled={billingBusy}>
+                Subscribe
+              </button>
+            )}
+            <button type="button" className="btn btn-small" onClick={() => void refreshBilling()} title="Refresh billing status">
+              <RefreshCw size={12} /> Refresh
+            </button>
+          </div>
+        </article>
+      )}
+
+      <div className="onboard-form-grid">
+        <label className="onboard-field">
+          <span>Rig name</span>
+          <input className="input" value={name} maxLength={120} onChange={(event) => setName(event.target.value)} />
+        </label>
+        <label className="onboard-field">
+          <span>Console URL</span>
+          <div className="onboard-slug"><span>/g/</span><input className="input mono" value={rigSlug} onChange={(event) => setRigSlug(event.target.value)} /><span>/deck</span></div>
+        </label>
+        <label className="onboard-field">
+          <span>Who can DJ</span>
+          <select className="input" value={djRole} onChange={(event) => setDjRole(event.target.value)}>
+            <option value="">Anyone in the server</option>
+            {(roles ?? []).map((role) => <option key={role.id} value={role.id} style={{ color: roleColour(role.color) }}>{role.name}</option>)}
+          </select>
+        </label>
+        <label className="onboard-field">
+          <span>Who can force a takeover</span>
+          <select className="input" value={adminRole} onChange={(event) => setAdminRole(event.target.value)}>
+            <option value="">Only the server owner</option>
+            {(roles ?? []).map((role) => <option key={role.id} value={role.id} style={{ color: roleColour(role.color) }}>{role.name}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="onboard-readiness">
+        <h2>Launch check</h2>
+        <span className="is-ready"><Check size={13} /> Discord connected</span>
+        <span className={billingReady ? 'is-ready' : ''}>{billingReady ? <Check size={13} /> : <CreditCard size={13} />} Deck Cloud plan</span>
+        <span className={rolesReady ? 'is-ready' : ''}>{rolesReady ? <Check size={13} /> : <Loader2 size={13} className="spin" />} Access rules loaded</span>
+        <p><Cloud size={14} /> Your first stop in the console is Deck Cloud. Upload a track, take control, choose a voice channel, then go on air.</p>
+      </div>
+
+      <button type="button" className="btn btn-primary btn-large" onClick={finish} disabled={saving || !billingReady || !rolesReady || !name.trim() || !cleanSlug}>
         {saving ? <Loader2 size={15} className="spin" /> : <ArrowRight size={15} />}
-        Open the console
+        {billingReady ? 'Save and open console' : 'Subscribe to continue'}
       </button>
     </section>
   );

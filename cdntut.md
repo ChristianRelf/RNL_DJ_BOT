@@ -76,8 +76,10 @@ HEAD
 PUT
 ```
 
-Allow all request headers, expose `ETag`, and set the cache duration to 3600
-seconds.
+Allow all request headers (including `Range` and `If-Range`), expose `ETag`,
+`Accept-Ranges`, `Content-Length`, and `Content-Range`, and set the CORS cache
+duration to 3600 seconds. These headers let Deck verify and resume browser-cache
+downloads.
 
 ## 4. Configure Deck in private mode
 
@@ -94,7 +96,7 @@ SPACES_SECRET_ACCESS_KEY=replace-with-secret-access-key
 SPACES_CDN_URL=
 SPACES_PUBLIC_CDN=false
 SPACES_MAX_OBJECT_MB=500
-SPACES_GUILD_LIMIT_GB=1
+SPACES_GUILD_LIMIT_GB=2.5
 ```
 
 All five connection settings are required together. Deck refuses to start if
@@ -104,7 +106,7 @@ appearing healthy.
 In private mode:
 
 - Browser uploads use 15-minute signed PUT URLs.
-- Playback/download links expire after one hour.
+- Playback/download links expire after ten minutes.
 - Objects remain private.
 - DigitalOcean's CDN does not cache the signed downloads.
 
@@ -150,7 +152,7 @@ After signing in to a rig:
 4. Open the Space in DigitalOcean and look under:
 
    ```text
-   rigs/<discord-guild-id>/<random-object-id>.<extension>
+   rigs/<discord-guild-id>/source/<sha256>.<extension>
    ```
 
 5. Confirm opening the object URL without a signed query string is denied.
@@ -162,8 +164,9 @@ matches the address in the browser, including `https` and any subdomain.
 ## 7. Enable the real CDN mode (optional)
 
 Private presigned requests are forwarded to the Spaces origin and are not CDN
-cached. For actual edge caching, Deck must create public-read objects with
-unguessable paths.
+cached. For actual edge caching, Deck must create public-read objects. Deck's
+content-addressed paths are not an access-control boundary; enable this only
+when public bearer-link access is acceptable.
 
 ### Enable the Spaces CDN
 
@@ -216,17 +219,16 @@ ACLs using an S3-compatible tool.
 
 ## 8. Cache headers
 
-Deck uses immutable UUID-based object names, so a changed track should be a new
-object rather than an overwrite. For public CDN objects, use a long cache policy
+Deck uses immutable per-rig SHA-256 object names, so changed bytes produce a new
+object while duplicate bytes reuse the existing one. For public CDN objects, use a long cache policy
 such as:
 
 ```text
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-The current upload adapter can be extended to set this header when public CDN
-mode is enabled. Do not use a year-long cache policy for an object key that will
-be overwritten.
+Deck sets this header when public CDN mode is enabled. Do not use a year-long
+cache policy for an object key that will be overwritten.
 
 When removing public objects, delete the object from Spaces. If an edge still
 serves a cached response, purge that path from the DigitalOcean CDN control

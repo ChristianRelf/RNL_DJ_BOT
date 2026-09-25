@@ -11,7 +11,7 @@ CONTAINER="${CONTAINER:-rnl-dj-bot}"
 NETWORK="${CADDY_NETWORK:-edge}"
 PORT="${PORT:-7403}"
 PUBLIC="${PUBLIC:-https://deck.ronation.live}"
-PORTAL="${PORTAL:-https://portal.deck.ronation.live}"
+PORTAL="${PORTAL:-https://deckportal.ronation.live}"
 
 pass=0
 fail=0

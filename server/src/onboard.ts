@@ -7,6 +7,7 @@ import { guildInfo, guildRoles, verifyAuthAccess } from './discord/gate';
 import { rigs } from './rigManager';
 import { createLogger } from './logger';
 import type { SessionUser } from './protocol';
+import { billingEnabled, billingSummary, hasCloudEntitlement } from './billing';
 
 const log = createLogger('onboard');
 
@@ -49,13 +50,18 @@ export function mountOnboarding(app: express.Express): void {
   /** What the wizard needs to draw itself. */
   app.get('/api/onboard/state', requireUser, (req, res) => {
     const user = req.user as SessionUser;
+    const visible = platform
+      .listGuilds()
+      .filter((guild) => guild.createdBy === user.id || isPlatformAdmin(user.id));
     res.json({
       mayOnboard: mayOnboard(user),
-      rigs: platform.listGuilds().map((guild) => ({
+      billingRequired: billingEnabled,
+      rigs: visible.map((guild) => ({
         id: guild.id,
         slug: guild.slug,
         name: guild.name,
         createdBy: guild.createdBy,
+        billing: billingSummary(guild.id),
       })),
     });
   });
@@ -149,7 +155,6 @@ export function mountOnboarding(app: express.Express): void {
     if (guild.createdBy !== user.id && !isPlatformAdmin(user.id)) {
       return res.status(403).json({ error: 'That rig is not yours to set up.' });
     }
-
     res.json({
       guild: { id: guild.id, slug: guild.slug, name: guild.name },
       roles: await guildRoles(guild.id),
@@ -165,6 +170,11 @@ export function mountOnboarding(app: express.Express): void {
     if (!guild) return res.status(404).json({ error: 'No such rig.' });
     if (guild.createdBy !== user.id && !isPlatformAdmin(user.id)) {
       return res.status(403).json({ error: 'That rig is not yours to set up.' });
+    }
+    if (billingEnabled && !hasCloudEntitlement(guildId)) {
+      return res.status(402).json({
+        error: 'Finish the $5 monthly Deck subscription before opening the console.',
+      });
     }
 
     const ids = (value: unknown): string[] =>

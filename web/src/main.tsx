@@ -13,6 +13,7 @@ import { parseRigPath, parseRequestPath } from './lib/rigs';
 import { Legal } from './components/Legal';
 import { Blog } from './components/Blog';
 import { InviteAccept } from './components/InviteAccept';
+import { BroadcastOverlay } from './components/BroadcastOverlay';
 import './styles.css';
 
 const container = document.getElementById('root');
@@ -104,6 +105,8 @@ function page() {
       return <Portal />;
     case '/onboard':
       return <Onboard />;
+    case '/overlay':
+      return <BroadcastOverlay />;
     // `/` and /login are both the front door; a live session goes on to a rig.
     default:
       return <SignIn checkSession />;

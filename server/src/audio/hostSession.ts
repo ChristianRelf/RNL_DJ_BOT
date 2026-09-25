@@ -15,6 +15,7 @@ const log = createLogger('host');
  */
 export interface HostTrack {
   trackId: string;
+  cloudMediaId?: string;
   title: string;
   /** Path inside the host's music folder, for telling two copies apart. */
   path: string;
