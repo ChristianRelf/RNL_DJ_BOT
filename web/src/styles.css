@@ -2955,6 +2955,65 @@ kbd {
   padding: clamp(28px, 6vw, 56px) var(--gutter) var(--rhythm);
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 10px;
+  left: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--well);
+  color: var(--text);
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform 0.12s ease;
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.onboard-plan .onboard-plan-legal {
+  grid-column: 1 / -1;
+  max-width: none;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.onboard-plan .onboard-plan-legal a {
+  color: var(--text);
+}
+
+.onboard-plan-consent {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.onboard-plan-consent input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.onboard-plan-consent a {
+  color: var(--text);
+}
+
+.doc-cancellation {
+  margin: 18px 0;
+  padding: 16px 18px;
+  border-left: 2px solid var(--accent);
+  background: var(--well);
+  color: var(--muted);
+}
+
 /* The landing page runs wider than a text measure; the docs do not. */
 .site-main.is-wide {
   max-width: var(--measure);

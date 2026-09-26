@@ -42,6 +42,10 @@ const FAQ = [
     a: '$5 USD per rig each month, including 2.5 GB of Deck Cloud storage. You can manage or cancel the subscription through Stripe.',
   },
   {
+    q: 'What happens if I cancel?',
+    a: 'Cancellation normally stops the next monthly renewal and keeps the rig available through the period already paid for. The Terms explain cooling-off and refund rights in full.',
+  },
+  {
     q: 'Can I run it on my own machine?',
     a: 'No. deck is run as a service, not shipped as software, so there is no install and no self-hosted edition. What you get is a booth that is already working.',
   },
@@ -251,6 +255,10 @@ export function Access() {
           </a>
         </div>
         <span className="site-close-mail">{EMAIL}</span>
+        <p className="site-close-legal">
+          Before purchasing, read the <a href="/terms">Deck Terms</a> and{' '}
+          <a href="/privacy">Privacy Policy</a>.
+        </p>
       </section>
     </DocPage>
   );

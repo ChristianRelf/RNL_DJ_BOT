@@ -1,20 +1,25 @@
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
-import { Home } from './components/Home';
-import { Access } from './components/Access';
-import { Help } from './components/Help';
-import { SignIn } from './components/SignIn';
-import { RigPicker } from './components/RigPicker';
-import { Portal } from './components/Portal';
-import { Onboard } from './components/Onboard';
-import { RequestPage, RequestRigPicker } from './components/RequestPage';
 import { parseRigPath, parseRequestPath } from './lib/rigs';
-import { Legal } from './components/Legal';
-import { Blog } from './components/Blog';
-import { InviteAccept } from './components/InviteAccept';
-import { BroadcastOverlay } from './components/BroadcastOverlay';
 import './styles.css';
+
+// Public traffic should not download the full console, audio-hosting and portal
+// code before it can read the first headline. Each route family gets its own
+// chunk and the browser only fetches the one it is about to render.
+const App = lazy(() => import('./App'));
+const Home = lazy(() => import('./components/Home').then((module) => ({ default: module.Home })));
+const Access = lazy(() => import('./components/Access').then((module) => ({ default: module.Access })));
+const Help = lazy(() => import('./components/Help').then((module) => ({ default: module.Help })));
+const SignIn = lazy(() => import('./components/SignIn').then((module) => ({ default: module.SignIn })));
+const RigPicker = lazy(() => import('./components/RigPicker').then((module) => ({ default: module.RigPicker })));
+const Portal = lazy(() => import('./components/Portal').then((module) => ({ default: module.Portal })));
+const Onboard = lazy(() => import('./components/Onboard').then((module) => ({ default: module.Onboard })));
+const RequestPage = lazy(() => import('./components/RequestPage').then((module) => ({ default: module.RequestPage })));
+const RequestRigPicker = lazy(() => import('./components/RequestPage').then((module) => ({ default: module.RequestRigPicker })));
+const Legal = lazy(() => import('./components/Legal').then((module) => ({ default: module.Legal })));
+const Blog = lazy(() => import('./components/Blog').then((module) => ({ default: module.Blog })));
+const InviteAccept = lazy(() => import('./components/InviteAccept').then((module) => ({ default: module.InviteAccept })));
+const BroadcastOverlay = lazy(() => import('./components/BroadcastOverlay').then((module) => ({ default: module.BroadcastOverlay })));
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element');
@@ -118,5 +123,11 @@ function page() {
 if (path === '') {
   window.location.replace('/home');
 } else {
-  createRoot(container).render(<StrictMode>{page()}</StrictMode>);
+  createRoot(container).render(
+    <StrictMode>
+      <Suspense fallback={<div className="boot"><div className="boot-spinner" /></div>}>
+        {page()}
+      </Suspense>
+    </StrictMode>,
+  );
 }

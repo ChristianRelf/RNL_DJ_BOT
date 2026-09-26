@@ -107,8 +107,9 @@ export function SitePage({
 }) {
   return (
     <div className={`site ${bleed ? 'is-bleed' : ''}`}>
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <SiteNav current={current} />
-      <main className={`site-main ${wide ? 'is-wide' : ''} ${bleed ? 'is-bleed' : ''}`}>
+      <main id="main-content" className={`site-main ${wide ? 'is-wide' : ''} ${bleed ? 'is-bleed' : ''}`}>
         {children}
       </main>
       <SiteFooter />

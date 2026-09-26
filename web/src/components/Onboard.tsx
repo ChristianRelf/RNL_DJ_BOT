@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { SitePage } from './SiteNav';
 
+const PURCHASE_TERMS_VERSION = '2026-09-26';
+
 interface BillingSummary {
   configured: boolean;
   status: string;
@@ -203,6 +205,7 @@ function Configure({
   const [billing, setBilling] = useState<BillingSummary | null>(initialRig?.billing ?? null);
   const [saving, setSaving] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
+  const [acceptedPurchaseTerms, setAcceptedPurchaseTerms] = useState(false);
 
   const guildId = initialRig?.id;
   const billingReady = !state.billingRequired || Boolean(billing?.entitled);
@@ -245,9 +248,24 @@ function Configure({
 
   const openStripe = async (kind: 'checkout' | 'portal') => {
     if (!guildId || billingBusy) return;
+    if (kind === 'checkout' && !acceptedPurchaseTerms) {
+      onError('Accept the recurring purchase terms before continuing to Stripe.');
+      return;
+    }
     setBillingBusy(true);
     try {
-      const body = await api(`/api/billing/${guildId}/${kind}`, { method: 'POST' });
+      const body = await api(`/api/billing/${guildId}/${kind}`, {
+        method: 'POST',
+        ...(kind === 'checkout'
+          ? {
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                termsVersion: PURCHASE_TERMS_VERSION,
+                immediateService: true,
+              }),
+            }
+          : {}),
+      });
       window.location.assign(body.url);
     } catch (err) {
       onError((err as Error).message);
@@ -313,18 +331,32 @@ function Configure({
             <li><Check size={13} /> Cancel any time in Stripe</li>
             <li><Check size={13} /> Card data never reaches Deck</li>
           </ul>
+          {!billing.entitled && (
+            <label className="onboard-plan-consent">
+              <input
+                type="checkbox"
+                checked={acceptedPurchaseTerms}
+                onChange={(event) => setAcceptedPurchaseTerms(event.target.checked)}
+              />
+              <span>
+                I am 18 or authorised by the payer. I agree to a recurring $5 USD monthly charge,
+                the <a href="/terms" target="_blank" rel="noreferrer">Deck Terms</a>, and immediate
+                provision of the service during any cancellation period.
+              </span>
+            </label>
+          )}
           <div className="onboard-plan-actions">
             {billing.entitled || billing.customer ? (
               <button type="button" className="btn" onClick={() => void openStripe('portal')} disabled={billingBusy}>
                 {billingBusy ? <Loader2 size={14} className="spin" /> : <ExternalLink size={14} />} Manage billing
               </button>
             ) : (
-              <button type="button" className="btn btn-primary" onClick={() => void openStripe('checkout')} disabled={billingBusy}>
+              <button type="button" className="btn btn-primary" onClick={() => void openStripe('checkout')} disabled={billingBusy || !acceptedPurchaseTerms}>
                 {billingBusy ? <Loader2 size={14} className="spin" /> : <CreditCard size={14} />} Subscribe securely
               </button>
             )}
             {!billing.entitled && billing.customer && (!billing.subscription || billing.status === 'canceled' || billing.status === 'incomplete_expired') && (
-              <button type="button" className="btn btn-primary" onClick={() => void openStripe('checkout')} disabled={billingBusy}>
+              <button type="button" className="btn btn-primary" onClick={() => void openStripe('checkout')} disabled={billingBusy || !acceptedPurchaseTerms}>
                 Subscribe
               </button>
             )}
@@ -332,6 +364,14 @@ function Configure({
               <RefreshCw size={12} /> Refresh
             </button>
           </div>
+          {!billing.entitled && (
+            <p className="onboard-plan-legal">
+              Stripe shows the final amount before charging. Continuing starts a recurring $5 USD
+              monthly subscription and asks us to provision the service immediately. See the{' '}
+              <a href="/terms" target="_blank" rel="noreferrer">Terms, cancellation and refund details</a>{' '}
+              and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+            </p>
+          )}
         </article>
       )}
 

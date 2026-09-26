@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /socket.io/
+Disallow: /invite/
+
+Sitemap: https://deck.ronation.live/sitemap.xml

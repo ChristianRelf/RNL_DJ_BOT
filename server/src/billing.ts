@@ -7,6 +7,7 @@ import { createLogger } from './logger';
 import type { SessionUser } from './protocol';
 
 const log = createLogger('billing');
+const CHECKOUT_TERMS_VERSION = '2026-09-26';
 
 export const billingEnabled = Boolean(
   config.billing.secretKey && config.billing.webhookSecret && config.billing.priceId,
@@ -274,6 +275,15 @@ export function mountBilling(app: express.Express): void {
   app.post('/api/billing/:guildId/checkout', requireBillingUser, express.json({ limit: '4kb' }), async (req, res) => {
     const managed = getManagedGuild(req, res);
     if (!managed) return;
+    const purchaseConsent = req.body as { termsVersion?: unknown; immediateService?: unknown };
+    if (
+      purchaseConsent.termsVersion !== CHECKOUT_TERMS_VERSION ||
+      purchaseConsent.immediateService !== true
+    ) {
+      return res.status(400).json({
+        error: 'Accept the current Deck purchase terms before starting checkout.',
+      });
+    }
     if (!stripe || !billingEnabled) {
       return res.status(503).json({ error: 'Stripe has not been configured yet.' });
     }
@@ -321,14 +331,28 @@ export function mountBilling(app: express.Express): void {
         saveBillingAccount(found);
       }
 
+      const purchaseMetadata = {
+        guildId: managed.guild.id,
+        termsVersion: CHECKOUT_TERMS_VERSION,
+        termsAcceptedBy: managed.user.id,
+        termsAcceptedAt: new Date().toISOString(),
+        immediateServiceRequested: 'true',
+        plan: 'deck-monthly',
+      };
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         customer: found.stripeCustomerId as string,
         client_reference_id: managed.guild.id,
         line_items: [{ price: config.billing.priceId, quantity: 1 }],
         allow_promotion_codes: true,
-        metadata: { guildId: managed.guild.id },
-        subscription_data: { metadata: { guildId: managed.guild.id } },
+        metadata: purchaseMetadata,
+        subscription_data: { metadata: purchaseMetadata },
+        custom_text: {
+          submit: {
+            message:
+              'Recurring subscription: $5 USD per rig each month until cancelled. By confirming, you agree to the Deck Terms at deck.ronation.live/terms and ask us to begin the service immediately during any cancellation period.',
+          },
+        },
         success_url: `${config.http.publicUrl}/onboard?rig=${encodeURIComponent(managed.guild.slug)}&checkout=success`,
         cancel_url: `${config.http.publicUrl}/onboard?rig=${encodeURIComponent(managed.guild.slug)}&checkout=cancelled`,
       });

@@ -16,7 +16,7 @@ import { POLICIES, SitePage, type PolicyPage } from './SiteNav';
 
 const SITE = 'https://ronation.live';
 const EMAIL = 'hello@ronation.live';
-const UPDATED = '25 September 2026';
+const UPDATED = '26 September 2026';
 
 const BODIES: Record<PolicyPage, () => JSX.Element> = {
   terms: Terms,
@@ -56,7 +56,8 @@ function SitePolicies() {
       <a href={`${SITE}/legal/terms`}>site Terms of Service</a>, the{' '}
       <a href={`${SITE}/legal/privacy`}>site Privacy Policy</a> and the{' '}
       <a href={`${SITE}/legal/code-of-conduct`}>Code of Conduct</a> apply here too. This page
-      covers only what is specific to the decks.
+      covers only what is specific to the decks. If those general documents conflict with this
+      page about Deck or a Deck subscription, this page controls for that issue.
     </p>
   );
 }
@@ -73,7 +74,9 @@ function Terms() {
       <p>
         These terms cover the decks - the web control surface and the bot that plays audio into a
         Discord voice channel - including a rig, its request page and the owner portal. Using any
-        part of Deck means you accept these terms. If you do not accept them, do not use it.
+        part of Deck means you accept these terms. Starting a paid subscription also means the
+        person paying accepts them. If you buy for a community or organisation, you confirm that
+        you are authorised to bind it. If you do not accept these terms, do not use or buy Deck.
       </p>
 
       <h2>Eligibility and accounts</h2>
@@ -82,6 +85,11 @@ function Terms() {
         account and do not impersonate somebody else, share access, or use another account to get
         around a suspension or role restriction. Discord is responsible for its accounts; we do
         not create or recover them.
+      </p>
+      <p>
+        You must be at least 18 to start a subscription, or have a parent, guardian or other adult
+        who is authorised to make the purchase do so. The payer must be authorised to use the
+        payment method entered at checkout.
       </p>
 
       <h2>Our relationship with Discord</h2>
@@ -100,18 +108,77 @@ function Terms() {
         can change or withdraw the access they control.
       </p>
 
-      <h2>Subscription and Deck Cloud allowance</h2>
+      <h2>The Deck plan</h2>
       <p>
-        A hosted rig costs $5 USD per month and includes 2.5 GB of Deck Cloud storage. Stripe
-        processes checkout and recurring payments. A subscription renews monthly until it is
-        cancelled through the billing portal; cancellation normally takes effect at the end of
-        the paid period. Any tax or final total is shown by Stripe before payment.
+        One Deck subscription covers one hosted Discord rig. It includes the browser console,
+        managed Discord playback, the features shown on the access and checkout pages, and 2.5 GB
+        of private Deck Cloud storage for that rig. A second rig needs its own subscription.
       </p>
       <p>
-        If payment fails or the subscription ends, the rig and new cloud uploads may be disabled.
-        An owner should remove or export anything they need before deleting a rig. Refunds and
-        mandatory cancellation rights are handled under the site terms and the consumer law that
-        applies where you live.
+        The storage allowance is a limit, not a metered overage charge. When the rig reaches it,
+        further uploads stop until space is freed or we agree a different allowance. You remain
+        responsible for keeping your own copy of every file.
+      </p>
+
+      <h2>Price, checkout and renewal</h2>
+      <p>
+        The standard price is <strong>$5 USD per rig per month</strong>, billed in advance. There is
+        no free trial unless checkout expressly says otherwise. Stripe hosts checkout and shows the
+        amount due, any promotion, and any tax Stripe is configured to collect before you confirm
+        payment. The subscription and billing period begin when Stripe confirms the first payment.
+      </p>
+      <p>
+        This is a recurring subscription. It renews automatically each month on the billing date,
+        using the payment method held by Stripe, until it is cancelled. We do not receive or store
+        full card or bank details. If the price changes, we will give reasonable advance notice and
+        the change will apply only to a future billing period, so you can cancel before it takes
+        effect.
+      </p>
+
+      <h2>Cancelling the subscription</h2>
+      <p>
+        The rig owner can cancel online at any time by choosing <strong>Manage billing</strong> and
+        using the Stripe customer portal. If the owner cannot reach that portal, email{' '}
+        <a href={`mailto:${EMAIL}?subject=Cancel%20Deck%20subscription`}>{EMAIL}</a> from the address
+        used at checkout and identify the Discord server. We will not require a phone call or a
+        cancellation fee.
+      </p>
+      <p>
+        Unless Stripe shows an immediate cancellation, cancellation turns off the next renewal and
+        paid access continues until the end of the current billing period. It does not by itself
+        refund a charge already made. Export or remove anything you need before the paid period ends
+        or before asking us to delete the rig.
+      </p>
+
+      <h2>Cooling-off rights and refunds</h2>
+      <p>
+        If you are a UK consumer buying online, you will generally have a legal right to cancel
+        within 14 days after the contract is made. By confirming checkout, you ask us to provision
+        the rig and begin the service immediately, during that period. If you exercise a right to
+        cancel after service has started, we may deduct a proportionate amount for service already
+        supplied where the law allows it. Tell us clearly by email that you are cancelling; you may
+        use the model notice below, but you do not have to.
+      </p>
+      <blockquote className="doc-cancellation">
+        To: {EMAIL}. I give notice that I cancel my Deck subscription for [Discord server]. Ordered
+        on [date]. Name: [name]. Stripe receipt email: [email]. Date: [date].
+      </blockquote>
+      <p>
+        Outside a statutory cancellation or refund right, ending a subscription stops future
+        renewals but does not automatically create a refund for unused time. Contact us about a
+        duplicate charge, payment error, or a material failure of the service and we will review it
+        promptly. Nothing here limits your rights where a service is not supplied with reasonable
+        care and skill, is not as described, or consumer law otherwise requires a remedy. Approved
+        refunds go back through Stripe to the original payment method.
+      </p>
+
+      <h2>Failed payments and the end of a plan</h2>
+      <p>
+        If a payment fails, is reversed, or the subscription ends, access to the rig and new cloud
+        uploads may be paused or disabled. Stripe may retry a failed payment under the billing
+        settings shown in its portal. We will not charge a separate late-payment or cancellation
+        fee. Cancelling a subscription is not the same as deleting the rig or its stored files;
+        contact us if you want those deleted as well.
       </p>
 
       <h2>Administrators and the owner portal</h2>
@@ -184,15 +251,21 @@ function Terms() {
 
       <h2>Losing access</h2>
       <p>
-        Access can be suspended or removed at any time, with or without notice, including for
-        breaching these terms or the Code of Conduct. Stored track metadata may be removed at the same time.
+        We may suspend access immediately for a serious breach, a security threat, unlawful use,
+        or a failed or reversed payment. For other problems we will give notice and a reasonable
+        chance to put matters right where that is practical. If we end a paid service for our own
+        convenience before the end of a billing period, we will either keep it available through
+        that period or refund the unused part. Stored track metadata may be removed when a rig is
+        deleted, subject to records we need to keep by law.
       </p>
 
-      <h2>No warranty</h2>
+      <h2>Availability and service standard</h2>
       <p>
-        The decks are provided as-is, with no guarantee of availability. They may be taken offline
-        for maintenance, or permanently, without notice. Keep your own music library backed up.
-        The limitations of liability in the{' '}
+        We will provide Deck with reasonable care and skill, but we do not promise uninterrupted or
+        error-free availability. It may be taken offline for maintenance, security work or events
+        outside our reasonable control. Keep your own music library backed up. If we permanently
+        discontinue a paid rig during a period already paid for, we will refund the unused part.
+        Your statutory rights are not affected. The limitations of liability in the{' '}
         <a href={`${SITE}/legal/terms`}>site Terms of Service</a> apply here.
       </p>
 
@@ -201,15 +274,19 @@ function Terms() {
         To the fullest extent the law allows, RO. Nation LIVE is not liable for indirect or
         consequential loss arising from Deck - including a lost set, unavailable rig, dropped
         stream, browser storage being cleared, Discord outage or lost metadata. Nothing here
-        excludes or limits liability that cannot lawfully be excluded or limited.
+        excludes or limits liability for death or personal injury caused by negligence, fraud or
+        fraudulent misrepresentation, breach of your statutory consumer rights, or anything else
+        that cannot lawfully be excluded or limited.
       </p>
 
       <h2>Which law applies</h2>
       <p>
         As with the site terms, these terms and disputes arising from Deck are governed by the law
-        of England and Wales, and the courts of England and Wales have exclusive jurisdiction. If
-        you live elsewhere, you keep any mandatory consumer protection your local law gives you.
-        Please contact us first so we have a fair chance to resolve a problem informally.
+        of England and Wales. If you are a consumer, you keep any mandatory protection provided by
+        the law where you live and may bring proceedings in any court that consumer law permits,
+        including the courts of your home part of the UK where applicable. In other cases, the
+        courts of England and Wales have exclusive jurisdiction. Please contact us first so we have
+        a fair chance to resolve a problem informally.
       </p>
 
       <h2>The rest of the agreement</h2>
@@ -223,14 +300,19 @@ function Terms() {
 
       <h2>Changes</h2>
       <p>
-        These terms may be updated. The date at the top shows when they last changed, and
-        continuing to use the decks after a change means you accept it.
+        These terms may be updated. The date at the top shows when they last changed. We will give
+        reasonable notice of a material change that affects an active paid subscription. A change
+        will not retrospectively reduce what you have already paid for, and any mandatory right to
+        cancel or reject a change remains yours.
       </p>
 
       <h2>Contact</h2>
       <p>
-        Questions about these terms: <a href={`mailto:${EMAIL}`}>{EMAIL}</a>, or the{' '}
-        <a href={`${SITE}/contact`}>contact page</a>.
+        Questions, complaints, cancellation notices and refund requests:{' '}
+        <a href={`mailto:${EMAIL}`}>{EMAIL}</a>, or the{' '}
+        <a href={`${SITE}/contact`}>contact page</a>. The trader and service operator is RO. Nation
+        LIVE. Please include the Discord server name and, for billing questions, the email shown on
+        the Stripe receipt.
       </p>
     </article>
   );
@@ -263,7 +345,8 @@ function Privacy() {
       <p>
         Deck is for people aged 13 and over. We cannot independently verify age. If we learn that
         an account belongs to somebody under 13, we will remove its access and delete associated
-        personal information where we can.
+        personal information where we can. A subscription must be started by somebody aged 18 or
+        over, or by an authorised adult paying on their behalf.
       </p>
 
       <h2>How signing in works</h2>
@@ -296,7 +379,9 @@ function Privacy() {
         </li>
         <li>
           Track metadata supplied by the hosting browser: title, duration, file size, tempo, tags
-          and a content identifier. Audio files and decoded audio are not retained server-side.
+          and a content identifier. A track uploaded to Deck Cloud is stored as an object for the
+          rig until it is removed; source files and decoded audio are not retained on the Deck
+          application server itself.
         </li>
         <li>
           Rig and console state: server and channel identifiers, access roles, control and queue
@@ -308,8 +393,11 @@ function Privacy() {
           browsers receive only safe identifiers and fingerprints, never the stored token.
         </li>
         <li>
-          Stripe customer and subscription identifiers, subscription status, renewal date and
-          whether cancellation is scheduled. Stripe, not Deck, holds the payment method.
+          Stripe customer and subscription identifiers, subscription status, billing-period end
+          and whether cancellation is scheduled. We send Stripe the rig name, Discord server ID,
+          the owner&rsquo;s Discord user ID, the accepted terms version and acceptance time so a payment
+          and its purchase terms can be matched to the correct rig. Stripe, not Deck, receives the
+          payer details and payment method entered at checkout.
         </li>
         <li>
           Ordinary server logs, which may include an IP address, browser user-agent, timestamps,
@@ -333,7 +421,7 @@ function Privacy() {
       <ul>
         <li>Your Discord password, direct messages or message history.</li>
         <li>Your Discord email address through sign-in.</li>
-        <li>Card, bank or payment details.</li>
+        <li>Full card or bank details; those are entered on Stripe&rsquo;s hosted pages.</li>
         <li>Advertising identifiers or third-party analytics tracking.</li>
         <li>Source music or decoded audio on the Deck Droplet; cloud-library objects are held separately in object storage.</li>
       </ul>
@@ -349,9 +437,39 @@ function Privacy() {
         <li>Operating rigs, queues, requests, handovers and live Discord playback.</li>
         <li>Showing authorised users who is connected and what the rig is doing.</li>
         <li>Running the waitlist, onboarding communities and administering playback bots.</li>
-        <li>Creating checkout and billing-portal sessions and enforcing the paid storage allowance.</li>
+        <li>
+          Creating checkout and billing-portal sessions, matching Stripe events to a rig,
+          confirming entitlement, handling cancellations or refunds, and enforcing the paid
+          storage allowance.
+        </li>
         <li>Preventing abuse, investigating failures and protecting the service.</li>
       </ul>
+
+      <h2>Our lawful bases</h2>
+      <p>
+        We use personal information only where we have a lawful basis under UK data protection law.
+        The basis depends on what the information is doing:
+      </p>
+      <ul>
+        <li>
+          <strong>Contract and steps before a contract:</strong> operating a rig you use, responding
+          to an access request, creating checkout, administering a subscription and supplying Deck.
+        </li>
+        <li>
+          <strong>Legitimate interests:</strong> securing the service, preventing abuse, diagnosing
+          failures, keeping an audit trail and administering access, where those interests are not
+          overridden by your rights.
+        </li>
+        <li>
+          <strong>Legal obligation:</strong> retaining transaction, tax, accounting or dispute
+          records where the law requires it.
+        </li>
+      </ul>
+      <p>
+        We do not use subscription or waitlist details for third-party advertising, and we do not
+        make decisions about you solely by automated means that produce legal or similarly
+        significant effects.
+      </p>
 
       <h2>Who can see it</h2>
       <p>
@@ -367,8 +485,12 @@ function Privacy() {
       <p>
         Outside that, data goes to Discord (for authentication and to deliver the audio), Stripe
         (for subscription billing), and our hosting and object-storage providers. Stripe receives
-        payment information directly under its own privacy policy; it is not sent through Deck.
-        Nobody else receives it unless we are required by law to hand it over.
+        payer and payment information directly on its hosted checkout and billing pages under its
+        own <a href="https://stripe.com/gb/privacy">privacy policy</a>; full payment details are not
+        sent through Deck. Stripe also receives the rig and owner identifiers described above so
+        its customer and subscription records can be reconciled with ours. Nobody else receives the
+        information unless we are required by law to hand it over or it is necessary to establish,
+        exercise or defend a legal claim.
       </p>
 
       <h2>Audio broadcast</h2>
@@ -382,9 +504,11 @@ function Privacy() {
       <p>
         Server-held data lives in our service database and logs with our hosting provider. Cloud
         music lives in our configured object storage and may be delivered from CDN edge locations.
-        Data may be processed in a country different from yours. Cached audio stays on the device
-        whose browser created it. Live audio necessarily passes through our server and Discord to
-        reach the voice channel.
+        Stripe and Discord may process account or payment information outside the UK. Where a
+        transfer is restricted by UK data protection law, we rely on the provider&rsquo;s applicable
+        adequacy route or contractual safeguards. Cached audio stays on the device whose browser
+        created it. Live audio necessarily passes through our server and Discord to reach the voice
+        channel.
       </p>
 
       <h2>Cookies</h2>
@@ -408,7 +532,10 @@ function Privacy() {
         <li>Allowlist records remain while access is granted or needed for administration.</li>
         <li>Rig state and track metadata remain until removed or the rig is deleted.</li>
         <li>Bot credentials remain until a platform administrator removes the bot.</li>
-        <li>Billing references remain while the rig exists and as needed for payment disputes or legal records.</li>
+        <li>
+          Billing references and transaction records remain while the subscription or rig exists,
+          and afterwards for the applicable tax, accounting, chargeback and legal-claims periods.
+        </li>
         <li>Browser-held data remains until you or the browser clears it.</li>
         <li>Server logs are kept briefly, then discarded.</li>
       </ul>
@@ -420,9 +547,15 @@ function Privacy() {
       </p>
       <p>
         You may ask for a copy of personal information we hold, ask us to correct it, object to its
-        use, or ask for deletion. Some operational or security records may need to be retained where
+        use, ask us to restrict it, ask for deletion, and receive portable information where the
+        right applies. Some billing, operational or security records may need to be retained where
         the law permits or requires it, and we cannot remove information already made anonymous.
-        If you cannot sign in to make a request, email us and we will verify your identity another way.
+        If you cannot sign in to make a request, email us and we will verify your identity another
+        way. You may also complain to the{' '}
+        <a href="https://ico.org.uk/make-a-complaint/data-protection-complaints/data-protection-complaints/">
+          UK Information Commissioner&rsquo;s Office
+        </a>{' '}
+        or the data protection authority where you live.
       </p>
       <p>
         To get a copy of your data, correct it, or have it deleted, see{' '}
@@ -470,9 +603,11 @@ function Cookies() {
 
       <h2>The short version</h2>
       <p>
-        The decks set two cookies, both strictly necessary, and neither is used to track you. There
-        are no advertising cookies, no analytics cookies and no third-party trackers, which is why
-        you are not asked to accept a banner: there is nothing optional to accept.
+        Deck pages set two cookies, both strictly necessary, and neither is used to track you.
+        There are no advertising cookies, no analytics cookies and no third-party trackers on Deck,
+        which is why you are not asked to accept a banner: there is nothing optional to accept.
+        Stripe&rsquo;s separate checkout and billing-portal pages may set their own essential payment,
+        fraud-prevention and security cookies when you choose to visit them.
       </p>
 
       <h2>What a cookie is</h2>
@@ -523,10 +658,10 @@ function Cookies() {
 
       <h2>Cookies we do not set</h2>
       <ul>
-        <li>Advertising, retargeting or profiling cookies.</li>
-        <li>Analytics or audience-measurement cookies.</li>
+        <li>Advertising, retargeting or profiling cookies on Deck pages.</li>
+        <li>Analytics or audience-measurement cookies on Deck pages.</li>
         <li>Social media, embed or share-button cookies.</li>
-        <li>Cookies that follow you to another site, or that another site can read.</li>
+        <li>Cookies designed to follow you across unrelated sites.</li>
       </ul>
 
       <h2>Other storage in your browser</h2>
@@ -560,6 +695,13 @@ function Cookies() {
         there under <a href="https://discord.com/privacy">Discord's privacy policy</a> - we neither
         set nor read them. Cloud music is delivered through a content-delivery endpoint, which
         serves files and does not set tracking cookies.
+      </p>
+      <p>
+        Purchasing and managing a subscription happens on Stripe-hosted pages. Stripe may set
+        cookies there to operate checkout, remember a payment session and detect fraud. Those
+        cookies are controlled by Stripe, are not set or read by Deck, and are covered by{' '}
+        <a href="https://stripe.com/gb/privacy">Stripe&rsquo;s privacy policy</a>. Returning to Deck does
+        not add a Stripe tracking cookie to our public pages.
       </p>
 
       <h2>Managing cookies</h2>
@@ -684,6 +826,12 @@ function Accessibility() {
         <li>
           <strong>Discord and the browser.</strong> Sign-in happens on Discord's pages, and playback
           reaches listeners through Discord. Their accessibility is theirs, not ours.
+        </li>
+        <li>
+          <strong>Stripe checkout.</strong> Subscription checkout and billing management happen on
+          Stripe-hosted pages. If that flow prevents you from buying, cancelling or updating a
+          payment method, email <a href={`mailto:${EMAIL}`}>{EMAIL}</a> and we will provide a
+          reasonable alternative or help complete the task without charging an assistance fee.
         </li>
       </ul>
 

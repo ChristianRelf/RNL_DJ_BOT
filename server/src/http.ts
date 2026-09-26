@@ -45,6 +45,7 @@ import {
   spacesEnabled,
 } from './cloudMedia';
 import { billingSummary, getBillingAccount, mountBilling, mountBillingWebhook } from './billing';
+import { renderSeoShell, seoForPath } from './seo';
 
 const log = createLogger('http');
 
@@ -760,7 +761,28 @@ export function createApp(): express.Express {
   if (fs.existsSync(webDist)) {
     // The product page is the canonical public front door. Authentication has
     // its own stable URL at /login, so adverts can safely point at the bare host.
-    app.get('/', (_req, res) => res.redirect(302, '/home'));
+    app.get('/', (_req, res) => res.redirect(301, '/home'));
+
+    // Consolidate old public paths rather than asking search engines to infer
+    // which spelling should rank. The SPA keeps the aliases as a client-side
+    // fallback for development and static previews.
+    const canonicalRedirects: Record<string, string> = {
+      '/home/license': '/home/access',
+      '/license': '/home/access',
+      '/home/guides': '/home/help',
+      '/home/guide': '/home/help',
+      '/guide': '/home/help',
+      '/home/blog': '/blog',
+      '/writing': '/blog',
+      '/cookie-policy': '/cookies',
+      '/accessibility-statement': '/accessibility',
+      '/a11y': '/accessibility',
+    };
+    for (const [from, to] of Object.entries(canonicalRedirects)) {
+      app.get(from, (_req, res) => res.redirect(301, to));
+    }
+
+    const webShell = fs.readFileSync(path.join(webDist, 'index.html'), 'utf8');
     app.use(
       express.static(webDist, {
         index: false,
@@ -784,9 +806,15 @@ export function createApp(): express.Express {
 
       // The shell names the current build's hashed assets, so it has to be
       // revalidated every load; the assets it points at stay immutable.
-      res.sendFile(path.join(webDist, 'index.html'), {
-        headers: { 'cache-control': 'no-cache' },
-      });
+      const seo = seoForPath(req.path);
+      const missingArticle = /^\/blog\/[^/]+$/.test(req.path) && !seo.index;
+      if (!seo.index) res.set('x-robots-tag', 'noindex, nofollow');
+      res
+        .status(missingArticle ? 404 : 200)
+        .type('html')
+        .set('content-language', 'en-GB')
+        .set('cache-control', 'no-cache')
+        .send(renderSeoShell(webShell, req.path));
     });
   } else {
     log.warn(`web build not found at ${webDist} - run "npm run build -w web"`);

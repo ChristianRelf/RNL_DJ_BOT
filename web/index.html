@@ -4,23 +4,76 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#131517" />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
     <meta
       name="description"
       content="Run live DJ sets in Discord with two browser-based decks, a full mixer and a private shared music library."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Deck" />
+    <meta property="og:locale" content="en_GB" />
     <meta property="og:title" content="Deck — Live DJ mixing for Discord" />
     <meta
       property="og:description"
       content="A managed browser DJ console that broadcasts straight into your Discord voice channel."
     />
     <meta property="og:url" content="https://deck.ronation.live/home" />
-    <meta property="og:image" content="https://deck.ronation.live/screenshots/deck-console.png" />
+    <meta property="og:image" content="https://deck.ronation.live/social/deck-og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Deck live DJ mixing console for Discord" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Deck — Live DJ mixing for Discord" />
+    <meta
+      name="twitter:description"
+      content="A managed browser DJ console that broadcasts straight into your Discord voice channel."
+    />
+    <meta name="twitter:image" content="https://deck.ronation.live/social/deck-og.png" />
     <link rel="canonical" href="https://deck.ronation.live/home" />
+    <link rel="preload" as="image" href="/screenshots/deck-console.png" fetchpriority="high" />
     <link rel="icon" type="image/png" href="/favicondeck.png" />
     <link rel="apple-touch-icon" href="/favicondeck.png" />
     <title>Deck — Live DJ mixing for Discord</title>
+    <script id="route-structured-data" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://ronation.live/#organization",
+            "name": "RO. Nation LIVE",
+            "url": "https://ronation.live"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://deck.ronation.live/#website",
+            "name": "Deck",
+            "url": "https://deck.ronation.live/home",
+            "publisher": { "@id": "https://ronation.live/#organization" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://deck.ronation.live/home#software",
+            "name": "Deck",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Web browser",
+            "url": "https://deck.ronation.live/home",
+            "image": "https://deck.ronation.live/social/deck-og.png",
+            "description": "A managed browser DJ console that broadcasts a live mix into a Discord voice channel.",
+            "offers": {
+              "@type": "Offer",
+              "price": "5.00",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/LimitedAvailability",
+              "url": "https://deck.ronation.live/home/access"
+            },
+            "provider": { "@id": "https://ronation.live/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
