@@ -5190,14 +5190,18 @@ kbd {
 
 .access-plan {
   display: grid;
-  grid-template-columns: minmax(190px, 0.72fr) minmax(240px, 1fr) minmax(200px, 0.8fr);
+  grid-template-columns: minmax(135px, 0.65fr) minmax(0, 1fr) minmax(165px, 0.75fr);
   align-items: center;
-  gap: clamp(24px, 4vw, 54px);
-  padding: clamp(28px, 4vw, 52px);
+  gap: clamp(20px, 3vw, 38px);
+  padding: clamp(24px, 3vw, 38px);
   border: 1px solid var(--line-strong);
   border-radius: 7px;
   background: linear-gradient(145deg, #202429, #171a1e);
   box-shadow: 0 24px 60px rgb(0 0 0 / 0.24);
+}
+
+.access-plan > * {
+  min-width: 0;
 }
 
 .access-plan .market-price {
@@ -5241,6 +5245,8 @@ kbd {
 
 .access-plan-action .site-btn {
   width: 100%;
+  max-width: 100%;
+  padding-inline: 18px;
 }
 
 .access-plan-action > span {
