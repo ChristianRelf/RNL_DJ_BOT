@@ -43,6 +43,10 @@ const client = spacesEnabled ? new S3Client({
   endpoint: config.spaces.endpoint,
   region: config.spaces.region,
   forcePathStyle: false,
+  // PutObject is presigned before the browser has a request body. Newer AWS
+  // SDK releases otherwise attach the CRC32 of that empty body to the URL,
+  // which makes Spaces reject the real file with a checksum mismatch.
+  requestChecksumCalculation: 'WHEN_REQUIRED',
   credentials: { accessKeyId: config.spaces.accessKeyId, secretAccessKey: config.spaces.secretAccessKey },
 }) : null;
 
@@ -159,15 +163,38 @@ export async function prepareUpload(
     throw err;
   }
   try {
+    const checksumSha256 = Buffer.from(sha256, 'hex').toString('base64');
+    const cacheControl = config.spaces.publicCdn ? 'public, max-age=31536000, immutable' : 'private, no-store';
     const command = new PutObjectCommand({ Bucket: config.spaces.bucket, Key: key, ContentType: contentType,
       ACL: config.spaces.publicCdn ? 'public-read' : 'private',
-      CacheControl: config.spaces.publicCdn ? 'public, max-age=31536000, immutable' : 'private, no-store',
+      CacheControl: cacheControl,
+      ChecksumSHA256: checksumSha256,
       Metadata: { 'rig-id': guildId, 'media-id': id, 'content-sha256': sha256 } });
-    const uploadUrl = await getSignedUrl(client, command, { expiresIn: 15 * 60 });
+    const uploadUrl = await getSignedUrl(client, command, {
+      expiresIn: 15 * 60,
+      // Keep upload metadata in signed request headers instead of duplicating
+      // it between query parameters and headers. This also makes the intended
+      // object cache policy reach Spaces (the presigner otherwise drops it).
+      signableHeaders: new Set(['cache-control', 'content-type']),
+      unhoistableHeaders: new Set([
+        'x-amz-acl',
+        'x-amz-checksum-sha256',
+        'x-amz-meta-content-sha256',
+        'x-amz-meta-media-id',
+        'x-amz-meta-rig-id',
+      ]),
+    });
     return { item: { id, guildId, key, name, sizeBytes, contentType, createdBy: userId, createdAt,
       status: 'pending' as const, etag: null, sha256, verifiedAt: null, error: null }, uploadUrl,
-      headers: { 'content-type': contentType, 'x-amz-acl': config.spaces.publicCdn ? 'public-read' : 'private',
-        'x-amz-meta-content-sha256': sha256 }, deduplicated: false };
+      headers: {
+        'cache-control': cacheControl,
+        'content-type': contentType,
+        'x-amz-acl': config.spaces.publicCdn ? 'public-read' : 'private',
+        'x-amz-checksum-sha256': checksumSha256,
+        'x-amz-meta-content-sha256': sha256,
+        'x-amz-meta-media-id': id,
+        'x-amz-meta-rig-id': guildId,
+      }, deduplicated: false };
   } catch (err) {
     db().prepare('DELETE FROM cloud_media WHERE id = ?').run(id);
     throw err;

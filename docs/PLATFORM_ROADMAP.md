@@ -2,7 +2,6 @@
 
 ## Shipped in the management overhaul
 
-- Owner portal moved to `deckportal.ronation.live`.
 - Platform accounts can be suspended without deleting their audit record, and
   rig-creation permission is controlled independently.
 - Rigs can be suspended/restored; active subscriptions block accidental deletion.
@@ -33,8 +32,6 @@
    passes as release gates.
 
 ## Modules
-
-Priority order is based on live-show value and isolation from the audio thread:
 
 1. Set history and export (played time, transition, DJ, CSV/JSON).
 2. Broadcast scene pad (named cues that trigger several safe integration actions).
