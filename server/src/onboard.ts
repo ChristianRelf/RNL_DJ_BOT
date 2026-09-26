@@ -8,6 +8,7 @@ import { rigs } from './rigManager';
 import { createLogger } from './logger';
 import type { SessionUser } from './protocol';
 import { billingEnabled, billingSummary, hasCloudEntitlement } from './billing';
+import { clearSharedCookie, readCookieValues, setSharedCookie } from './cookies';
 
 const log = createLogger('onboard');
 
@@ -75,14 +76,7 @@ export function mountOnboarding(app: express.Express): void {
     // The state cookie carries who started this, so the callback can record who
     // created the rig without trusting anything that came back from Discord.
     const state = crypto.randomBytes(24).toString('base64url');
-    res.cookie(STATE_COOKIE, `${state}.${user.id}`, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: config.http.publicUrl.startsWith('https://'),
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-      ...(config.http.cookieDomain ? { domain: config.http.cookieDomain } : {}),
-    });
+    setSharedCookie(res, STATE_COOKIE, `${state}.${user.id}`, 15 * 60 * 1000);
     res.redirect(inviteUrl(state));
   });
 
@@ -94,8 +88,12 @@ export function mountOnboarding(app: express.Express): void {
    */
   app.get('/api/onboard/callback', async (req: Request, res: Response) => {
     const { guild_id: guildId, state, error } = req.query as Record<string, string | undefined>;
-    const cookie = req.cookies?.[STATE_COOKIE] as string | undefined;
-    res.clearCookie(STATE_COOKIE, { path: '/' });
+    const stateCookies = readCookieValues(req.headers.cookie, STATE_COOKIE);
+    if (stateCookies.length === 0 && typeof req.cookies?.[STATE_COOKIE] === 'string') {
+      stateCookies.push(req.cookies[STATE_COOKIE]);
+    }
+    const cookie = stateCookies.find((candidate) => candidate.split('.', 1)[0] === state);
+    clearSharedCookie(res, STATE_COOKIE);
 
     const fail = (message: string) => res.redirect('/onboard?error=' + encodeURIComponent(message));
 

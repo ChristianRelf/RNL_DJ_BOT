@@ -113,7 +113,12 @@ export function Onboard() {
       .then(setState)
       .catch((err: Error) => {
         if (err.message === 'Not signed in.') {
-          window.location.replace('/api/auth/login?next=/onboard');
+          // Do not automatically restart OAuth here. If the browser rejected
+          // the new session cookie, doing so creates a Discord -> callback ->
+          // onboarding loop with no page on which the user can recover.
+          setError(
+            'Sign in to continue. If you just signed in, enable cookies for this site and try again.',
+          );
           return;
         }
         setError(err.message);
@@ -125,7 +130,7 @@ export function Onboard() {
       <div className="boot">
         <AlertTriangle size={18} />
         <p>{error}</p>
-        <a className="btn" href="/login">Sign in</a>
+        <a className="btn" href="/api/auth/login?next=/onboard">Sign in again</a>
       </div>
     );
   }

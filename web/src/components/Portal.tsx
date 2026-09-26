@@ -143,7 +143,7 @@ export function Portal() {
       <div className="boot">
         <AlertTriangle size={18} />
         <p>{error}</p>
-        <a className="btn" href="/login">
+        <a className="btn" href="/api/auth/login?next=/portal">
           Sign in
         </a>
       </div>

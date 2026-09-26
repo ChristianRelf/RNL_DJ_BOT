@@ -7,6 +7,7 @@ import { getGuild, isAllowed, isGuildMemberInvited } from './db/platform';
 import { createLogger } from './logger';
 import type { SessionUser } from './protocol';
 import { billingEnabled, hasCloudEntitlement } from './billing';
+import { clearSharedCookie, readCookieValues, setSharedCookie } from './cookies';
 
 const log = createLogger('auth');
 
@@ -15,6 +16,7 @@ const STATE_COOKIE = 'rnl_dj_state';
 const SESSION_TTL_S = 7 * 24 * 60 * 60;
 /** Membership/role checks are cached briefly so every socket connect is not a REST call. */
 const ACCESS_CACHE_TTL_MS = 60_000;
+const STATE_CONTEXT = 'rnl-dj-oauth-state-v1\0';
 
 /**
  * What a session is for.
@@ -129,6 +131,7 @@ export async function exchangeCode(code: string): Promise<ExchangeResult> {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body,
+    signal: AbortSignal.timeout(10_000),
   });
   if (!tokenRes.ok) {
     const text = await tokenRes.text().catch(() => '');
@@ -139,6 +142,7 @@ export async function exchangeCode(code: string): Promise<ExchangeResult> {
 
   const userRes = await fetch('https://discord.com/api/v10/users/@me', {
     headers: { authorization: `${token.token_type} ${token.access_token}` },
+    signal: AbortSignal.timeout(10_000),
   });
   if (!userRes.ok) throw new Error('Could not read your Discord profile.');
   return {
@@ -303,24 +307,15 @@ export function avatarUrl(user: DiscordUserResponse): string | null {
 
 export function issueSession(res: Response, user: SessionUser, scope: SessionScope = 'dj'): void {
   const token = jwt.sign({ ...user, scope }, config.http.sessionSecret, {
+    algorithm: 'HS256',
     expiresIn: SESSION_TTL_S,
   });
-  res.cookie(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: config.http.publicUrl.startsWith('https://'),
-    maxAge: SESSION_TTL_S * 1000,
-    path: '/',
-    // Set on the parent so one sign-in covers the portal subdomain too.
-    ...(config.http.cookieDomain ? { domain: config.http.cookieDomain } : {}),
-  });
+  // Set on the parent so one sign-in covers the portal subdomain too.
+  setSharedCookie(res, SESSION_COOKIE, token, SESSION_TTL_S * 1000);
 }
 
 export function clearSession(res: Response): void {
-  res.clearCookie(SESSION_COOKIE, {
-    path: '/',
-    ...(config.http.cookieDomain ? { domain: config.http.cookieDomain } : {}),
-  });
+  clearSharedCookie(res, SESSION_COOKIE);
 }
 
 /**
@@ -331,15 +326,17 @@ export function clearSession(res: Response): void {
  * parameter - so it cannot be set by whoever sends somebody the login link.
  */
 export function setStateCookie(res: Response, state: string, next?: string): void {
-  const value = next ? `${state}:${Buffer.from(next).toString('base64url')}` : state;
-  res.cookie(STATE_COOKIE, value, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: config.http.publicUrl.startsWith('https://'),
-    maxAge: 10 * 60 * 1000,
-    path: '/',
-    ...(config.http.cookieDomain ? { domain: config.http.cookieDomain } : {}),
-  });
+  const payload = next ? `${state}:${Buffer.from(next).toString('base64url')}` : state;
+  const signature = crypto
+    .createHmac('sha256', config.http.sessionSecret)
+    .update(STATE_CONTEXT)
+    .update(payload)
+    .digest('base64url');
+  setSharedCookie(res, STATE_COOKIE, `${payload}.${signature}`, 10 * 60 * 1000);
+}
+
+export function clearStateCookie(res: Response): void {
+  clearSharedCookie(res, STATE_COOKIE);
 }
 
 /**
@@ -350,31 +347,38 @@ export function setStateCookie(res: Response, state: string, next?: string): voi
  */
 export function readStateCookie(value: string | undefined): { state: string; next: string | null } {
   if (!value) return { state: '', next: null };
-  const cut = value.indexOf(':');
-  if (cut < 0) return { state: value, next: null };
+  const signedAt = value.lastIndexOf('.');
+  if (signedAt < 1) return { state: '', next: null };
+  const payload = value.slice(0, signedAt);
+  const supplied = Buffer.from(value.slice(signedAt + 1), 'base64url');
+  const expected = crypto
+    .createHmac('sha256', config.http.sessionSecret)
+    .update(STATE_CONTEXT)
+    .update(payload)
+    .digest();
+  if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+    return { state: '', next: null };
+  }
+
+  const cut = payload.indexOf(':');
+  if (cut < 0) return { state: payload, next: null };
   let next: string | null = null;
   try {
-    const decoded = Buffer.from(value.slice(cut + 1), 'base64url').toString('utf8');
+    const decoded = Buffer.from(payload.slice(cut + 1), 'base64url').toString('utf8');
     // A single leading slash, and no second one: `//elsewhere` is a URL with
     // the scheme left off, and handing that to a redirect leaves the site.
     if (/^\/(?!\/)[\w\-/]*$/.test(decoded)) next = decoded;
   } catch {
     next = null;
   }
-  return { state: value.slice(0, cut), next };
+  return { state: payload.slice(0, cut), next };
 }
 
 export function readSessionToken(
   cookieHeader: string | undefined,
   name = SESSION_COOKIE,
 ): string | null {
-  if (!cookieHeader) return null;
-  for (const part of cookieHeader.split(';')) {
-    const idx = part.indexOf('=');
-    if (idx < 0) continue;
-    if (part.slice(0, idx).trim() === name) return decodeURIComponent(part.slice(idx + 1).trim());
-  }
-  return null;
+  return readCookieValues(cookieHeader, name)[0] ?? null;
 }
 
 /**
@@ -394,15 +398,54 @@ export function verifySession(token: string | null | undefined): SessionUser | n
   return session && session.scope === 'dj' && maySignIn(session.user.id) ? session.user : null;
 }
 
+/** Resolve a socket handshake even when a legacy cookie duplicates the current one. */
+export function verifySessionCookies(cookieHeader: string | undefined): SessionUser | null {
+  const sessions = readCookieValues(cookieHeader, SESSION_COOKIE)
+    .map((token, index) => ({ user: verifySession(token), issuedAt: sessionIssuedAt(token), index }))
+    .filter(
+      (candidate): candidate is { user: SessionUser; issuedAt: number; index: number } =>
+        Boolean(candidate.user),
+    )
+    // Cookie headers put older same-path cookies first. When two sessions were
+    // issued in the same second, prefer the later value (normally the shared
+    // cookie just written by the callback).
+    .sort((a, b) => b.issuedAt - a.issuedAt || b.index - a.index);
+  return sessions[0]?.user ?? null;
+}
+
+/** Used only after signature verification, to prefer a newly issued shared cookie. */
+function sessionIssuedAt(token: string): number {
+  if (token.length > 4096) return 0;
+  try {
+    const payload = jwt.decode(token);
+    return payload && typeof payload !== 'string' && typeof payload.iat === 'number'
+      ? payload.iat
+      : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** The session as it actually is, scope and all. Only the request page wants this. */
 export function readSession(token: string | null | undefined): SessionRecord | null {
-  if (!token) return null;
+  if (!token || token.length > 4096) return null;
   try {
-    const payload = jwt.verify(token, config.http.sessionSecret) as SessionUser & {
+    const payload = jwt.verify(token, config.http.sessionSecret, {
+      algorithms: ['HS256'],
+    }) as SessionUser & {
       scope?: SessionScope;
       iat: number;
       exp: number;
     };
+    if (
+      typeof payload.id !== 'string' ||
+      !payload.id ||
+      typeof payload.username !== 'string' ||
+      typeof payload.displayName !== 'string' ||
+      (payload.avatarUrl !== null && typeof payload.avatarUrl !== 'string')
+    ) {
+      return null;
+    }
     return {
       // Cookies issued before scopes existed carry none, and every one of them
       // was a DJ session.
@@ -432,10 +475,38 @@ declare module 'express-serve-static-core' {
   }
 }
 
-export function attachUser(req: Request, _res: Response, next: NextFunction): void {
-  const session = readSession(req.cookies?.[SESSION_COOKIE]) ?? undefined;
-  req.session = session;
-  req.user = session?.scope === 'dj' && maySignIn(session.user.id) ? session.user : undefined;
+export function attachUser(req: Request, res: Response, next: NextFunction): void {
+  // A browser may retain both an old host-only cookie and the current
+  // parent-domain cookie. cookie-parser keeps only the first; inspect every
+  // candidate so an invalid legacy value cannot mask the valid shared one.
+  const candidates = readCookieValues(req.headers.cookie, SESSION_COOKIE);
+  if (candidates.length === 0 && typeof req.cookies?.[SESSION_COOKIE] === 'string') {
+    candidates.push(req.cookies[SESSION_COOKIE]);
+  }
+  const sessions = candidates
+    .map((token, index) => ({ record: readSession(token), issuedAt: sessionIssuedAt(token), index }))
+    .filter(
+      (candidate): candidate is { record: SessionRecord; issuedAt: number; index: number } =>
+        Boolean(candidate.record),
+    )
+    .sort((a, b) => b.issuedAt - a.issuedAt || b.index - a.index);
+  // Prefer the full account when an old listener cookie and the shared DJ
+  // cookie arrive together. With only one cookie this preserves normal scope.
+  const session =
+    sessions.find(
+      (candidate) =>
+        candidate.record.scope === 'dj' && maySignIn(candidate.record.user.id),
+    )?.record ?? sessions[0]?.record;
+  const signedIn = session?.scope === 'dj' && maySignIn(session.user.id);
+
+  // Expired, malformed, rotated-secret and suspended-account DJ cookies should
+  // not keep coming back on every request or obscure the next successful login.
+  if ((candidates.length > 0 && sessions.length === 0) || (session?.scope === 'dj' && !signedIn)) {
+    clearSession(res);
+  }
+
+  req.session = session?.scope === 'dj' && !signedIn ? undefined : session;
+  req.user = signedIn ? session.user : undefined;
   next();
 }
 

@@ -8,6 +8,7 @@ import {
   authorizeUrl,
   avatarUrl,
   checkAccess,
+  clearStateCookie,
   clearSession,
   cookieNames,
   exchangeCode,
@@ -47,6 +48,7 @@ import {
 import { billingSummary, getBillingAccount, mountBilling, mountBillingWebhook } from './billing';
 import { renderSeoShell, seoForPath } from './seo';
 import { mountBugReports, siteConfig } from './bugReports';
+import { readCookieValues } from './cookies';
 
 const log = createLogger('http');
 
@@ -58,6 +60,14 @@ const log = createLogger('http');
  */
 const REQUEST_PATH = /^\/(?:g\/)?[a-z0-9-]+\/request$|^\/request$/;
 const INVITE_PATH = /^\/invite\/([A-Za-z0-9_-]{20,80})$/;
+
+/** Keep the dedicated portal host after OAuth; all other destinations are local paths. */
+function signedInDestination(next?: string | null): string {
+  if (next !== '/portal' || !config.http.portalHost) return next ?? '/rigs';
+  const portal = new URL('/portal', config.http.publicUrl);
+  portal.hostname = config.http.portalHost;
+  return portal.toString();
+}
 
 
 /**
@@ -131,6 +141,15 @@ export function createApp(): express.Express {
 
   // ------------------------------------------------------------- auth ---
 
+  // OAuth callbacks contain short-lived codes. Neither those responses nor
+  // the session probe should be stored by a browser or an intermediary.
+  app.use('/api/auth', (_req, res, next) => {
+    res.setHeader('cache-control', 'no-store');
+    res.setHeader('pragma', 'no-cache');
+    res.setHeader('referrer-policy', 'no-referrer');
+    next();
+  });
+
   /**
    * `next` is where to land afterwards - the request page uses it, because
    * somebody who followed a link to ask for a track should end up back at that
@@ -138,22 +157,50 @@ export function createApp(): express.Express {
    * kept; anything else is dropped and they go to the front door.
    */
   app.get('/api/auth/login', (req, res) => {
-    const state = newState();
     const wanted = String(req.query.next ?? '');
-    setStateCookie(res, state, /^\/(?!\/)[\w\-/]*$/.test(wanted) ? wanted : undefined);
+    const next = /^\/(?!\/)[\w\-/]*$/.test(wanted) ? wanted : undefined;
+    // A stale client route may ask to sign in after the server already sees a
+    // valid session. Do not send that browser around OAuth again.
+    if (req.user) return res.redirect(signedInDestination(next));
+
+    const state = newState();
+    setStateCookie(res, state, next);
     res.redirect(authorizeUrl(state));
   });
 
   app.get('/api/auth/callback', async (req, res) => {
-    const { code, state, error } = req.query as Record<string, string | undefined>;
-    const { state: expected, next } = readStateCookie(req.cookies?.[cookieNames.state]);
-    res.clearCookie(cookieNames.state, { path: '/' });
+    const queryString = (value: unknown): string | undefined =>
+      typeof value === 'string' ? value : undefined;
+    const code = queryString(req.query.code);
+    const state = queryString(req.query.state);
+    const error = queryString(req.query.error);
+    const stateCookies = readCookieValues(req.headers.cookie, cookieNames.state);
+    if (stateCookies.length === 0 && typeof req.cookies?.[cookieNames.state] === 'string') {
+      stateCookies.push(req.cookies[cookieNames.state]);
+    }
+    const stateRecord = stateCookies
+      .map(readStateCookie)
+      .find((candidate) => state && candidate.state === state) ?? { state: '', next: null };
+    const { state: expected, next } = stateRecord;
+    clearStateCookie(res);
 
+    // Validate state even when Discord reports a refusal. Otherwise an
+    // unrelated request could clear an in-progress login and manufacture an
+    // OAuth error page for this browser.
+    if (!state || !expected || state !== expected) {
+      return res.redirect('/login?error=' + encodeURIComponent('Login state mismatch - try again.'));
+    }
     // Failures go back to /login rather than /, so the reason lands beside the
     // button that failed instead of on the marketing page.
-    if (error) return res.redirect(`/login?error=${encodeURIComponent(error)}`);
-    if (!code || !state || !expected || state !== expected) {
-      return res.redirect('/login?error=' + encodeURIComponent('Login state mismatch - try again.'));
+    if (error) {
+      const message =
+        error === 'access_denied'
+          ? 'Sign-in was cancelled.'
+          : 'Discord could not complete sign-in.';
+      return res.redirect(`/login?error=${encodeURIComponent(message)}`);
+    }
+    if (!code) {
+      return res.redirect('/login?error=' + encodeURIComponent('Discord did not complete sign-in.'));
     }
 
     try {
@@ -217,7 +264,7 @@ export function createApp(): express.Express {
 
       issueSession(res, user);
       log.info(`${user.displayName} signed in`);
-      res.redirect(next ?? '/rigs');
+      res.redirect(signedInDestination(next));
     } catch (err) {
       log.warn('login failed:', (err as Error).message);
       res.redirect('/login?error=' + encodeURIComponent((err as Error).message));
@@ -230,6 +277,7 @@ export function createApp(): express.Express {
   });
 
   app.get('/api/me', (req, res) => {
+    res.setHeader('cache-control', 'no-store');
     if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
     res.json({ user: req.user, publicUrl: config.http.publicUrl });
   });

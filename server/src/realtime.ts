@@ -2,7 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import { Server as IOServer, type Socket } from 'socket.io';
-import { checkAccess, readSessionToken, verifySession } from './auth';
+import { checkAccess, verifySessionCookies } from './auth';
 import { CommandError, type Rig } from './rig';
 import { rigs } from './rigManager';
 import {
@@ -82,8 +82,7 @@ export function createRealtime(httpServer: HttpServer): IOServer {
    */
   io.use(async (socket, next) => {
     try {
-      const token = readSessionToken(socket.handshake.headers.cookie);
-      const session = verifySession(token);
+      const session = verifySessionCookies(socket.handshake.headers.cookie);
       if (!session) return next(new Error('Not signed in.'));
 
       const guildId = String(socket.handshake.auth?.guildId ?? '');

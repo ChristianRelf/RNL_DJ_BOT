@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import net from 'node:net';
 
 const missing: string[] = [];
 
@@ -34,6 +35,14 @@ function bool(name: string, fallback = false): boolean {
 }
 
 const dataDir = path.resolve(process.env.DATA_DIR ?? './data');
+const publicUrl = (process.env.PUBLIC_URL ?? 'http://localhost:7403').replace(/\/+$/, '');
+const portalHost = (process.env.PORTAL_HOST ?? '').trim().toLowerCase().replace(/\.$/, '');
+// A leading dot has had no special meaning in modern Set-Cookie handling for
+// years. Store one canonical spelling so validation and cookie deletion agree.
+const cookieDomain = (process.env.COOKIE_DOMAIN ?? '')
+  .trim()
+  .toLowerCase()
+  .replace(/^\.+|\.+$/g, '');
 
 /**
  * Whoever runs the platform: the portal, the allowlist, the bot pool, every
@@ -82,16 +91,16 @@ export const config = {
   },
   http: {
     port: num('PORT', 7403),
-    publicUrl: (process.env.PUBLIC_URL ?? 'http://localhost:7403').replace(/\/+$/, ''),
+    publicUrl,
     /** Where the owner portal answers. Matched against the Host header. */
-    portalHost: (process.env.PORTAL_HOST ?? '').trim().toLowerCase(),
+    portalHost,
     /**
      * Domain to scope the session cookie to. Set it to the parent of both the
      * console and the portal - `ronation.live` covers `deck.ronation.live` and
      * `deckportal.ronation.live` - so one sign-in serves both. Left empty the
      * cookie is host-only, which is right for localhost.
      */
-    cookieDomain: (process.env.COOKIE_DOMAIN ?? '').trim(),
+    cookieDomain,
     sessionSecret: req('SESSION_SECRET'),
     maxUploadBytes: Math.round(num('MAX_UPLOAD_MB', 100) * 1024 * 1024),
   },
@@ -230,7 +239,49 @@ if (
   if (!parsed || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
     throw new Error(
       `PUBLIC_URL must be an absolute URL including the scheme, for example ` +
-        `https://deck.ronation.live (got "${config.http.publicUrl}").`,
+      `https://deck.ronation.live (got "${config.http.publicUrl}").`,
+    );
+  }
+
+  const validHostname = (value: string): boolean =>
+    /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(
+      value,
+    );
+  const coveredBy = (hostname: string, domain: string): boolean =>
+    hostname === domain || hostname.endsWith(`.${domain}`);
+
+  if (config.http.portalHost && !validHostname(config.http.portalHost)) {
+    throw new Error(
+      `PORTAL_HOST must be a hostname without a scheme, port or path (got "${config.http.portalHost}").`,
+    );
+  }
+
+  if (config.http.cookieDomain) {
+    if (!validHostname(config.http.cookieDomain) || net.isIP(config.http.cookieDomain)) {
+      throw new Error(
+        `COOKIE_DOMAIN must be a DNS domain without a scheme, port or path (got "${config.http.cookieDomain}").`,
+      );
+    }
+    if (!coveredBy(parsed.hostname.toLowerCase().replace(/\.$/, ''), config.http.cookieDomain)) {
+      throw new Error(
+        `COOKIE_DOMAIN "${config.http.cookieDomain}" does not cover PUBLIC_URL host "${parsed.hostname}".`,
+      );
+    }
+    if (config.http.portalHost && !coveredBy(config.http.portalHost, config.http.cookieDomain)) {
+      throw new Error(
+        `COOKIE_DOMAIN "${config.http.cookieDomain}" does not cover PORTAL_HOST "${config.http.portalHost}".`,
+      );
+    }
+  }
+
+  if (
+    config.http.portalHost &&
+    config.http.portalHost !== parsed.hostname.toLowerCase().replace(/\.$/, '') &&
+    !config.http.cookieDomain
+  ) {
+    throw new Error(
+      'COOKIE_DOMAIN is required when PORTAL_HOST differs from the PUBLIC_URL host, ' +
+        'otherwise the portal cannot receive the sign-in session or finish OAuth safely.',
     );
   }
 }

@@ -295,7 +295,7 @@ self-hosted development.
 | `DISCORD_GUILD_ID` | - | Only to import a legacy `db.json` on first start. Unset it afterwards. |
 | `PLATFORM_ADMIN_IDS` | - | Who runs the platform: the portal, the allowlist, the bot pool, every rig. Read as `OWNER_USER_IDS` too, for installs that predate the rename. |
 | `PORTAL_HOST` | - | Hostname the owner portal answers on, e.g. `deckportal.ronation.live`. |
-| `COOKIE_DOMAIN` | - | Scopes the session cookie so one sign-in covers the console and the portal. |
+| `COOKIE_DOMAIN` | - | Scopes sign-in cookies across the console and portal. Required when `PORTAL_HOST` is a different hostname; it must cover both hosts. |
 | `STRIPE_SECRET_KEY` | - | Stripe server key. Configure with webhook secret and Price ID, or leave all three blank. |
 | `STRIPE_WEBHOOK_SECRET` | - | Signing secret for `/api/billing/webhook`. |
 | `STRIPE_PRICE_ID` | - | Recurring $5 USD monthly Price used by Checkout. |
