@@ -809,8 +809,8 @@ export function Help() {
 
         <section className="doc-next">
           <p>
-            Still stuck? <a href={`mailto:${EMAIL}?subject=deck%20-%20help`}>Email us</a> with the
-            rig name, browser and what happened immediately before the problem.
+            Found a product fault? <a href="/home/help/report-a-bug">Send a detailed bug report</a>{' '}
+            with optional browser diagnostics, or <a href={`mailto:${EMAIL}?subject=deck%20-%20help`}>email us</a>.
           </p>
         </section>
       </SitePage>
@@ -904,8 +904,8 @@ export function Help() {
 
       <section className="doc-next">
         <p>
-          Still stuck? <a href={`mailto:${EMAIL}?subject=deck%20-%20help`}>Email us</a> and say what
-          you were doing when it went wrong - that is usually enough to spot it.
+          Found something broken? <a href="/home/help/report-a-bug">Report a bug</a> with the steps
+          and optional browser diagnostics, or <a href={`mailto:${EMAIL}?subject=deck%20-%20help`}>email us</a>.
         </p>
       </section>
     </SitePage>

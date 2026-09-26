@@ -1,6 +1,7 @@
 import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parseRigPath, parseRequestPath } from './lib/rigs';
+import { CookieConsent } from './components/CookieConsent';
 import './styles.css';
 
 // Public traffic should not download the full console, audio-hosting and portal
@@ -20,6 +21,7 @@ const Legal = lazy(() => import('./components/Legal').then((module) => ({ defaul
 const Blog = lazy(() => import('./components/Blog').then((module) => ({ default: module.Blog })));
 const InviteAccept = lazy(() => import('./components/InviteAccept').then((module) => ({ default: module.InviteAccept })));
 const BroadcastOverlay = lazy(() => import('./components/BroadcastOverlay').then((module) => ({ default: module.BroadcastOverlay })));
+const BugReport = lazy(() => import('./components/BugReport').then((module) => ({ default: module.BugReport })));
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element');
@@ -93,6 +95,8 @@ function page() {
     case '/home/guide':
     case '/guide':
       return <Help />;
+    case '/home/help/report-a-bug':
+      return <BugReport />;
     // The writing. /home/blog is accepted because everything else front of
     // house sits under /home and people guess accordingly.
     case '/blog':
@@ -128,6 +132,7 @@ if (path === '') {
       <Suspense fallback={<div className="boot"><div className="boot-spinner" /></div>}>
         {page()}
       </Suspense>
+      <CookieConsent />
     </StrictMode>,
   );
 }

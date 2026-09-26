@@ -46,6 +46,7 @@ import {
 } from './cloudMedia';
 import { billingSummary, getBillingAccount, mountBilling, mountBillingWebhook } from './billing';
 import { renderSeoShell, seoForPath } from './seo';
+import { mountBugReports, siteConfig } from './bugReports';
 
 const log = createLogger('http');
 
@@ -96,6 +97,8 @@ export function createApp(): express.Express {
   }
   app.use(cookieParser());
   app.use(attachUser);
+  app.get('/api/site-config', siteConfig);
+  mountBugReports(app);
 
   /**
    * The portal answers on its own hostname, but it is the same bundle and the

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Menu, X } from 'lucide-react';
+import { openCookieSettings } from '../lib/analytics';
 
 /**
  * Shared chrome for the public pages - the pitch, the docs, the guide and the
@@ -146,6 +147,7 @@ const FOOTER = [
     title: 'Resources',
     links: [
       { href: '/home/help', label: 'Help centre' },
+      { href: '/home/help/report-a-bug', label: 'Report a bug' },
       { href: '/blog', label: 'Writing' },
       { href: '/request', label: 'Request a track' },
     ],
@@ -201,6 +203,7 @@ export function SiteFooter() {
         <p>
           &copy; {year} RO. Nation LIVE &middot; All rights Reserved
         </p>
+        <button type="button" onClick={openCookieSettings}>Cookie settings</button>
       </div>
     </footer>
   );

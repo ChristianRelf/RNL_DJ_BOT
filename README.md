@@ -155,6 +155,29 @@ Because `PUBLIC_URL` starts with `https://`, session cookies are issued with the
 `Secure` flag automatically, and Express is configured to trust the proxy's
 `X-Forwarded-*` headers.
 
+### Analytics and public bug reports
+
+Both integrations are runtime settings, so their identifiers and secrets do
+not get compiled into the web bundle:
+
+```ini
+GOOGLE_ANALYTICS_ID=G-ABC123DEF4
+BUG_REPORT_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+- Create a GA4 web data stream for `https://deck.ronation.live` and copy its
+  measurement ID. Deck uses basic consent: the Google tag is not requested
+  until a visitor accepts optional analytics. Only public product, help,
+  writing and policy pages send a sanitised page view; query strings and all
+  console/account/request routes are excluded. Set an appropriate GA4 data
+  retention period, exclude internal traffic if needed, then verify both the
+  reject and accept paths in a private browser window.
+- In a private Discord support channel, choose **Edit channel -> Integrations
+  -> Webhooks**, create a dedicated webhook and use its URL above. The URL is a
+  secret: never put it in the web app or commit it. The public route is
+  `/home/help/report-a-bug`; the server validates and rate-limits submissions
+  before relaying them, and the webhook never reaches the browser.
+
 Two things worth checking if something misbehaves:
 
 - **Uploads 413** - Caddy's `request_body max_size` (200 MB in the supplied

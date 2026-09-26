@@ -129,11 +129,18 @@ const PUBLIC_PAGES: Record<string, Pick<SeoMeta, 'title' | 'description'> & { st
   },
   '/cookies': {
     title: 'Deck Cookie Policy',
-    description: 'The essential session and sign-in cookies used by Deck, plus the browser storage used by the console.',
+    description: 'The essential sign-in storage and consent-controlled Google Analytics cookies used by Deck.',
   },
   '/accessibility': {
     title: 'Deck Accessibility Statement',
     description: 'Accessibility support, keyboard controls and known limitations for the Deck browser DJ console.',
+  },
+};
+
+const UTILITY_PAGES: Record<string, Pick<SeoMeta, 'title' | 'description'>> = {
+  '/home/help/report-a-bug': {
+    title: 'Report a Bug | Deck Help',
+    description: 'Send a detailed Deck bug report with optional browser diagnostics to the RO. Nation LIVE support team.',
   },
 };
 
@@ -171,6 +178,16 @@ export function seoForPath(input: string): SeoMeta {
       ...page,
       canonical: `${ORIGIN}${pathname}`,
       index: true,
+      type: 'website',
+    };
+  }
+
+  const utility = UTILITY_PAGES[pathname];
+  if (utility) {
+    return {
+      ...utility,
+      canonical: null,
+      index: false,
       type: 'website',
     };
   }

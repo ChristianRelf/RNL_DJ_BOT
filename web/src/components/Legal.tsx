@@ -408,6 +408,18 @@ function Privacy() {
           Aggregate per-rig cache diagnostics such as hit and miss counts, resumed and downloaded
           bytes, evictions and integrity failures. Signed object URLs are not included.
         </li>
+        <li>
+          Bug reports you choose to submit: the affected area, impact, description, reproduction
+          steps, expected result, affected page, optional contact details and any optional browser
+          diagnostics you select on the form.
+        </li>
+        <li>
+          If you accept optional analytics, Google Analytics receives information about visits to
+          public marketing, help, writing and policy pages. This can include the page path and
+          title, visit time, browser and device information, general location derived by Google
+          from the connection, and first-party analytics identifiers. Query strings, console
+          routes, account pages, request pages and form contents are excluded.
+        </li>
       </ul>
 
       <h2>What stays in your browser</h2>
@@ -423,7 +435,8 @@ function Privacy() {
         <li>Your Discord password, direct messages or message history.</li>
         <li>Your Discord email address through sign-in.</li>
         <li>Full card or bank details; those are entered on Stripe&rsquo;s hosted pages.</li>
-        <li>Advertising identifiers or third-party analytics tracking.</li>
+        <li>Advertising identifiers, advertising profiles or cross-site tracking.</li>
+        <li>Bug-report form contents through Google Analytics.</li>
         <li>Source music or decoded audio on the Deck Droplet; cloud-library objects are held separately in object storage.</li>
       </ul>
 
@@ -444,6 +457,11 @@ function Privacy() {
           storage allowance.
         </li>
         <li>Preventing abuse, investigating failures and protecting the service.</li>
+        <li>Receiving, triaging and responding to bug reports.</li>
+        <li>
+          Measuring how people use the public site, where you have accepted optional analytics, so
+          we can improve product information and understand marketing performance.
+        </li>
       </ul>
 
       <h2>Our lawful bases</h2>
@@ -465,6 +483,10 @@ function Privacy() {
           <strong>Legal obligation:</strong> retaining transaction, tax, accounting or dispute
           records where the law requires it.
         </li>
+        <li>
+          <strong>Consent:</strong> loading Google Analytics and storing or reading its optional
+          identifiers. You can refuse or withdraw this at any time without losing access to Deck.
+        </li>
       </ul>
       <p>
         We do not use subscription or account details for third-party advertising, and we do not
@@ -484,8 +506,9 @@ function Privacy() {
         administration and bot controls are not exposed on ordinary rig pages.
       </p>
       <p>
-        Outside that, data goes to Discord (for authentication and to deliver the audio), Stripe
-        (for subscription billing), and our hosting and object-storage providers. Stripe receives
+        Outside that, data goes to Discord (for authentication, audio delivery and the private team
+        channel that receives a bug report you submit), Stripe (for subscription billing), Google
+        (for Analytics only after consent), and our hosting and object-storage providers. Stripe receives
         payer and payment information directly on its hosted checkout and billing pages under its
         own <a href="https://stripe.com/gb/privacy">privacy policy</a>; full payment details are not
         sent through Deck. Stripe also receives the rig and owner identifiers described above so
@@ -503,9 +526,10 @@ function Privacy() {
 
       <h2>Where information is stored</h2>
       <p>
-        Server-held data lives in our service database and logs with our hosting provider. Cloud
+        Server-held data lives in our service database and logs with our hosting provider. Bug
+        reports are delivered to a private Discord channel used by the support team. Cloud
         music lives in our configured object storage and may be delivered from CDN edge locations.
-        Stripe and Discord may process account or payment information outside the UK. Where a
+        Stripe, Discord and Google may process relevant information outside the UK. Where a
         transfer is restricted by UK data protection law, we rely on the provider&rsquo;s applicable
         adequacy route or contractual safeguards. Cached audio stays on the device whose browser
         created it. Live audio necessarily passes through our server and Discord to reach the voice
@@ -514,7 +538,7 @@ function Privacy() {
 
       <h2>Cookies</h2>
       <p>
-        Session cookies only. After a successful sign-in we set{' '}
+        After a successful sign-in we set{' '}
         <code>rnl_dj_session</code>, a signed token holding your Discord ID, username, display
         name, avatar URL and whether you are an administrator. It expires after 7 days and is
         removed when you sign out. In production it is scoped to <code>ronation.live</code> so the
@@ -522,8 +546,12 @@ function Privacy() {
         also set during sign-in to protect the exchange, and is cleared as soon as sign-in completes.
       </p>
       <p>
-        No advertising, analytics or third-party tracking cookies are set. See the{' '}
-        <a href={`${SITE}/legal/cookies`}>Cookie Notice</a> for the site as a whole.
+        Optional Google Analytics storage is off by default. The Google tag is not requested and
+        no analytics data is sent unless you select <strong>Accept analytics</strong>. If accepted,
+        Google Analytics may set <code>_ga</code> and <code>_ga_&lt;measurement-id&gt;</code> first-party
+        cookies. You can change that choice from <strong>Cookie settings</strong> in any public-page
+        footer. See the <a href="/cookies">Deck Cookie Policy</a> and the{' '}
+        <a href={`${SITE}/legal/cookies`}>site Cookie Notice</a>.
       </p>
 
       <h2>How long we keep it</h2>
@@ -537,6 +565,14 @@ function Privacy() {
           and afterwards for the applicable tax, accounting, chargeback and legal-claims periods.
         </li>
         <li>Browser-held data remains until you or the browser clears it.</li>
+        <li>
+          Bug reports remain in the support channel while needed to investigate, communicate and
+          keep a proportionate record of the fix, then are deleted when no longer needed.
+        </li>
+        <li>
+          Analytics data follows the retention controls of our Google Analytics property; optional
+          analytics cookies can last up to 2 years unless you withdraw consent or clear them.
+        </li>
         <li>Server logs are kept briefly, then discarded.</li>
       </ul>
 
@@ -544,6 +580,9 @@ function Privacy() {
       <p>
         You can forget track metadata from the browser library; administrators can remove any
         entry. This never deletes the source file on the host device. Signing out clears your session.
+        You can reject analytics on the first banner or change your choice later from the footer;
+        withdrawing removes accessible Google Analytics cookies and prevents the tag loading on
+        later pages.
       </p>
       <p>
         You may ask for a copy of personal information we hold, ask us to correct it, object to its
@@ -567,7 +606,9 @@ function Privacy() {
         Sessions use signed, HTTP-only cookies. Access is rechecked against Discord membership and
         roles, sensitive portal routes require platform-administrator status, and bot tokens are
         encrypted before storage and never returned to the browser. No system is perfectly secure;
-        if you find a vulnerability, report it privately so we can investigate it.
+        if you find a vulnerability, report it privately so we can investigate it. Ordinary product
+        faults can be sent through the <a href="/home/help/report-a-bug">bug-report form</a>; do not
+        put passwords, tokens, private media links or payment details in it.
       </p>
 
       <h2>Changes</h2>
@@ -603,9 +644,9 @@ function Cookies() {
 
       <h2>The short version</h2>
       <p>
-        Deck pages set two cookies, both strictly necessary, and neither is used to track you.
-        There are no advertising cookies, no analytics cookies and no third-party trackers on Deck,
-        which is why you are not asked to accept a banner: there is nothing optional to accept.
+        Deck sets two strictly necessary sign-in cookies. Public pages can also use Google Analytics,
+        but only after you actively accept it in the cookie banner. Until then, the Google tag is not
+        loaded and analytics cookies are not set. Rejecting optional analytics does not limit the site.
         Stripe&rsquo;s separate checkout and billing-portal pages may set their own essential payment,
         fraud-prevention and security cookies when you choose to visit them.
       </p>
@@ -645,21 +686,42 @@ function Cookies() {
               </td>
               <td>10 minutes</td>
             </tr>
+            <tr>
+              <td className="doc-key">_ga</td>
+              <td>
+                Optional Google Analytics identifier used to distinguish visits to public marketing,
+                help, writing and policy pages. Set only after you accept analytics.
+              </td>
+              <td>Up to 2 years</td>
+            </tr>
+            <tr>
+              <td className="doc-key">_ga_&lt;measurement-id&gt;</td>
+              <td>
+                Optional Google Analytics property state used to maintain a visit. Set only after
+                you accept analytics.
+              </td>
+              <td>Up to 2 years</td>
+            </tr>
           </tbody>
         </table>
       </div>
       <p>
-        Both are <strong>first-party</strong> cookies, set by us and readable only by us. Both are{' '}
+        The first two are <strong>first-party</strong> cookies, set by us and readable only by us. Both are{' '}
         <code>HttpOnly</code>, so page scripts cannot read them; both are{' '}
         <code>SameSite=Lax</code>, so they are not sent from other sites; and both are marked{' '}
         <code>Secure</code> wherever the service is served over HTTPS. The session cookie is set on
         the parent domain so one sign-in also covers the portal.
       </p>
+      <p>
+        The <code>_ga</code> cookies are first-party cookies created by the Google tag for our GA4
+        property. They are not used for advertising by Deck, and the tag is configured without
+        Google Signals or ad personalisation. Analytics runs only on the public pages listed above;
+        it is excluded from consoles, account and request pages.
+      </p>
 
       <h2>Cookies we do not set</h2>
       <ul>
         <li>Advertising, retargeting or profiling cookies on Deck pages.</li>
-        <li>Analytics or audience-measurement cookies on Deck pages.</li>
         <li>Social media, embed or share-button cookies.</li>
         <li>Cookies designed to follow you across unrelated sites.</li>
       </ul>
@@ -670,6 +732,10 @@ function Cookies() {
         automatically the way a cookie is, and they stay on the device that created them.
       </p>
       <ul>
+        <li>
+          <strong>Local storage</strong> also remembers your analytics choice for 180 days so the
+          banner does not ask on every visit. It records only granted or denied and the choice time.
+        </li>
         <li>
           <strong>Local storage</strong> holds your console layout and your MIDI controller
           mappings, so the desk comes back the way you left it.
@@ -691,6 +757,11 @@ function Cookies() {
 
       <h2>Third parties</h2>
       <p>
+        If you accept analytics, the public pages load Google Analytics from Google. Google processes
+        the limited visit information described in the <a href="/privacy">Privacy Policy</a> as our
+        analytics provider. Declining means the tag is not requested at all.
+      </p>
+      <p>
         Signing in happens at Discord, on Discord's own pages, and Discord sets its own cookies
         there under <a href="https://discord.com/privacy">Discord's privacy policy</a> - we neither
         set nor read them. Cloud music is delivered through a content-delivery endpoint, which
@@ -707,16 +778,22 @@ function Cookies() {
       <h2>Managing cookies</h2>
       <p>
         Every major browser lets you view, block and delete cookies, and signing out removes the
-        session cookie directly. Because both of ours are strictly necessary, blocking them means
+        session cookie directly. Because the two sign-in cookies are strictly necessary, blocking them means
         sign-in cannot complete and the decks will not open - the public pages stay readable
         without them.
+      </p>
+      <p>
+        Use <strong>Cookie settings</strong> in the footer of a public page to accept, reject or
+        withdraw optional analytics. Reject and accept are offered with equal prominence. On
+        withdrawal, Deck disables analytics, removes accessible <code>_ga</code> cookies and keeps
+        the tag off on later page loads. You can also clear site data in your browser.
       </p>
 
       <h2>Changes</h2>
       <p>
-        If we add a cookie, this page changes before it is set, and the date at the top shows when
-        it last changed. If we ever add a cookie that is not strictly necessary, we will ask you
-        first.
+        This page changes before the way we use storage changes, and the date at the top shows when
+        it last changed. New optional purposes will not be enabled from an earlier consent without
+        giving you enough information to choose again.
       </p>
 
       <h2>Contact</h2>

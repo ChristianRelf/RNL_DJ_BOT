@@ -130,6 +130,14 @@ export const config = {
     monthlyPriceCents: Math.round(num('DECK_PLAN_PRICE_CENTS', 500)),
     storageBytes: Math.round(num('DECK_PLAN_STORAGE_GB', 2.5) * 1024 * 1024 * 1024),
   },
+  site: {
+    /** Public GA4 stream id. The browser receives this only after reading the
+     * consent choice; the tag itself is never loaded before opt-in. */
+    googleAnalyticsId: (process.env.GOOGLE_ANALYTICS_ID ?? '').trim().toUpperCase(),
+    /** Kept server-side. Public bug reports are relayed to this webhook after
+     * validation and rate limiting; the URL is never returned to the browser. */
+    bugReportWebhookUrl: (process.env.BUG_REPORT_WEBHOOK_URL ?? '').trim(),
+  },
   /**
    * External binaries the rig shells out to. None of them are on the realtime
    * path - ffmpeg decodes at upload time, yt-dlp only runs when someone pastes
@@ -194,6 +202,19 @@ if (config.access.platformAdminIds.length === 0) {
   if (config.billing.monthlyPriceCents < 1 || config.billing.storageBytes < 1) {
     throw new Error('Deck billing price and storage allowance must be positive.');
   }
+}
+
+if (config.site.googleAnalyticsId && !/^G-[A-Z0-9]+$/.test(config.site.googleAnalyticsId)) {
+  throw new Error('GOOGLE_ANALYTICS_ID must be a GA4 measurement ID such as G-ABC123DEF4.');
+}
+
+if (
+  config.site.bugReportWebhookUrl &&
+  !/^https:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/api\/(?:v\d{1,2}\/)?webhooks\/\d+\/[A-Za-z0-9._-]+$/.test(
+    config.site.bugReportWebhookUrl,
+  )
+) {
+  throw new Error('BUG_REPORT_WEBHOOK_URL must be a Discord webhook URL.');
 }
 
 // A scheme-less PUBLIC_URL still boots but breaks OAuth (Discord rejects a
