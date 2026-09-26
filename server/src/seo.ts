@@ -27,6 +27,11 @@ interface SeoMeta {
 }
 
 const ARTICLES: Record<string, ArticleMeta> = {
+  '/blog/welcome-to-deck': {
+    title: 'Welcome to Deck | Deck',
+    description: 'Deck is now open to everyone. Meet the browser-based DJ booth built for live sets in Discord and learn how to start your first rig.',
+    published: '2026-09-26',
+  },
   '/blog/what-happens-to-your-audio': {
     title: 'What Actually Happens to Your Audio | Deck',
     description: 'Follow a track from a laptop to a Discord voice channel in twenty-millisecond steps, including mixing, encoding and delivery.',

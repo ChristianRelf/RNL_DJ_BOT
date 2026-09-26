@@ -48,6 +48,104 @@ export interface Post {
 export const POSTS: Post[] = [
   /* ------------------------------------------------------------------ */
   {
+    slug: 'welcome-to-deck',
+    title: 'Welcome to Deck',
+    summary:
+      'Deck is now open to everyone. Here is what we built, who it is for, and how to put your first live set into a Discord voice channel.',
+    date: '2026-09-26',
+    author: 'RO. Nation LIVE',
+    tag: 'start',
+    minutes: 3,
+    body: (
+      <>
+        <p>
+          Today, Deck opens to the public. Anyone can sign in with Discord, connect a server they
+          manage and build a proper live DJ booth for their community. There is no invitation to
+          wait for, no bot token to paste into a form and no separate server to maintain.
+        </p>
+        <p>
+          If this is your first time here, welcome. Deck is a browser-based DJ console that sends
+          one live mix straight into a Discord voice channel. It is for communities that want a
+          person behind the music: choosing the next record, shaping the transition and responding
+          to the room while the set is happening.
+        </p>
+
+        <h2>A booth, not another play command</h2>
+        <p>
+          Music bots are good at queues. Deck starts where the queue stops. It gives the operator
+          two full decks, waveforms, cue points, loops, pitch control, a three-band isolator,
+          effects, sample pads and a configurable crossfader. The finished mix is encoded live and
+          played through the voice channel by the managed Deck bot.
+        </p>
+        <p>
+          Nothing needs to be installed on a DJ's computer. The console runs in the browser, but it
+          behaves like a shared room rather than a private tab: everyone watching sees the same
+          decks, queue, mixer and meters at the same time.
+        </p>
+
+        <h2>Made for the whole crew</h2>
+        <p>
+          A community night rarely belongs to one person. Several DJs can open the same console,
+          prepare the queue and follow the set, while one person holds control of the live mix.
+          Control requests and deliberate handovers keep two people from moving the same fader at
+          once. Discord membership and roles decide who can get behind the decks.
+        </p>
+        <p>
+          Listeners have a place too. A rig can open a request page for its server, so people can
+          search what is available or ask for something without being given access to the console.
+          Requests arrive with the room's context attached; the DJ still decides what belongs in
+          the set.
+        </p>
+
+        <h2>Your server, your library</h2>
+        <p>
+          Every rig has its own isolated music library. Deck Cloud makes that library available to
+          the authorised crew without folders, download links or somebody leaving a laptop online
+          for everyone else. Tracks can be searched, tagged, previewed privately and moved into the
+          live queue from any authorised browser.
+        </p>
+        <p>
+          The public plan is $5 USD per rig each month. That includes the hosted console, the
+          managed playback bot, integrations and 2.5 GB of private Deck Cloud storage. There is no
+          long contract, and a subscription can be cancelled from the setup page.
+        </p>
+
+        <h2>From sign-in to first track</h2>
+        <p>Starting a rig takes four steps:</p>
+        <ol>
+          <li>Sign in with the Discord account that manages the server.</li>
+          <li>Choose the server and let Discord add the Deck bot.</li>
+          <li>Choose which Discord roles may DJ or administer the rig.</li>
+          <li>Add music, pick a voice channel and take control of the decks.</li>
+        </ol>
+        <p>
+          Discord handles identity and the permission to add the bot. Deck never sees your Discord
+          password, and the setup flow does not ask you to find server IDs or manage hosting
+          credentials. The aim is to get the machinery out of the way before the first record.
+        </p>
+
+        <h2>Public does not mean finished</h2>
+        <p>
+          This release is the point at which Deck becomes something anybody can use, not the point
+          at which it stops changing. Real nights will find awkward edges that a quiet test never
+          could. We want to hear about those, along with the small irritations, missing explanations
+          and ideas that would make the next set easier to run.
+        </p>
+        <p>
+          The <a href="/home/help">help centre</a> covers the console from the first track to MIDI,
+          requests and integrations. If something is broken, the{' '}
+          <a href="/home/help/report-a-bug">bug-report form</a> can include the browser details we
+          need without including your music or account secrets.
+        </p>
+        <p>
+          If you have a server and a night in mind,{' '}
+          <a href="/api/auth/login?next=/onboard">start your Deck</a>. We are glad you are here.
+        </p>
+      </>
+    ),
+  },
+  /* ------------------------------------------------------------------ */
+  {
     slug: 'what-happens-to-your-audio',
     title: 'What actually happens to your audio',
     summary:
