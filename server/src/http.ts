@@ -758,6 +758,9 @@ export function createApp(): express.Express {
 
   const webDist = config.paths.webDist;
   if (fs.existsSync(webDist)) {
+    // The product page is the canonical public front door. Authentication has
+    // its own stable URL at /login, so adverts can safely point at the bare host.
+    app.get('/', (_req, res) => res.redirect(302, '/home'));
     app.use(
       express.static(webDist, {
         index: false,

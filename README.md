@@ -119,7 +119,7 @@ works through them from the tools page.
    docker compose up --build
    ```
 
-   Open <http://localhost:7403>, sign in with Discord, hit **Take control**, pick a
+   Open <http://localhost:7403/login>, sign in with Discord, hit **Take control**, pick a
    voice channel and **Go live**.
 
 Uploads, decoded audio and the track database live in the `dj-data` volume.
@@ -386,7 +386,8 @@ environment, and are addressed by slug:
 
 | URL | What |
 | --- | --- |
-| `/` | sign in, then straight through to your rig |
+| `/` | redirects to the public product page at `/home` |
+| `/login` | sign in, then straight through to your rig |
 | `/rigs` | the picker, when you DJ in more than one server |
 | `/g/<slug>/deck` | that server's console |
 | `/g/<slug>/tools` | its tools page |

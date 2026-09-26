@@ -48,8 +48,8 @@ export function SiteNav({ current }: { current?: string }) {
   return (
     <nav className={`site-nav ${lifted ? 'is-lifted' : ''} ${open ? 'is-open' : ''}`}>
       <div className="site-nav-inner">
-        {/* The mark goes to the product page, not to `/` - `/` is the sign-in
-            door, which is not where someone browsing wants to land. */}
+        {/* Keep the mark's destination explicit even though the bare host also
+            redirects here; this avoids an unnecessary round trip. */}
         <a href="/home" className="site-nav-brand" aria-label="deck">
           <img src="/deckLogo.png" alt="deck" />
         </a>

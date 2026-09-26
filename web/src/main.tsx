@@ -107,10 +107,16 @@ function page() {
       return <Onboard />;
     case '/overlay':
       return <BroadcastOverlay />;
-    // `/` and /login are both the front door; a live session goes on to a rig.
+    // Authentication keeps its own URL; the bare host is redirected to /home.
+    case '/login':
+      return <SignIn checkSession />;
     default:
       return <SignIn checkSession />;
   }
 }
 
-createRoot(container).render(<StrictMode>{page()}</StrictMode>);
+if (path === '') {
+  window.location.replace('/home');
+} else {
+  createRoot(container).render(<StrictMode>{page()}</StrictMode>);
+}
