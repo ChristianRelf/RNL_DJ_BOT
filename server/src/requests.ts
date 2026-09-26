@@ -40,7 +40,7 @@ const hits = new Map<string, { count: number; resetAt: number }>();
 /**
  * Fixed window, per person per rig, in memory.
  *
- * Not in the database on purpose: the same reasoning as the waitlist limiter -
+ * Not in the database on purpose: this is a short-lived abuse limiter -
  * a restart clearing it is correct, because the limit is there to keep one
  * person from filling the booth's list in a minute, not to hold anything
  * against them for the rest of the night.

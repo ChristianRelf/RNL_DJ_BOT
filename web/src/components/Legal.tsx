@@ -102,10 +102,10 @@ function Terms() {
 
       <h2>Who can use the decks</h2>
       <p>
-        Access is deliberately limited. You need a permitted Discord account, membership of the
-        associated server and any DJ role configured for that rig. Server administrators decide
-        their own roles; RO. Nation LIVE controls platform admission and the owner portal. Either
-        can change or withdraw the access they control.
+        Anyone who meets the eligibility requirements may sign in and set up a paid rig. To open an
+        existing rig, you still need membership of its Discord server and any DJ role configured by
+        its administrators. RO. Nation LIVE may suspend an account or rig for the reasons set out
+        below, and a server administrator may change or withdraw the roles they control.
       </p>
 
       <h2>The Deck plan</h2>
@@ -185,7 +185,7 @@ function Terms() {
       <p>
         Administrative access is a privilege, not a permanent entitlement. Use it only to run the
         rigs and communities you are responsible for. Do not inspect, copy, disclose or use member,
-        waitlist, bot or operational data for another purpose. Bot tokens are credentials: enter
+        account, bot or operational data for another purpose. Bot tokens are credentials: enter
         only tokens you are authorised to manage and never expose one to another person.
       </p>
 
@@ -221,10 +221,11 @@ function Terms() {
 
       <h2>Requests and information you submit</h2>
       <p>
-        A listener may submit a track request and an applicant may join the access waitlist. You
-        remain responsible for what you type. Do not submit unlawful, abusive, misleading or
-        malicious material, somebody else's private information, or anything you are not entitled
-        to send. We may reject or remove submissions that break these terms.
+        A listener may submit a track request, and a rig owner may submit names, role selections and
+        billing instructions during setup. You remain responsible for what you type. Do not submit
+        unlawful, abusive, misleading or malicious material, somebody else's private information,
+        or anything you are not entitled to send. We may reject or remove submissions that break
+        these terms.
       </p>
 
       <h2>How you must use it</h2>
@@ -374,8 +375,8 @@ function Privacy() {
           and administrator status.
         </li>
         <li>
-          Access records: the platform allowlist, who granted access and when, and access-waitlist
-          details you submit, including Discord handle, email, community, size and message.
+          Account and access records: whether an account is active or suspended, when it was
+          created, which rigs it owns or can administer, and the server roles used for access.
         </li>
         <li>
           Track metadata supplied by the hosting browser: title, duration, file size, tempo, tags
@@ -436,7 +437,7 @@ function Privacy() {
         <li>Authenticating you and checking platform, server and role-based access.</li>
         <li>Operating rigs, queues, requests, handovers and live Discord playback.</li>
         <li>Showing authorised users who is connected and what the rig is doing.</li>
-        <li>Running the waitlist, onboarding communities and administering playback bots.</li>
+        <li>Creating accounts, onboarding Discord servers and administering playback bots.</li>
         <li>
           Creating checkout and billing-portal sessions, matching Stripe events to a rig,
           confirming entitlement, handling cancellations or refunds, and enforcing the paid
@@ -452,8 +453,8 @@ function Privacy() {
       </p>
       <ul>
         <li>
-          <strong>Contract and steps before a contract:</strong> operating a rig you use, responding
-          to an access request, creating checkout, administering a subscription and supplying Deck.
+          <strong>Contract and steps before a contract:</strong> setting up a rig, creating checkout,
+          administering a subscription and supplying Deck.
         </li>
         <li>
           <strong>Legitimate interests:</strong> securing the service, preventing abuse, diagnosing
@@ -466,21 +467,21 @@ function Privacy() {
         </li>
       </ul>
       <p>
-        We do not use subscription or waitlist details for third-party advertising, and we do not
+        We do not use subscription or account details for third-party advertising, and we do not
         make decisions about you solely by automated means that produce legal or similarly
         significant effects.
       </p>
 
       <h2>Who can see it</h2>
       <p>
-        Anyone signed in can see the browser library catalogue and can see who is connected and
-        who holds control. They cannot download the host's source files.
+        Authorised users of a rig can see its browser library catalogue, who is connected and who
+        holds control. They cannot download the host's source files.
       </p>
       <p>
         Users of a rig can see its shared operational state, track catalogue, requests and connected
         operators. Guild administrators may manage that rig. Platform administrators can manage
-        every rig, the allowlist, waitlist and bot pool because they operate the service. Waitlist
-        details and bot controls are not exposed on ordinary rig pages.
+        every rig, account-access records and the bot pool because they operate the service. Account
+        administration and bot controls are not exposed on ordinary rig pages.
       </p>
       <p>
         Outside that, data goes to Discord (for authentication and to deliver the audio), Stripe
@@ -528,8 +529,7 @@ function Privacy() {
       <h2>How long we keep it</h2>
       <ul>
         <li>Sessions last up to 7 days or until you sign out.</li>
-        <li>Waitlist entries remain until reviewed, dismissed or deleted on request.</li>
-        <li>Allowlist records remain while access is granted or needed for administration.</li>
+        <li>Account and access records remain while the account, rig or administrative need exists.</li>
         <li>Rig state and track metadata remain until removed or the rig is deleted.</li>
         <li>Bot credentials remain until a platform administrator removes the bot.</li>
         <li>

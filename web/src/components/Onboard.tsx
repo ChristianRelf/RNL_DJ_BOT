@@ -111,7 +111,13 @@ export function Onboard() {
   useEffect(() => {
     api('/api/onboard/state')
       .then(setState)
-      .catch((err: Error) => setError(err.message));
+      .catch((err: Error) => {
+        if (err.message === 'Not signed in.') {
+          window.location.replace('/api/auth/login?next=/onboard');
+          return;
+        }
+        setError(err.message);
+      });
   }, []);
 
   if (error && !state) {
@@ -137,8 +143,8 @@ export function Onboard() {
           <section className="onboard-step">
             <h1 className="onboard-title">Your account is ready, but rig creation is off</h1>
             <p className="onboard-body">
-              A platform admin can enable rig creation for your account. If you are bringing a new
-              community to Deck, <a href="/home/access">send an access request</a>.
+              Rig creation has been disabled for this account. Contact{' '}
+              <a href="mailto:hello@ronation.live">hello@ronation.live</a> if you think this is a mistake.
             </p>
           </section>
         ) : slug ? (

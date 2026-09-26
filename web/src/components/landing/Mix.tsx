@@ -164,8 +164,8 @@ export function Mix({ children }: { children: ReactNode }) {
         <span className="transport-track">
           <span className="transport-fill" ref={fillRef} />
         </span>
-        <a className="transport-cta" href="/home/access">
-          Request access
+        <a className="transport-cta" href="/api/auth/login?next=/onboard">
+          Start now
         </a>
       </div>
     </LiveCue.Provider>

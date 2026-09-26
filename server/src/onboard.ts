@@ -41,7 +41,7 @@ function inviteUrl(state: string): string {
 
 function mayOnboard(user: SessionUser): boolean {
   if (isPlatformAdmin(user.id)) return true;
-  return platform.isAllowed(user.id)?.canOnboard === true;
+  return platform.isAllowed(user.id)?.status === 'active';
 }
 
 export function mountOnboarding(app: express.Express): void {
@@ -138,8 +138,9 @@ export function mountOnboarding(app: express.Express): void {
       adminRoleIds: [],
     });
 
-    log.info(`${session.displayName} created rig ${record.slug} for ${guildId}`);
-    void rigs.ensure(guildId);
+    // The record is enough for role selection and Stripe Checkout. The rig is
+    // deliberately not started until checkout succeeds and the wizard finishes.
+    log.info(`${session.displayName} created pending rig ${record.slug} for ${guildId}`);
 
     res.redirect(
       `/onboard?rig=${encodeURIComponent(record.slug)}${gateOk ? '' : '&gate=missing'}`,

@@ -15,7 +15,7 @@ const LINKS = [
   { href: '/home', label: 'Product' },
   { href: '/home/help', label: 'Help centre' },
   { href: '/blog', label: 'Writing' },
-  { href: '/home/access', label: 'Get access' },
+  { href: '/home/access', label: 'Start now' },
 ];
 
 export function SiteNav({ current }: { current?: string }) {
@@ -138,7 +138,7 @@ const FOOTER = [
     title: 'Product',
     links: [
       { href: '/home', label: 'Overview' },
-      { href: '/home/access', label: 'Get access' },
+      { href: '/home/access', label: 'Start now' },
       { href: '/login', label: 'Sign in' },
     ],
   },
@@ -173,7 +173,7 @@ export function SiteFooter() {
           <p>Two decks, a mixer and your crew - live in a Discord voice channel.</p>
           <div className="site-foot-cta">
             <a className="site-btn is-primary" href="/home/access">
-              Get access
+              Start now
             </a>
             <a className="site-btn" href="/login">
               Sign in

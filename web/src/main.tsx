@@ -81,8 +81,8 @@ function page() {
     // links handed out before the restructure still land somewhere sensible.
     case '/home':
       return <Home />;
-    // /license and /home/license are kept as aliases: they were handed out
-    // before access moved to a waitlist.
+    // /license and /home/license are kept as aliases from earlier versions of
+    // the purchase page.
     case '/home/access':
     case '/home/license':
     case '/license':

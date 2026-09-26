@@ -160,14 +160,12 @@ if (config.http.sessionSecret.length < 32) {
   throw new Error('SESSION_SECRET must be at least 32 characters long.');
 }
 
-// Signing in requires being on the allowlist, and only a platform admin can put
-// anybody on it. With nobody configured, an install is not merely limited - it
-// is sealed: no portal, no way to grant access, and no hint as to why. That is
-// worth refusing to start over, because the alternative is discovering it as a
-// login page that rejects everyone including you.
+// Platform admins run the owner portal and can suspend self-service accounts.
+// Without at least one configured id a hosted deployment has no operational
+// owner, so fail before opening a socket.
 if (config.access.platformAdminIds.length === 0) {
   throw new Error(
-    'PLATFORM_ADMIN_IDS is empty, so nobody could reach the portal or be let in. ' +
+    'PLATFORM_ADMIN_IDS is empty, so nobody could operate the owner portal. ' +
       'Set it to your Discord user id - enable Developer Mode in Discord, then ' +
       'right-click your own name and Copy User ID.',
   );

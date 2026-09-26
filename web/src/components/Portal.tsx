@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   AlertTriangle,
   Bot as BotIcon,
-  Check,
-  Copy,
   CreditCard,
   HardDrive,
   Loader2,
@@ -64,20 +62,9 @@ interface AllowEntry {
   addedAt: number;
 }
 
-interface WaitEntry {
-  id: string;
-  discord: string;
-  email: string;
-  community: string;
-  size: string;
-  note: string;
-  at: number;
-}
-
 interface Overview {
   guilds: PortalGuild[];
   allowlist: AllowEntry[];
-  waitlist: WaitEntry[];
   bots: Array<{ id: string; name: string; tag: string | null; fingerprint: string }>;
   health: { rigs: number; memoryMb: number; uptime: number };
 }
@@ -177,6 +164,7 @@ export function Portal() {
   const tracks = data.guilds.reduce((total, guild) => total + guild.tracks, 0);
   const subscriptions = data.guilds.filter((guild) => guild.billing.entitled).length;
   const cloudUsed = data.guilds.reduce((total, guild) => total + guild.cloud.usedBytes, 0);
+  const suspendedAccounts = data.allowlist.filter((account) => account.status === 'suspended').length;
 
   return (
     <div className="portal">
@@ -207,7 +195,7 @@ export function Portal() {
         <Summary label="On air" value={liveRigs} tone={liveRigs > 0 ? 'live' : undefined} detail={`${runningRigs} running`} />
         <Summary label="Rigs" value={data.guilds.length} detail={`${data.guilds.length - runningRigs} stopped`} />
         <Summary label="Known tracks" value={tracks} detail="across all rigs" />
-        <Summary label="Waiting" value={data.waitlist.length} tone={data.waitlist.length > 0 ? 'attention' : undefined} detail={`${data.allowlist.length} allowed`} />
+        <Summary label="Accounts" value={data.allowlist.length} detail={`${suspendedAccounts} suspended`} />
         <Summary label="Subscribers" value={subscriptions} detail={`${storage(cloudUsed)} stored`} />
       </section>
 
@@ -220,10 +208,7 @@ export function Portal() {
       </nav>
 
       <div className="portal-grid">
-        {section === 'overview' ? <>
-          <Rigs guilds={data.guilds} busy={busy} run={run} />
-          <Waitlist entries={data.waitlist} busy={busy} run={run} />
-        </> : null}
+        {section === 'overview' ? <Rigs guilds={data.guilds} busy={busy} run={run} /> : null}
         {section === 'accounts' ? <>
           <Allowlist entries={data.allowlist} busy={busy} run={run} />
           <PortalInvites guilds={data.guilds} />
@@ -512,53 +497,15 @@ function Allowlist({
   busy: string | null;
   run: (key: string, work: () => Promise<unknown>) => Promise<void>;
 }) {
-  const [discordId, setDiscordId] = useState('');
-  const [note, setNote] = useState('');
-
-  const add = () => {
-    const id = discordId.trim();
-    if (!id) return;
-    void run('allow', async () => {
-      await api('/api/portal/allow', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ discordId: id, note: note.trim() }),
-      });
-      setDiscordId('');
-      setNote('');
-    });
-  };
-
   return (
     <section className="portal-panel">
       <h2 className="portal-panel-title">
-        <UserPlus size={13} /> Who can sign in <span className="portal-count mono">{entries.length}</span>
+        <UserPlus size={13} /> Deck accounts <span className="portal-count mono">{entries.length}</span>
       </h2>
       <p className="portal-hint">
-        Control platform access separately from permission to create new rigs. Suspended accounts
-        keep their audit record but cannot start a new session.
+        Accounts appear automatically after a first Discord sign-in. Suspend an account to block
+        new sessions and rig creation without losing its audit record.
       </p>
-
-      <div className="portal-add">
-        <input
-          className="input mono"
-          placeholder="Discord user id"
-          value={discordId}
-          inputMode="numeric"
-          onChange={(e) => setDiscordId(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-        />
-        <input
-          className="input"
-          placeholder="note - who is this?"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-        />
-        <button type="button" className="btn btn-primary" onClick={add} disabled={busy !== null}>
-          Add
-        </button>
-      </div>
 
       {entries.length === 0 ? (
         <p className="panel-empty">Nobody yet.</p>
@@ -571,17 +518,6 @@ function Allowlist({
                 <span className="portal-allow-note">{entry.note || 'No account note'}</span>
                 <span className="mono portal-dim">Added {ago(entry.addedAt)}</span>
               </div>
-              <label className="portal-account-toggle">
-                <input
-                  type="checkbox"
-                  checked={entry.canOnboard}
-                  disabled={busy !== null || entry.status === 'suspended'}
-                  onChange={(event) => void run(`onboard:${entry.discordId}`, () => api(`/api/portal/allow/${entry.discordId}`, {
-                    method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ canOnboard: event.target.checked }),
-                  }))}
-                />
-                Can create rigs
-              </label>
               <button
                 type="button"
                 className={`btn btn-small${entry.status === 'active' ? ' btn-warning' : ''}`}
@@ -593,84 +529,6 @@ function Allowlist({
               >
                 {entry.status === 'active' ? 'Suspend' : 'Restore'}
               </button>
-              <button
-                type="button"
-                className="btn btn-small btn-danger"
-                title={`Remove ${entry.note || entry.discordId} from the allowlist`}
-                disabled={busy !== null}
-                onClick={() =>
-                  run(entry.discordId, () =>
-                    api(`/api/portal/allow/${entry.discordId}`, { method: 'DELETE' }),
-                  )
-                }
-              >
-                <Trash2 size={12} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------- waitlist */
-
-function Waitlist({
-  entries,
-  busy,
-  run,
-}: {
-  entries: WaitEntry[];
-  busy: string | null;
-  run: (key: string, work: () => Promise<unknown>) => Promise<void>;
-}) {
-  const [copied, setCopied] = useState<string | null>(null);
-
-  return (
-    <section className="portal-panel">
-      <h2 className="portal-panel-title">Asking for access <span className="portal-count mono">{entries.length}</span></h2>
-
-      {entries.length === 0 ? (
-        <p className="panel-empty">Nobody waiting.</p>
-      ) : (
-        <ul className="portal-list">
-          {entries.map((entry) => (
-            <li key={entry.id} className="portal-wait">
-              <div className="portal-wait-main">
-                <strong>{entry.community}</strong>
-                <span className="mono portal-dim">
-                  {entry.discord} · {entry.email} · {entry.size || 'size unsaid'}
-                </span>
-                {entry.note && <span className="portal-wait-note">{entry.note}</span>}
-              </div>
-              <div className="portal-wait-actions">
-                <button
-                  type="button"
-                  className="btn btn-small"
-                  title="Copy the Discord handle, to look their id up"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(entry.discord);
-                    setCopied(entry.id);
-                    setTimeout(() => setCopied(null), 1500);
-                  }}
-                >
-                  {copied === entry.id ? <Check size={12} /> : <Copy size={12} />}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-small btn-danger"
-                  title={`Dismiss access request from ${entry.community}`}
-                  disabled={busy !== null}
-                  onClick={() =>
-                    run(entry.id, () =>
-                      api(`/api/portal/waitlist/${entry.id}`, { method: 'DELETE' }),
-                    )
-                  }
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
             </li>
           ))}
         </ul>

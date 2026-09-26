@@ -5,6 +5,7 @@ import type { GuildRecord } from './store';
 import { attachCommandHandlers } from './discord/commands';
 import { verifyAuthAccess } from './discord/gate';
 import { createLogger } from './logger';
+import { hasCloudEntitlement } from './billing';
 
 const log = createLogger('rigs');
 
@@ -44,7 +45,9 @@ class RigManager {
 
   /** Brings up every active rig in the database. */
   async startAll(): Promise<void> {
-    const guilds = listGuilds().filter((g) => g.status === 'active');
+    const guilds = listGuilds().filter(
+      (guild) => guild.status === 'active' && hasCloudEntitlement(guild.id),
+    );
     if (guilds.length === 0) {
       log.info('no rigs configured yet - add one from the portal');
       return;
@@ -72,7 +75,7 @@ class RigManager {
     if (pending) return pending;
 
     const record = getGuild(guildId);
-    if (!record || record.status !== 'active') return null;
+    if (!record || record.status !== 'active' || !hasCloudEntitlement(guildId)) return null;
 
     const job = this.start(record).finally(() => this.starting.delete(guildId));
     this.starting.set(guildId, job);

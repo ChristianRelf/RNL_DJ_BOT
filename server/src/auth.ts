@@ -19,9 +19,9 @@ const ACCESS_CACHE_TTL_MS = 60_000;
 /**
  * What a session is for.
  *
- * `dj` is the ordinary session: the allowlist let them in, and every rig they
- * open decides for itself whether they may drive it. `listener` is issued to
- * somebody who is *not* on the allowlist and arrived at a rig's request page -
+ * `dj` is the ordinary session: the account is active, and every rig they open
+ * decides for itself whether they may drive it. `listener` is issued to
+ * somebody who has not opened a full account and arrived at a rig's request page -
  * a member of the Discord server with no DJ role, who can ask for a track and
  * do nothing else. The two are told apart in the token rather than by what is
  * asked of them, so a listener cookie cannot be pointed at the console by
@@ -60,7 +60,8 @@ export function isPlatformAdmin(userId: string): boolean {
 }
 
 /**
- * May sign in at all, before any guild has an opinion.
+ * May sign in at all, before any guild has an opinion. New accounts are added
+ * by the OAuth callback; this lookup preserves explicit operator suspensions.
  *
  * Platform admins are exempt: locking the operator out of their own install by
  * editing a table is not a state worth being able to reach.
@@ -84,7 +85,6 @@ export function authorizeUrl(state: string): string {
     // need to list somebody's servers, or to hold a token that could.
     scope: 'identify',
     state,
-    prompt: 'none',
   });
   return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
 }

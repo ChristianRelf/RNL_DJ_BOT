@@ -99,7 +99,7 @@ const PUBLIC_PAGES: Record<string, Pick<SeoMeta, 'title' | 'description'> & { st
             '@type': 'Offer',
             price: '5.00',
             priceCurrency: 'USD',
-            availability: 'https://schema.org/LimitedAvailability',
+            availability: 'https://schema.org/InStock',
             url: `${ORIGIN}/home/access`,
           },
           provider: { '@id': 'https://ronation.live/#organization' },
@@ -109,7 +109,7 @@ const PUBLIC_PAGES: Record<string, Pick<SeoMeta, 'title' | 'description'> & { st
   },
   '/home/access': {
     title: 'Get Deck for Your Discord Server',
-    description: 'Request access to Deck for $5 per rig each month, including managed setup and 2.5 GB of private Deck Cloud storage.',
+    description: 'Start Deck now for $5 per rig each month, including a managed Discord bot and 2.5 GB of private Deck Cloud storage.',
   },
   '/home/help': {
     title: 'Deck Help Centre',

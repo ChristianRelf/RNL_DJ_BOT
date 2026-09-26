@@ -53,8 +53,7 @@ export function RigPicker({ view = 'deck' }: { view?: 'deck' | 'tools' } = {}) {
 
         {rigs.length === 0 ? (
           <p className="panel-empty">
-            No rigs yet. If somebody has just given you access, ask them which server it was
-            for - or <a href="/onboard">set one up</a> if that is yours to do.
+            No rigs yet. <a href="/onboard">Connect a Discord server and start one now.</a>
           </p>
         ) : (
           <ul className="rigpicker-list">

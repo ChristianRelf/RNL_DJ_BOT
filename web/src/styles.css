@@ -5186,6 +5186,82 @@ kbd {
   }
 }
 
+/* --------------------------------------------------------- purchase plan */
+
+.access-plan {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.72fr) minmax(240px, 1fr) minmax(200px, 0.8fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 54px);
+  padding: clamp(28px, 4vw, 52px);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: linear-gradient(145deg, #202429, #171a1e);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.24);
+}
+
+.access-plan .market-price {
+  margin-top: 18px;
+}
+
+.access-plan-copy p {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.access-includes {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.access-includes li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.access-includes svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.access-plan-action {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  text-align: center;
+}
+
+.access-plan-action .site-btn {
+  width: 100%;
+}
+
+.access-plan-action > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--dim);
+  font: 10px/1.5 var(--mono);
+}
+
+@media (max-width: 820px) {
+  .access-plan {
+    grid-template-columns: 1fr;
+  }
+
+  .access-plan-action {
+    text-align: left;
+  }
+}
+
 /* ---------------------------------------------------------------- waitlist */
 
 .waitlist {

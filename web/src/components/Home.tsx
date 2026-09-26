@@ -108,8 +108,8 @@ export function Home() {
             </p>
 
             <div className="market-actions">
-              <a className="site-btn is-primary" href="/home/access">
-                Request access
+              <a className="site-btn is-primary" href="/api/auth/login?next=/onboard">
+                Start your Deck
                 <ArrowRight size={16} aria-hidden="true" />
               </a>
               <a className="site-btn" href="#console">See the console</a>
@@ -214,28 +214,28 @@ export function Home() {
         <section className="market-section market-steps">
           <div className="market-section-heading">
             <span className="site-eyebrow">From server to set</span>
-            <h2>We handle the setup. Your crew handles the music.</h2>
+            <h2>From Discord server to live booth in one setup.</h2>
           </div>
           <ol>
             <li>
               <span>01</span>
               <div>
-                <h3>Tell us about your server</h3>
-                <p>Request access and share how your community, station or event will use Deck.</p>
+                <h3>Sign in and choose your server</h3>
+                <p>Use Discord&rsquo;s own server picker. There is no application or approval queue.</p>
               </div>
             </li>
             <li>
               <span>02</span>
               <div>
-                <h3>We connect the booth</h3>
-                <p>We add the playback bot and map access to the Discord roles you nominate.</p>
+                <h3>Subscribe securely</h3>
+                <p>Start the $5 monthly plan through Stripe to activate the hosted rig and cloud library.</p>
               </div>
             </li>
             <li>
               <span>03</span>
               <div>
-                <h3>Sign in and go live</h3>
-                <p>Your DJs open the console with Discord, build the library and join a voice channel.</p>
+                <h3>Set roles and go live</h3>
+                <p>Choose the DJ and takeover roles, open the console and join a voice channel.</p>
               </div>
             </li>
           </ol>
@@ -258,8 +258,8 @@ export function Home() {
                 'Guided setup and managed updates',
               ]}
             </TickList>
-            <a className="site-btn is-primary" href="/home/access">
-              Request access
+            <a className="site-btn is-primary" href="/api/auth/login?next=/onboard">
+              Start your Deck
               <ArrowRight size={16} aria-hidden="true" />
             </a>
           </div>
@@ -283,10 +283,10 @@ export function Home() {
         <section className="market-final">
           <span className="site-eyebrow">Ready when your server is</span>
           <h2>Turn your next Discord event into a live set.</h2>
-          <p>Tell us about the room. We’ll help you get the booth on air.</p>
+          <p>Connect your Discord server and open the booth today.</p>
           <div className="market-actions">
-            <a className="site-btn is-primary" href="/home/access">
-              Request access
+            <a className="site-btn is-primary" href="/api/auth/login?next=/onboard">
+              Start your Deck
               <ArrowRight size={16} aria-hidden="true" />
             </a>
             <a className="site-btn" href="/login">Sign in</a>

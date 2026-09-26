@@ -87,13 +87,13 @@ const ARTICLES: Article[] = [
     id: 'access',
     category: 'start',
     title: 'Getting access',
-    keywords: 'waitlist access invite join sign up bot server role permission',
+    keywords: 'access subscribe checkout invite join sign up bot server role permission',
     body: (
       <>
         <p>
-          deck is run for you - there is nothing to install and no server of yours it goes on.
-          Access opens in batches, so a room joins the <a href="/home/access">waitlist</a> and we
-          come back on Discord when a spot is ready.
+          Deck is run for you - there is nothing to install and no server of yours it goes on.
+          <a href="/home/access">Start setup</a>, sign in with Discord and choose the server you
+          are allowed to manage. There is no application or approval queue.
         </p>
         <p>
           The setup wizard then connects the bot, starts the $5 monthly plan with 2.5 GB of Deck

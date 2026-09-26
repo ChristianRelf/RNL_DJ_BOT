@@ -88,9 +88,9 @@ people sign in through. An owner can add bots by pasting a token and switch whic
 one is on air without a restart; tokens are encrypted at rest and never sent back
 to a browser.
 
-**Waitlist** - access is granted in batches rather than self-served. `/home/access`
-takes requests (honeypot, per-address rate limit, no duplicates) and the owner
-works through them from the tools page.
+**Self-service signup and billing** - anyone can sign in with Discord, connect a
+server they manage and start the $5 monthly plan. Stripe gates activation; server
+membership and configured Discord roles still gate each rig.
 
 **Slash commands** - `/dj panel`, `/dj now`, `/dj summon [channel]`, `/dj leave`.
 
@@ -394,9 +394,10 @@ environment, and are addressed by slug:
 | `/onboard` | setting a new one up |
 | `deckportal.ronation.live` | the owner portal |
 
-Signing in at all takes being on the allowlist, which is a list of Discord user
-ids a platform admin keeps in the portal. Being on it does not grant access to
-anything by itself - each server's own roles still decide who can DJ there.
+The first ordinary Discord sign-in creates an active self-service account. A
+platform admin can still suspend an account from the portal. Signing in does not
+grant access to an existing rig by itself - each server's membership and roles
+still decide who can DJ there.
 
 Setting a rig up is two steps. **Add deck to your server** hands you to
 Discord's own bot-authorisation dialog, and Discord tells the server which guild
@@ -455,7 +456,7 @@ web/src
   lib/layout.ts  the console grid: cells, collision, presets, storage
   lib/midi.ts    Web MIDI access, mapping targets, stored bindings
   components/    deck · mixer · fx · midi · pads · pool · queue · crew · grid
-                 site: home · access (waitlist) · help centre · legal
+                 site: home · purchase · help centre · legal
 ```
 
 ## The console

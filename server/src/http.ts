@@ -51,43 +51,13 @@ const log = createLogger('http');
 
 
 /**
- * The pages somebody who is not on the allowlist is allowed to be sent to after
- * signing in. Kept as one pattern rather than checked in two places, because it
- * is the line between a listener session and a DJ one.
+ * The request pages can issue a deliberately narrow listener session without
+ * creating a full Deck account. Every other successful first sign-in creates a
+ * self-service account that can proceed to onboarding and checkout.
  */
 const REQUEST_PATH = /^\/(?:g\/)?[a-z0-9-]+\/request$|^\/request$/;
 const INVITE_PATH = /^\/invite\/([A-Za-z0-9_-]{20,80})$/;
 
-/** The most people who can be waiting at once, as a backstop against a flood. */
-const WAITLIST_LIMIT = 5000;
-/**
- * Attempts allowed from one address per hour. Counted against every request
- * rather than every stored entry, so it is set high enough that somebody
- * mistyping their address a few times never meets it - the honeypot and the
- * duplicate check are what actually stop a script.
- */
-const WAITLIST_PER_HOUR = 12;
-
-const waitlistHits = new Map<string, { count: number; resetAt: number }>();
-
-/**
- * A plain fixed-window limiter. In memory rather than in the database because
- * a restart clearing it is the right behaviour - the limit exists to stop a
- * script, not to punish anyone across days.
- */
-function withinRate(address: string): boolean {
-  const now = Date.now();
-  const hit = waitlistHits.get(address);
-  if (!hit || now > hit.resetAt) {
-    // Sweeping here keeps the map from growing without a timer to prune it.
-    for (const [key, value] of waitlistHits) if (now > value.resetAt) waitlistHits.delete(key);
-    waitlistHits.set(address, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true;
-  }
-  if (hit.count >= WAITLIST_PER_HOUR) return false;
-  hit.count++;
-  return true;
-}
 
 /**
  * Bot failures are mostly the operator's to fix - a bad token, a bot that has
@@ -209,27 +179,42 @@ export function createApp(): express.Express {
         return res.redirect(guild ? `/g/${guild.slug}/deck` : '/rigs');
       }
 
-      // The allowlist is the whole of the gate at this point. Which rigs they
-      // can reach is a question for each rig, asked when they open one.
+      // A request-page visitor needs only a narrow listener session and does
+      // not need a Deck account. Everywhere else is self-service: the first
+      // successful Discord sign-in creates an active account with onboarding
+      // enabled. An explicit suspension is never overwritten by signing in.
       if (!maySignIn(profile.id)) {
-        // Except for the request page, which is for the room rather than for
-        // the booth: anybody in the Discord server may ask for a track. They
-        // get a listener session, which every other route in the server refuses
-        // - the rig then checks they are actually in that guild.
-        if (next && REQUEST_PATH.test(next)) {
+        const account = platform.isAllowed(profile.id);
+        if (!account && next && REQUEST_PATH.test(next)) {
           issueSession(res, user, 'listener');
           log.info(`${user.displayName} signed in to ask for a track`);
           return res.redirect(next);
         }
+        if (account?.status === 'suspended') {
+          return res.redirect(
+            '/login?error=' + encodeURIComponent('This Deck account has been suspended.'),
+          );
+        }
+
+        platform.allow({
+          discordId: user.id,
+          note: 'Self-service signup',
+          canOnboard: true,
+          addedBy: user.id,
+        });
+        log.info(`${user.displayName} created a self-service Deck account`);
+      }
+
+      if (!maySignIn(profile.id)) {
         return res.redirect(
           '/login?error=' +
-            encodeURIComponent('That Discord account has not been given access to Deck yet.'),
+            encodeURIComponent('This Discord account cannot use Deck.'),
         );
       }
 
       issueSession(res, user);
       log.info(`${user.displayName} signed in`);
-      res.redirect(next ?? '/');
+      res.redirect(next ?? '/rigs');
     } catch (err) {
       log.warn('login failed:', (err as Error).message);
       res.redirect('/login?error=' + encodeURIComponent((err as Error).message));
@@ -282,49 +267,12 @@ export function createApp(): express.Express {
   mountOnboarding(app);
   mountRequests(app);
 
-  // --------------------------------------------------------- waitlist ---
-
-  /**
-   * Requests for access. The only endpoint here that anyone can reach without
-   * a Discord session, so it is also the only one that needs its own defences:
-   * a per-address rate limit, a field no human ever fills in, hard length caps
-   * and a ceiling on the list as a whole.
-   *
-   * What comes back is deliberately the same whether the entry was stored or
-   * quietly dropped - a form that reports "you are already on the list" is a
-   * way to ask whether an address is.
-   */
-  app.post('/api/waitlist', express.json({ limit: '32kb' }), (req, res) => {
-    const body = (req.body ?? {}) as Record<string, unknown>;
-    const text = (value: unknown, max: number) =>
-      typeof value === 'string' ? value.trim().slice(0, max) : '';
-
-    // A field hidden from people and irresistible to form-fillers.
-    if (text(body.website, 80)) return res.json({ ok: true });
-
-    if (!withinRate(req.ip ?? 'unknown')) {
-      return res.status(429).json({ error: 'Too many requests - try again later.' });
-    }
-
-    const entry = {
-      discord: text(body.discord, 60),
-      email: text(body.email, 160),
-      community: text(body.community, 120),
-      size: text(body.size, 40),
-      note: text(body.note, 600),
-    };
-
-    if (!entry.discord) return res.status(400).json({ error: 'Add your Discord handle.' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(entry.email)) {
-      return res.status(400).json({ error: 'That email address does not look right.' });
-    }
-    if (!entry.community) return res.status(400).json({ error: 'Tell us where it is for.' });
-
-    if (!platform.waitlistHas(entry.discord, entry.email) && platform.waitlistCount() < WAITLIST_LIMIT) {
-      platform.addWaitlist({ id: crypto.randomUUID(), ...entry, at: Date.now() });
-      log.info(`waitlist: ${entry.discord} (${entry.community})`);
-    }
-    res.json({ ok: true });
+  // Old clients should fail clearly instead of quietly creating a request that
+  // nobody needs to approve now that Deck is available through self-service.
+  app.post('/api/waitlist', express.json({ limit: '4kb' }), (_req, res) => {
+    res.status(410).json({
+      error: 'Deck is available now. Sign in with Discord to connect a server and subscribe.',
+    });
   });
 
   // ----------------------------------------------------------- portal ---
