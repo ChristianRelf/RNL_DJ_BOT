@@ -80,7 +80,12 @@ type RunnableWorkerRequest = CloudDownloadRequest extends infer Request
  * manifests and decoded PCM are all namespaced by guild so browser storage can
  * never make one tenant's library visible to another.
  */
-export function useLibrary(socket: Socket | null, guildId: string | null): LibraryClient {
+export function useLibrary(
+  socket: Socket | null,
+  guildId: string | null,
+  shouldHost: boolean,
+  controllerPresent: boolean,
+): LibraryClient {
   const [status, setStatus] = useState<FolderStatus>('none');
   const [folderName, setFolderName] = useState<string | null>(null);
   const [tracks, setTracks] = useState<ScannedTrack[]>([]);
@@ -93,6 +98,8 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
 
   const socketRef = useRef<Socket | null>(null);
   socketRef.current = socket;
+  const shouldHostRef = useRef(shouldHost);
+  shouldHostRef.current = shouldHost;
   const libraryRef = useRef<Library | null>(null);
   const handleRef = useRef<FileSystemDirectoryHandle | null>(null);
   const tracksRef = useRef<ScannedTrack[]>([]);
@@ -126,7 +133,7 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
       onTracks: (next) => {
         tracksRef.current = next;
         setTracks(next);
-        socketRef.current?.emit('host:tracks', { tracks: next });
+        if (shouldHostRef.current) socketRef.current?.emit('host:tracks', { tracks: next });
       },
       onPeaks: (trackId, peaks, frames, loudnessLufs, truePeakDb) => {
         socketRef.current?.emit('media:peaks', { trackId, peaks, frames, loudnessLufs, truePeakDb });
@@ -212,7 +219,7 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
       const mapped = await rememberTrackMappings(manifest, found);
       await refreshSnapshot(mapped);
 
-      if (socket?.connected) {
+      if (socket?.connected && shouldHostRef.current) {
         socket.emit('host:claim', { tracks: found }, (ack: { ok: boolean; error?: string }) => {
           if (!ack?.ok) setError(ack?.error ?? 'Could not start hosting.');
         });
@@ -264,13 +271,21 @@ export function useLibrary(socket: Socket | null, guildId: string | null): Libra
   useEffect(() => {
     if (!socket || status !== 'granted' || !handleRef.current) return;
     const offer = () => {
+      if (!shouldHostRef.current) return;
       if (tracksRef.current.length > 0) socket.emit('host:claim', { tracks: tracksRef.current });
       else void scanAndClaim();
     };
-    if (socket.connected) offer();
-    socket.on('connect', offer);
+    if (shouldHost) {
+      if (socket.connected) offer();
+      socket.on('connect', offer);
+    } else if (!controllerPresent && socket.connected) {
+      // With nobody in control there is no next host to claim in place. During
+      // a handoff the old host deliberately stays up until the new controller
+      // replaces it, avoiding a lost-host warning and a gap in audio requests.
+      socket.emit('host:release');
+    }
     return () => { socket.off('connect', offer); };
-  }, [scanAndClaim, socket, status]);
+  }, [controllerPresent, scanAndClaim, shouldHost, socket, status]);
 
   useEffect(() => {
     const library = libraryRef.current;

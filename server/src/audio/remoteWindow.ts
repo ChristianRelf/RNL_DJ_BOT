@@ -214,6 +214,25 @@ export class RemoteWindowReader implements WindowReader {
     this.want(fromFrame);
   }
 
+  /**
+   * The device answering this reader changed without the source changing.
+   *
+   * Requests already sent to the previous socket can no longer be accepted by
+   * HostSession. Rewind to the first unanswered span and refill through the new
+   * host, while preserving audio that is already safely in the ring.
+   */
+  hostChanged(): void {
+    if (this.closed || this.gone) return;
+    const firstUnanswered = this.sentAt.size > 0
+      ? Math.min(...this.sentAt.keys())
+      : this.nextRequest;
+    this.nextRequest = Math.min(this.nextRequest, firstUnanswered);
+    this.outstanding = 0;
+    this.sentAt.clear();
+    this.declinedUntil = 0;
+    this.want(this.playhead);
+  }
+
   dispose(): void {
     this.closed = true;
     this.count = 0;

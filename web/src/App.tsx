@@ -86,7 +86,18 @@ export default function App({
   }, [slug]);
 
   const dj = useDj(rig?.id ?? null);
-  const library = useLibrary(dj.socket, rig?.id ?? null);
+  const state = dj.state;
+  const me: SessionUser | null = dj.user;
+  const hasControl = Boolean(state && me && state.control.holderId === me.id);
+  // The controller's browser is also the playback host. Passing this into the
+  // library keeps the published Deck Cloud catalogue on the same device as the
+  // person currently driving the decks.
+  const library = useLibrary(
+    dj.socket,
+    rig?.id ?? null,
+    hasControl,
+    Boolean(state?.control.holderId),
+  );
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const throttled = useThrottledSend(dj.send);
   const api = rig ? apiBase(rig.id) : '';
@@ -175,9 +186,6 @@ export default function App({
       .catch(() => setSignedIn(false));
   }, []);
 
-  const state = dj.state;
-  const me: SessionUser | null = dj.user;
-  const hasControl = Boolean(state && me && state.control.holderId === me.id);
   const locked = !hasControl;
 
   // Keep the lock alive while the controller is actually driving the rig.

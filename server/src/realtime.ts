@@ -221,6 +221,20 @@ function wireHost(socket: Socket, rig: Rig, user: SessionUser): void {
       return;
     }
 
+    const controllerId = rig.control.holderId;
+    if (controllerId && controllerId !== user.id) {
+      respond({ ok: false, error: 'Only the DJ in control can host this rig.' });
+      return;
+    }
+
+    const currentHost = rig.host.snapshot();
+    // A control handoff is the one intentional exception to first-host-wins.
+    // HostSession performs the swap in place so active readers immediately send
+    // their next request to the new controller without a lost-host gap.
+    const replaceExisting = controllerId === user.id
+      && currentHost.hosted
+      && currentHost.userId !== user.id;
+
     const result = rig.host.claim({
       socketId: socket.id,
       userId: user.id,
@@ -229,7 +243,7 @@ function wireHost(socket: Socket, rig: Rig, user: SessionUser): void {
       // Bound to this socket, so a request can never be sent to a console that
       // has since been replaced as host.
       send: (need) => socket.emit('audio:need', need),
-    });
+    }, replaceExisting);
     if (result.ok) rig.syncLibrary(parsed.data.tracks);
     respond(result.ok ? { ok: true } : { ok: false, error: result.reason ?? 'Already hosted.' });
   });
@@ -239,6 +253,10 @@ function wireHost(socket: Socket, rig: Rig, user: SessionUser): void {
     const parsed = hostTracksSchema.safeParse(payload ?? {});
     if (!parsed.success) {
       respond({ ok: false, error: 'Bad track list.' });
+      return;
+    }
+    if (rig.control.holderId && !rig.control.has(user.id)) {
+      respond({ ok: false, error: 'Only the DJ in control can update the hosted library.' });
       return;
     }
     const ok = rig.host.update(socket.id, parsed.data.tracks);

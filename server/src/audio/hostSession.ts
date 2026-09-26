@@ -80,10 +80,9 @@ export class HostSession extends EventEmitter {
   /**
    * A console offers to serve this rig's audio.
    *
-   * An existing host is not displaced - whoever got there first keeps it, and
-   * the newcomer is told so. Taking the mix away from a device that is actively
-   * feeding it, because somebody else opened a browser tab, is not a thing that
-   * should be able to happen by accident.
+   * An existing host is not normally displaced - whoever got there first keeps
+   * it. The caller can explicitly allow replacement for a verified control
+   * handoff; that swaps the request target without dropping the live readers.
    */
   claim(params: {
     socketId: string;
@@ -91,9 +90,13 @@ export class HostSession extends EventEmitter {
     userName: string;
     tracks: HostTrack[];
     send: (need: AudioNeed) => void;
-  }): { ok: boolean; reason?: string } {
-    if (this.socketId && this.socketId !== params.socketId) {
-      return { ok: false, reason: `${this.userName ?? 'Another DJ'} is already hosting this rig.` };
+  }, replaceExisting = false): { ok: boolean; reason?: string } {
+    const replacing = Boolean(this.socketId && this.socketId !== params.socketId);
+    if (replacing) {
+      if (!replaceExisting) {
+        return { ok: false, reason: `${this.userName ?? 'Another DJ'} is already hosting this rig.` };
+      }
+      log.info(`${params.userName} took over hosting from ${this.userName ?? 'another DJ'}`);
     }
 
     const first = this.socketId === null;
@@ -104,6 +107,9 @@ export class HostSession extends EventEmitter {
 
     this.tracks.clear();
     for (const track of params.tracks) this.tracks.set(track.trackId, track);
+    if (replacing) {
+      for (const reader of this.readers.values()) reader.hostChanged();
+    }
 
     log.info(
       `${params.userName} is hosting ${params.tracks.length} track${params.tracks.length === 1 ? '' : 's'}`,
