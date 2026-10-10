@@ -347,12 +347,7 @@ export function mountBilling(app: express.Express): void {
         allow_promotion_codes: true,
         metadata: purchaseMetadata,
         subscription_data: { metadata: purchaseMetadata },
-        custom_text: {
-          submit: {
-            message:
-              'Recurring subscription: $5 USD per rig each month until cancelled. By confirming, you agree to the Deck Terms at deck.ronation.live/terms and ask us to begin the service immediately during any cancellation period.',
-          },
-        },
+        // Consent was captured in onboarding; Managed Payments rejects custom_text.
         success_url: `${config.http.publicUrl}/onboard?rig=${encodeURIComponent(managed.guild.slug)}&checkout=success`,
         cancel_url: `${config.http.publicUrl}/onboard?rig=${encodeURIComponent(managed.guild.slug)}&checkout=cancelled`,
       });

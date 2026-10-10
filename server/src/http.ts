@@ -38,12 +38,14 @@ import {
   expirePendingCloudMedia,
   getCloudMedia,
   listCloudMedia,
+  localCloudFile,
   playbackUrl,
   prepareUpload,
   reconcileCloudMedia,
   recordCloudCacheMetrics,
   removeCloudMedia,
   spacesEnabled,
+  writeLocalCloudUpload,
 } from './cloudMedia';
 import { billingSummary, getBillingAccount, mountBilling, mountBillingWebhook } from './billing';
 import { renderSeoShell, seoForPath } from './seo';
@@ -582,6 +584,34 @@ export function createApp(): express.Express {
     if (item.createdBy !== (req.user as SessionUser).id && !(req.user as SessionUser).isAdmin) return res.status(403).json({ error: 'That upload is not yours.' });
     try { res.json({ item: await confirmUpload(item) }); }
     catch (err) { res.status(400).json({ error: (err as Error).message }); }
+  });
+
+  guild.put('/cloud/:id/file', async (req, res) => {
+    const item = getCloudMedia((req.rig as Rig).guildId, req.params.id);
+    if (!item) return res.status(404).json({ error: 'No such cloud media.' });
+    if (item.createdBy !== (req.user as SessionUser).id && !(req.user as SessionUser).isAdmin) {
+      return res.status(403).json({ error: 'That upload is not yours.' });
+    }
+    if (!localCloudFile(item)) return res.status(404).end();
+    try {
+      await writeLocalCloudUpload(item, req);
+      res.status(204).end();
+    } catch (err) {
+      log.warn('local cloud upload failed:', (err as Error).message);
+      if (!res.headersSent) res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  guild.get('/cloud/:id/file', (req, res) => {
+    const item = getCloudMedia((req.rig as Rig).guildId, req.params.id);
+    if (!item || item.status !== 'ready') return res.status(404).end();
+    const file = localCloudFile(item);
+    if (!file) return res.status(404).end();
+    res.type(item.contentType);
+    res.setHeader('cache-control', 'private, no-store');
+    res.sendFile(file, (err) => {
+      if (err && !res.headersSent) res.status(404).end();
+    });
   });
 
   guild.get('/cloud/:id/url', async (req, res) => {

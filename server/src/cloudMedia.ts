@@ -1,4 +1,9 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import type { IncomingMessage } from 'node:http';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -37,9 +42,10 @@ export interface CloudCacheMetricDelta {
   originBytes?: number;
 }
 
-export const spacesEnabled = Boolean(config.spaces.bucket);
+const localCloudDir = (process.env.CLOUD_LOCAL_DIR ?? '').trim();
+export const spacesEnabled = Boolean(localCloudDir || config.spaces.bucket);
 
-const client = spacesEnabled ? new S3Client({
+const client = !localCloudDir && config.spaces.bucket ? new S3Client({
   endpoint: config.spaces.endpoint,
   region: config.spaces.region,
   forcePathStyle: false,
@@ -49,6 +55,44 @@ const client = spacesEnabled ? new S3Client({
   requestChecksumCalculation: 'WHEN_REQUIRED',
   credentials: { accessKeyId: config.spaces.accessKeyId, secretAccessKey: config.spaces.secretAccessKey },
 }) : null;
+
+function localPath(item: CloudMediaItem): string {
+  if (!localCloudDir || !/^rigs\/[0-9]+\/source\/[a-f0-9]{64}(?:\.[a-z0-9]{1,8})?$/.test(item.key)) {
+    throw new Error('Invalid local cloud object key.');
+  }
+  return path.join(localCloudDir, item.key);
+}
+
+export function localCloudFile(item: CloudMediaItem): string | null {
+  return localCloudDir ? localPath(item) : null;
+}
+
+export async function writeLocalCloudUpload(item: CloudMediaItem, input: IncomingMessage): Promise<void> {
+  if (!localCloudDir || item.status !== 'pending') throw new Error('That upload is not pending.');
+  const target = localPath(item);
+  await fs.promises.mkdir(path.dirname(target), { recursive: true });
+  const temporary = `${target}.${item.id}.upload`;
+  const digest = crypto.createHash('sha256');
+  let size = 0;
+  const verify = new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      size += chunk.length;
+      if (size > item.sizeBytes) return done(new Error('Upload exceeds the declared size.'));
+      digest.update(chunk);
+      done(null, chunk);
+    },
+  });
+  try {
+    await pipeline(input, verify, fs.createWriteStream(temporary, { flags: 'wx' }));
+    if (size !== item.sizeBytes || digest.digest('hex') !== item.sha256) {
+      throw new Error('The upload size or hash does not match the selected file.');
+    }
+    await fs.promises.rename(temporary, target);
+  } catch (err) {
+    await fs.promises.rm(temporary, { force: true }).catch(() => undefined);
+    throw err;
+  }
+}
 
 function row(item: any): CloudMediaItem {
   return { id: item.id, guildId: item.guild_id, key: item.object_key, name: item.name,
@@ -90,13 +134,17 @@ const PENDING_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Failed direct uploads must stop reserving quota even if the browser vanished. */
 export async function expirePendingCloudMedia(now = Date.now()): Promise<number> {
-  if (!client) return 0;
+  if (!spacesEnabled) return 0;
   const expired = db()
     .prepare("SELECT * FROM cloud_media WHERE status = 'pending' AND created_at < ?")
     .all(now - PENDING_TTL_MS) as any[];
   for (const raw of expired) {
     const item = row(raw);
-    await client.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key })).catch(() => undefined);
+    if (localCloudDir) {
+      await fs.promises.rm(localPath(item), { force: true }).catch(() => undefined);
+    } else {
+      await client!.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key })).catch(() => undefined);
+    }
     db().prepare("DELETE FROM cloud_media WHERE id = ? AND status = 'pending'").run(item.id);
   }
   return expired.length;
@@ -110,7 +158,7 @@ export async function prepareUpload(
   contentType: string,
   sha256: string,
 ) {
-  if (!client) throw new Error('Cloud library is not configured.');
+  if (!spacesEnabled) throw new Error('Cloud library is not configured.');
   if (!hasCloudEntitlement(guildId)) {
     const status = billingSummary(guildId).status;
     throw new Error(
@@ -163,6 +211,11 @@ export async function prepareUpload(
     throw err;
   }
   try {
+    if (localCloudDir) {
+      return { item: { id, guildId, key, name, sizeBytes, contentType, createdBy: userId, createdAt,
+        status: 'pending' as const, etag: null, sha256, verifiedAt: null, error: null },
+        uploadUrl: `/api/g/${encodeURIComponent(guildId)}/cloud/${id}/file`, headers: {}, deduplicated: false };
+    }
     const checksumSha256 = Buffer.from(sha256, 'hex').toString('base64');
     const cacheControl = config.spaces.publicCdn ? 'public, max-age=31536000, immutable' : 'private, no-store';
     const command = new PutObjectCommand({ Bucket: config.spaces.bucket, Key: key, ContentType: contentType,
@@ -170,7 +223,7 @@ export async function prepareUpload(
       CacheControl: cacheControl,
       ChecksumSHA256: checksumSha256,
       Metadata: { 'rig-id': guildId, 'media-id': id, 'content-sha256': sha256 } });
-    const uploadUrl = await getSignedUrl(client, command, {
+    const uploadUrl = await getSignedUrl(client!, command, {
       expiresIn: 15 * 60,
       // Keep upload metadata in signed request headers instead of duplicating
       // it between query parameters and headers. This also makes the intended
@@ -202,8 +255,10 @@ export async function prepareUpload(
 }
 
 export async function confirmUpload(item: CloudMediaItem): Promise<CloudMediaItem> {
-  if (!client) throw new Error('Cloud library is not configured.');
-  const result = await client.send(new HeadObjectCommand({ Bucket: config.spaces.bucket, Key: item.key }));
+  if (!spacesEnabled) throw new Error('Cloud library is not configured.');
+  const result = localCloudDir
+    ? { ContentLength: (await fs.promises.stat(localPath(item))).size, Metadata: { 'content-sha256': item.sha256 ?? '' }, ETag: item.sha256 ?? undefined }
+    : await client!.send(new HeadObjectCommand({ Bucket: config.spaces.bucket, Key: item.key }));
   if (result.ContentLength !== item.sizeBytes) throw new Error('The uploaded object size does not match the requested file.');
   if (item.sha256 && result.Metadata?.['content-sha256'] !== item.sha256) {
     throw new Error('The uploaded object hash metadata does not match the requested file.');
@@ -214,7 +269,8 @@ export async function confirmUpload(item: CloudMediaItem): Promise<CloudMediaIte
       .get(item.guildId, item.sha256, item.sizeBytes, item.id)
     : null;
   if (duplicate) {
-    await client.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key })).catch(() => undefined);
+    if (localCloudDir) await fs.promises.rm(localPath(item), { force: true }).catch(() => undefined);
+    else await client!.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key })).catch(() => undefined);
     db().prepare('DELETE FROM cloud_media WHERE id = ?').run(item.id);
     return row(duplicate);
   }
@@ -227,15 +283,17 @@ export async function confirmUpload(item: CloudMediaItem): Promise<CloudMediaIte
 }
 
 export async function playbackUrl(item: CloudMediaItem): Promise<string> {
-  if (!client) throw new Error('Cloud library is not configured.');
+  if (!spacesEnabled) throw new Error('Cloud library is not configured.');
   if (item.status !== 'ready') throw new Error('That upload is not complete.');
+  if (localCloudDir) return `/api/g/${encodeURIComponent(item.guildId)}/cloud/${item.id}/file`;
   if (config.spaces.publicCdn) return `${config.spaces.cdnUrl}/${item.key.split('/').map(encodeURIComponent).join('/')}`;
-  return getSignedUrl(client, new GetObjectCommand({ Bucket: config.spaces.bucket, Key: item.key }), { expiresIn: 10 * 60 });
+  return getSignedUrl(client!, new GetObjectCommand({ Bucket: config.spaces.bucket, Key: item.key }), { expiresIn: 10 * 60 });
 }
 
 export async function removeCloudMedia(item: CloudMediaItem): Promise<void> {
-  if (!client) throw new Error('Cloud library is not configured.');
-  await client.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key }));
+  if (!spacesEnabled) throw new Error('Cloud library is not configured.');
+  if (localCloudDir) await fs.promises.rm(localPath(item), { force: true });
+  else await client!.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key }));
   db().prepare('DELETE FROM cloud_media WHERE id = ?').run(item.id);
 }
 
@@ -291,7 +349,7 @@ export interface CloudReconcileReport {
 
 /** Lists first and mutates only when apply=true, so repair always has a dry run. */
 export async function reconcileCloudMedia(apply = false): Promise<CloudReconcileReport> {
-  if (!client) throw new Error('Cloud library is not configured.');
+  if (!spacesEnabled) throw new Error('Cloud library is not configured.');
   const allRows = (db().prepare('SELECT * FROM cloud_media').all() as any[]).map(row);
   const now = Date.now();
   const expiredPending = allRows
@@ -299,18 +357,32 @@ export async function reconcileCloudMedia(apply = false): Promise<CloudReconcile
     .map((item) => item.id);
 
   const objects = new Map<string, { size: number; etag: string | null }>();
-  let continuationToken: string | undefined;
-  do {
-    const page = await client.send(new ListObjectsV2Command({
-      Bucket: config.spaces.bucket,
-      Prefix: 'rigs/',
-      ContinuationToken: continuationToken,
-    }));
-    for (const object of page.Contents ?? []) {
-      if (object.Key) objects.set(object.Key, { size: object.Size ?? 0, etag: cleanEtag(object.ETag) });
-    }
-    continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
-  } while (continuationToken);
+  if (localCloudDir) {
+    const visit = async (directory: string): Promise<void> => {
+      for (const entry of await fs.promises.readdir(directory, { withFileTypes: true }).catch(() => [])) {
+        const file = path.join(directory, entry.name);
+        if (entry.isDirectory()) await visit(file);
+        else if (entry.isFile() && !entry.name.endsWith('.upload')) {
+          const key = path.relative(localCloudDir, file).split(path.sep).join('/');
+          objects.set(key, { size: (await fs.promises.stat(file)).size, etag: null });
+        }
+      }
+    };
+    await visit(localCloudDir);
+  } else {
+    let continuationToken: string | undefined;
+    do {
+      const page = await client!.send(new ListObjectsV2Command({
+        Bucket: config.spaces.bucket,
+        Prefix: 'rigs/',
+        ContinuationToken: continuationToken,
+      }));
+      for (const object of page.Contents ?? []) {
+        if (object.Key) objects.set(object.Key, { size: object.Size ?? 0, etag: cleanEtag(object.ETag) });
+      }
+      continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (continuationToken);
+  }
 
   const activeRows = allRows.filter((item) => !expiredPending.includes(item.id));
   const knownKeys = new Set(activeRows.map((item) => item.key));
@@ -327,10 +399,15 @@ export async function reconcileCloudMedia(apply = false): Promise<CloudReconcile
 
   if (apply) {
     for (const item of allRows.filter((entry) => expiredPending.includes(entry.id))) {
-      await client.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key })).catch(() => undefined);
+      if (localCloudDir) await fs.promises.rm(localPath(item), { force: true }).catch(() => undefined);
+      else await client!.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key })).catch(() => undefined);
     }
     for (const key of orphanObjects) {
-      await client.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: key }));
+      if (localCloudDir) {
+        if (/^rigs\/[0-9]+\/source\/[a-f0-9]{64}(?:\.[a-z0-9]{1,8})?$/.test(key)) {
+          await fs.promises.rm(path.join(localCloudDir, key), { force: true });
+        }
+      } else await client!.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: key }));
     }
     const removeIds = [...expiredPending, ...missingObjects];
     const remove = db().prepare('DELETE FROM cloud_media WHERE id = ?');

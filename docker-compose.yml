@@ -11,6 +11,7 @@ services:
     environment:
       # Inside the container these are fixed; everything else comes from .env
       DATA_DIR: /app/data
+      CLOUD_LOCAL_DIR: /app/cloud
       PORT: "7403"
     ports:
       # Bound to loopback: Caddy on the host is the only thing that should be
@@ -19,6 +20,7 @@ services:
       - "127.0.0.1:${PORT:-7403}:7403"
     volumes:
       - dj-data:/app/data
+      - /srv/ronation-live/deck-cloud:/app/cloud
     networks:
       # "default" keeps this stack's own network; "proxy" is the shared network
       # Caddy lives on, which is what lets it resolve rnl-dj-bot:7403.

@@ -9,12 +9,15 @@ set -u
 
 CONTAINER="${CONTAINER:-rnl-dj-bot}"
 NETWORK="${CADDY_NETWORK:-edge}"
+CADDY_CONTAINER="${CADDY_CONTAINER:-ro-nationlive-caddy-1}"
 PORT="${PORT:-7403}"
 PUBLIC="${PUBLIC:-https://deck.ronation.live}"
 PORTAL="${PORTAL:-https://deckportal.ronation.live}"
 
 pass=0
 fail=0
+body_file=$(mktemp)
+trap 'rm -f "$body_file"' EXIT
 
 ok() {
 	printf '  ok    %s\n' "$1"
@@ -39,10 +42,22 @@ else
 	exit 1
 fi
 
-# 2. Attached to the proxy network. This is the one that breaks on a recreate
-#    and produces a 502 with everything else looking healthy.
-if docker inspect -f '{{range $n, $c := .NetworkSettings.Networks}}{{$n}} {{end}}' "$CONTAINER" |
-	tr ' ' '\n' | grep -qx "$NETWORK"; then
+# 2. The app and Caddy must share a network. Its name varies by deployment.
+app_networks=$(docker inspect -f '{{range $n, $c := .NetworkSettings.Networks}}{{$n}} {{end}}' "$CONTAINER" 2>/dev/null)
+caddy_networks=$(docker inspect -f '{{range $n, $c := .NetworkSettings.Networks}}{{$n}} {{end}}' "$CADDY_CONTAINER" 2>/dev/null)
+if [ -n "$caddy_networks" ]; then
+	shared_network=
+	for network in $app_networks; do
+		case " $caddy_networks " in
+			*" $network "*) shared_network=$network; break ;;
+		esac
+	done
+	if [ -n "$shared_network" ]; then
+		ok "shares the '${shared_network}' network with ${CADDY_CONTAINER}"
+	else
+		bad "no network shared with ${CADDY_CONTAINER}" "attach both containers to the same Docker network"
+	fi
+elif [[ " $app_networks " == *" $NETWORK "* ]]; then
 	ok "attached to the '${NETWORK}' network"
 else
 	bad "not attached to '${NETWORK}' - Caddy cannot resolve it" \
@@ -50,34 +65,50 @@ else
 fi
 
 # 3. The app is actually serving on the host loopback binding.
-code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:${PORT}/api/health")
-if [ "$code" = "200" ]; then
+code=$(curl -s -o "$body_file" -w '%{http_code}' --max-time 5 "http://127.0.0.1:${PORT}/api/health")
+if [ "$code" = "200" ] && grep -q '"ok":true' "$body_file"; then
 	ok "responds on 127.0.0.1:${PORT}"
 else
-	bad "no healthy response on 127.0.0.1:${PORT} (got ${code})" "docker compose logs --tail 50 dj"
+	bad "no valid health response on 127.0.0.1:${PORT} (got ${code})" "docker compose logs --tail 50 dj"
 fi
 
 # 4. End to end through the reverse proxy.
-code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${PUBLIC}/api/health")
+code=$(curl -s -o "$body_file" -w '%{http_code}' --max-time 10 "${PUBLIC}/api/health")
 case "$code" in
 502) bad "${PUBLIC} returns 502" "proxy cannot reach the container - check step 2" ;;
-200) ok "reachable at ${PUBLIC}" ;;
+200) if grep -q '"ok":true' "$body_file"; then
+		ok "reachable at ${PUBLIC}"
+	else
+		bad "${PUBLIC} returns HTTP 200 without a valid health response" "check the proxy and Cloudflare routing"
+	fi ;;
 000) bad "${PUBLIC} did not respond" "DNS, TLS or Caddy itself - docker logs ro-nationlive-caddy-1" ;;
 *) bad "${PUBLIC} returned ${code}" ;;
 esac
 
-# 5. The portal is a second site block on the same backend, so it has its own
+# 5. A successful health request alone cannot prove the browser got its page.
+code=$(curl -s -o "$body_file" -w '%{http_code}' --max-time 10 "${PUBLIC}/home")
+if [ "$code" = "200" ] && grep -q '<div id="root"></div>' "$body_file"; then
+	ok "home page includes the app shell"
+else
+	bad "${PUBLIC}/home has no app shell (got ${code})" "check the proxy and Cloudflare routing"
+fi
+
+# 6. The portal is a second site block on the same backend, so it has its own
 #    certificate and its own way to be misconfigured. It answers with a redirect
 #    to /portal for anyone without a session, which is a fine sign of life.
-code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${PORTAL}/api/health")
+code=$(curl -s -o "$body_file" -w '%{http_code}' --max-time 10 "${PORTAL}/api/health")
 case "$code" in
-200) ok "portal reachable at ${PORTAL}" ;;
+200) if grep -q '"ok":true' "$body_file"; then
+		ok "portal reachable at ${PORTAL}"
+	else
+		bad "${PORTAL} returns HTTP 200 without a valid health response" "check the proxy and Cloudflare routing"
+	fi ;;
 000) bad "${PORTAL} did not respond" "DNS or TLS for the portal host - is the A record there?" ;;
 502) bad "${PORTAL} returns 502" "same backend as ${PUBLIC} - check step 2" ;;
 *) bad "${PORTAL} returned ${code}" ;;
 esac
 
-# 6. How many rigs came up. Zero when some are configured means every one of
+# 7. How many rigs came up. Zero when some are configured means every one of
 #    them failed to log in, which looks identical to a healthy empty install.
 rigs=$(curl -s --max-time 5 "http://127.0.0.1:${PORT}/api/health" |
 	grep -o '"rigs":[0-9]*' | cut -d: -f2)
@@ -89,3 +120,4 @@ fi
 
 echo "${pass} passed, ${fail} failed"
 [ "$fail" -eq 0 ] || exit 1
+exit 0

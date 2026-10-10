@@ -224,6 +224,12 @@ bind-mounts into the container - editing `/etc/caddy/Caddyfile` on the host has
 no effect, and the reload is `docker exec <caddy-container> caddy reload --config
 /etc/caddy/Caddyfile`.
 
+If Cloudflare Tunnel sends these hostnames to Caddy over HTTP, add
+[`deploy/Caddyfile.tunnel`](deploy/Caddyfile.tunnel) to that mounted Caddyfile.
+The direct-TLS [`deploy/Caddyfile`](deploy/Caddyfile) is for a Caddy origin that
+receives public HTTPS traffic itself. Both Deck hostnames need explicit routes;
+an unmatched hostname can return HTTP 200 with an empty body.
+
 ### Verifying a deploy
 
 ```bash
@@ -231,10 +237,16 @@ no effect, and the reload is `docker exec <caddy-container> caddy reload --confi
 ```
 
 Checks the container is running, is attached to the proxy network, answers on
-`127.0.0.1:7403`, and is reachable at the public URL - and names the fix for
-whichever step fails.
+`127.0.0.1:7403`, and returns valid health JSON and an app shell through the
+public URL. It rejects an empty HTTP 200 response.
 
 ### DigitalOcean Spaces and CDN
+
+The supplied Docker Compose file stores Deck Cloud files in
+`/srv/ronation-live/deck-cloud` on the host, mounted at `/app/cloud` in the
+container. `CLOUD_LOCAL_DIR=/app/cloud` makes uploads and downloads use Deck's
+authenticated API. Existing Spaces objects need a separate copy into that
+directory before they can be read from the local backend.
 
 Spaces is optional. When configured, Deck issues short-lived S3-compatible PUT
 URLs so browsers upload directly to the Space; media does not pass through or

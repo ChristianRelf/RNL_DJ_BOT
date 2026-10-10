@@ -1,0 +1,20 @@
+# Add these site blocks to the Caddyfile mounted by the Cloudflare Tunnel
+# origin. The tunnel sends both hostnames to Caddy over HTTP on port 80.
+http://deck.ronation.live, http://deckportal.ronation.live {
+	@cloudflare_http header_regexp CF-Visitor `"scheme":"http"`
+	redir @cloudflare_http https://{host}{uri} permanent
+
+	encode zstd gzip
+	request_body {
+		max_size 200MB
+	}
+	reverse_proxy rnl-dj-bot:7403 {
+		# The public request was HTTPS before the tunnel reached this origin.
+		header_up X-Forwarded-Proto https
+		flush_interval -1
+		transport http {
+			read_timeout 10m
+			write_timeout 10m
+		}
+	}
+}
