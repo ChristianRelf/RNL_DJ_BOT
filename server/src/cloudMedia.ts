@@ -17,6 +17,7 @@ import { config } from './config';
 import { db } from './db';
 import { billingEnabled, billingSummary, hasCloudEntitlement, storageLimitBytes } from './billing';
 import { createLogger } from './logger';
+import { decodeQueue, decodeToPcm } from './audio/transcode';
 
 const log = createLogger('cloud');
 
@@ -65,6 +66,38 @@ function localPath(item: CloudMediaItem): string {
 
 export function localCloudFile(item: CloudMediaItem): string | null {
   return localCloudDir ? localPath(item) : null;
+}
+
+export function localCloudPcmFile(item: CloudMediaItem): string | null {
+  return localCloudDir ? path.join(config.paths.pcmDir, `cloud-${item.id}.pcm`) : null;
+}
+
+const localDecodes = new Map<string, Promise<string>>();
+
+export function ensureLocalCloudDecoded(item: CloudMediaItem): Promise<string> {
+  const source = localCloudFile(item);
+  const target = localCloudPcmFile(item);
+  if (!source || !target) return Promise.reject(new Error('Local cloud storage is not configured.'));
+  const inFlight = localDecodes.get(item.id);
+  if (inFlight) return inFlight;
+  const job = decodeQueue.add(async () => {
+    const existing = await fs.promises.stat(target).catch(() => null);
+    if (existing && existing.size >= 4 && existing.size % 4 === 0) return target;
+    await fs.promises.mkdir(path.dirname(target), { recursive: true });
+    const temporary = `${target}.${crypto.randomUUID()}.tmp`;
+    try {
+      await decodeToPcm(source, temporary);
+      await fs.promises.rename(temporary, target);
+      log.info(`decoded local cloud item ${item.id}`);
+      return target;
+    } catch (err) {
+      await fs.promises.rm(temporary, { force: true }).catch(() => undefined);
+      throw err;
+    }
+  });
+  localDecodes.set(item.id, job);
+  void job.finally(() => localDecodes.delete(item.id)).catch(() => undefined);
+  return job;
 }
 
 export async function writeLocalCloudUpload(item: CloudMediaItem, input: IncomingMessage): Promise<void> {
@@ -269,11 +302,17 @@ export async function confirmUpload(item: CloudMediaItem): Promise<CloudMediaIte
       .get(item.guildId, item.sha256, item.sizeBytes, item.id)
     : null;
   if (duplicate) {
-    if (localCloudDir) await fs.promises.rm(localPath(item), { force: true }).catch(() => undefined);
-    else await client!.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key })).catch(() => undefined);
+    if (localCloudDir && row(duplicate).key !== item.key) {
+      await fs.promises.rm(localPath(item), { force: true }).catch(() => undefined);
+    }
+    else if (!localCloudDir && row(duplicate).key !== item.key) {
+      await client!.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key })).catch(() => undefined);
+    }
     db().prepare('DELETE FROM cloud_media WHERE id = ?').run(item.id);
     return row(duplicate);
   }
+
+  if (localCloudDir) await ensureLocalCloudDecoded(item);
 
   const etag = cleanEtag(result.ETag);
   const verifiedAt = Date.now();
@@ -292,7 +331,10 @@ export async function playbackUrl(item: CloudMediaItem): Promise<string> {
 
 export async function removeCloudMedia(item: CloudMediaItem): Promise<void> {
   if (!spacesEnabled) throw new Error('Cloud library is not configured.');
-  if (localCloudDir) await fs.promises.rm(localPath(item), { force: true });
+  if (localCloudDir) {
+    await fs.promises.rm(localPath(item), { force: true });
+    await fs.promises.rm(localCloudPcmFile(item)!, { force: true });
+  }
   else await client!.send(new DeleteObjectCommand({ Bucket: config.spaces.bucket, Key: item.key }));
   db().prepare('DELETE FROM cloud_media WHERE id = ?').run(item.id);
 }

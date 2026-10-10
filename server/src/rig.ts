@@ -36,6 +36,7 @@ import {
 import { analyseBeats } from './audio/beatgrid';
 import { OscSender } from './tools/osc';
 import { NowPlaying } from './tools/nowPlaying';
+import { getCloudMedia, localCloudPcmFile } from './cloudMedia';
 
 const log = createLogger('engine');
 
@@ -127,12 +128,14 @@ export class Rig extends EventEmitter {
     // by the time that runs out, the set is paused where it actually stopped
     // rather than left to run silently on through the rest of the track.
     this.host.on('lost', () => {
+      const remote = this.host.stats();
+      if (Object.keys(remote).length === 0) return;
       this.toast('warn', 'The device hosting this library dropped - playing from the buffer.');
       if (this.hostGrace) clearTimeout(this.hostGrace);
       this.hostGrace = setTimeout(() => {
         this.hostGrace = null;
         if (this.host.hosted) return;
-        const running = DECK_IDS.filter((id) => this.mixer.decks[id].playing);
+        const running = DECK_IDS.filter((id) => this.mixer.decks[id].playing && this.host.stats()[`deck:${id}`]);
         for (const id of running) this.mixer.decks[id].pause();
         if (running.length > 0) {
           this.toast('error', 'Nobody is hosting the library - playback paused.');
@@ -530,6 +533,11 @@ export class Rig extends EventEmitter {
     for (const item of this.store.listMedia()) {
       if (seen.has(item.id) || item.status === 'missing') continue;
       if (fs.existsSync(pcmPath(item.id))) continue;
+      if (item.cloudMediaId) {
+        const cloud = getCloudMedia(this.guildId, item.cloudMediaId);
+        const local = cloud && localCloudPcmFile(cloud);
+        if (local && fs.existsSync(local)) continue;
+      }
       item.status = 'missing';
       this.store.putMedia(item);
     }
@@ -551,6 +559,14 @@ export class Rig extends EventEmitter {
     if (fs.existsSync(legacy)) {
       this.host.drop(sourceKey);
       return new FileWindowReader(legacy);
+    }
+
+    const item = this.store.getMedia(mediaId);
+    const cloud = item?.cloudMediaId && getCloudMedia(this.guildId, item.cloudMediaId);
+    const local = cloud && localCloudPcmFile(cloud);
+    if (local && fs.existsSync(local)) {
+      this.host.drop(sourceKey);
+      return new FileWindowReader(local);
     }
 
     const reader = this.host.reader(sourceKey, mediaId);
